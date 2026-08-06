@@ -174,6 +174,17 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="max-w-[1180px] mx-auto px-6 pb-10">
+        <div className="rounded-[24px] border border-border bg-card p-6 sm:p-7 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="font-semibold" style={serif}>iOS build — unsigned IPA via GitHub Actions</div>
+            <p className="text-sm leading-6 text-muted-foreground mt-1 max-w-[62ch]">The native SwiftUI app is fully on-device (SwiftData, offline-first, no mandatory login). A macOS runner builds an unsigned IPA on every push — usable for sideloading with AltStore, Sideloadly, or TrollStore. No IPA is claimed as downloadable until the workflow succeeds; TestFlight is not claimed until a signed build is actually processed by Apple.</p>
+            <p className="text-xs font-mono text-muted-foreground mt-2">Workflow: <span className="font-medium">.github/workflows/ios.yml</span> · Artifact: <span className="font-medium">PackWise-unsigned-ipa</span> · Local: <span className="font-medium">ios/build.sh</span></p>
+          </div>
+          <a href="https://github.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-white text-sm font-medium hover:bg-secondary transition">View Actions &amp; Releases <ArrowRight className="size-4" /></a>
+        </div>
+      </section>
+
       <footer className="border-t border-border/70">
         <div className="max-w-[1180px] mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
           <span>PackWise — a private, on-device reinterpretation. Your trips and lists remain on your device.</span>

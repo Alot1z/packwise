@@ -1,0 +1,86 @@
+name: iOS — PackWise
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+jobs:
+  build-unsigned-ipa:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16*.app/Contents/Developer 2>/dev/null || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer; xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build (simulator, no signing)
+        working-directory: ios
+        run: |
+          xcodebuild build \
+            -project PackWise.xcodeproj \
+            -scheme PackWise \
+            -destination "generic/platform=iOS Simulator" \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | xcpretty || xcodebuild build -project PackWise.xcodeproj -scheme PackWise -destination "generic/platform=iOS Simulator" -configuration Release CODE_SIGNING_ALLOWED=NO
+
+      - name: Archive (unsigned IPA)
+        working-directory: ios
+        run: |
+          set -e
+          # Archive for generic iOS device without signing
+          xcodebuild archive \
+            -project PackWise.xcodeproj \
+            -scheme PackWise \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/PackWise.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            || echo "ARCHIVE_FAILED=true" >> $GITHUB_ENV
+
+          if [ -f build/PackWise.xcarchive/Products/Applications/PackWise.app/Info.plist ]; then
+            # Build unsigned IPA: zip the .app as Payload
+            mkdir -p build/Payload
+            cp -R build/PackWise.xcarchive/Products/Applications/PackWise.app build/Payload/
+            (cd build && zip -r PackWise-unsigned.ipa Payload > /dev/null)
+            echo "BUILT_UNSIGNED_IPA=1" >> $GITHUB_ENV
+          else
+            echo "No .app produced — skipping IPA packaging"
+          fi
+
+      - name: Upload unsigned IPA artifact
+        if: env.BUILT_UNSIGNED_IPA == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PackWise-unsigned-ipa
+          path: ios/build/PackWise-unsigned.ipa
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Summary
+        run: |
+          echo "### PackWise iOS build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$BUILT_UNSIGNED_IPA" = "1" ]; then
+            echo "✅ Unsigned IPA produced: \`PackWise-unsigned.ipa\` (sideload with AltStore / Sideloadly / TrollStore). Install requires trusting the sideloading tool, not App Store signing." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Archive did not produce a signed artifact. Check logs. For TestFlight/App Store you must add Apple signing (see ios/README.md)." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No IPA is published as a downloadable release until this workflow succeeds and the artifact is promoted to a GitHub Release." >> $GITHUB_STEP_SUMMARY
