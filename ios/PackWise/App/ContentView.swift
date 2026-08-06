@@ -5,7 +5,7 @@ struct ContentView: View {
     @Query private var prefs: [UserPreference]
     @State private var selection: Tab = .dashboard
 
-    enum Tab { case dashboard, trips, scanner, library, templates }
+    enum Tab { case dashboard, trips, scanner, library, templates, search }
 
     var body: some View {
         Group {
@@ -29,8 +29,12 @@ struct ContentView: View {
                         .tabItem { Label("Library", systemImage: "shippingbox") }
                         .tag(Tab.library)
 
+                    GlobalSearchView()
+                        .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                        .tag(Tab.search)
+
                     TemplatesRootView()
-                        .tabItem { Label("Templates", systemImage: "doc.on.doc") }
+                        .tabItem { Label("More", systemImage: "ellipsis.circle") }
                         .tag(Tab.templates)
                 }
             }
@@ -47,9 +51,14 @@ private struct TemplatesRootView: View {
     var body: some View {
         NavigationStack {
             List {
-                NavigationLink("Templates") { TemplateLibraryView() }
-                NavigationLink("Reminders") { RemindersView() }
-                NavigationLink("Settings") { SettingsView() }
+                Section("Plan") {
+                    NavigationLink("Templates") { TemplateLibraryView() }
+                    NavigationLink("Outfits — open a trip to plan") { Text("Open any trip → Outfits tab to create day-by-day outfits.").foregroundStyle(.secondary) }
+                }
+                Section("System") {
+                    NavigationLink("Reminders") { RemindersView() }
+                    NavigationLink("Settings") { SettingsView() }
+                }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("More")

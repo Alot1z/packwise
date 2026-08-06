@@ -12,6 +12,7 @@ final class Trip {
     var endDate: Date?
     var purpose: String?
     var activities: String?
+    var climateInfo: String?
     var notes: String?
     var tripCategory: String?
     var status: TripStatus
@@ -22,13 +23,14 @@ final class Trip {
     @Relationship(deleteRule: .cascade, inverse: \Outfit.trip) var outfits: [Outfit] = []
     @Relationship(deleteRule: .cascade, inverse: \Reminder.trip) var reminders: [Reminder] = []
 
-    init(title: String, destination: String, startDate: Date? = nil, endDate: Date? = nil, purpose: String? = nil, activities: String? = nil, notes: String? = nil, tripCategory: String? = nil, status: TripStatus = .planning) {
+    init(title: String, destination: String, startDate: Date? = nil, endDate: Date? = nil, purpose: String? = nil, activities: String? = nil, climateInfo: String? = nil, notes: String? = nil, tripCategory: String? = nil, status: TripStatus = .planning) {
         self.title = title
         self.destination = destination
         self.startDate = startDate
         self.endDate = endDate
         self.purpose = purpose
         self.activities = activities
+        self.climateInfo = climateInfo
         self.notes = notes
         self.tripCategory = tripCategory
         self.status = status
