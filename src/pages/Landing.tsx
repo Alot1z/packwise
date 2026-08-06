@@ -37,9 +37,10 @@ export default function Landing() {
             <a href="#changelog" className="px-3 py-1.5 rounded-full hover:bg-secondary transition">Changelog</a>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <a href="#install" className="hidden sm:inline-flex text-sm font-medium px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">Installation guide</a>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition">
-              <Github className="size-3.5" /> GitHub <ExternalLink className="size-3" />
+            <Link to="/setup" className="hidden sm:inline-flex text-sm font-medium px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition">Create repo &amp; build IPA</Link>
+            <a href="#install" className="hidden lg:inline-flex text-sm font-medium px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">Installation guide</a>
+            <a href="https://github.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">
+              <Github className="size-3.5" /> <span className="hidden sm:inline">GitHub</span> <ExternalLink className="size-3" />
             </a>
           </div>
         </div>
@@ -66,13 +67,14 @@ export default function Landing() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href="#install" className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
-                <Download className="size-4" /> Install the IPA
-              </a>
+              <Link to="/setup" className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
+                <Download className="size-4" /> Create repo &amp; build IPA
+              </Link>
               <a href="#build" className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-border bg-card text-sm font-medium hover:bg-secondary transition">
                 <Terminal className="size-4" /> Build from source
               </a>
             </div>
+            <div className="text-xs text-muted-foreground mt-2">Cannot build on this Linux preview — use GitHub&apos;s macOS runner. <Link to="/setup" className="underline underline-offset-4">Full setup guide →</Link></div>
 
             <div className="mt-5 flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5"><Shield className="size-3.5" /> Private by design</span>
@@ -213,7 +215,7 @@ export default function Landing() {
                 <li>Download artifact <span className="font-mono">PackWise-unsigned-ipa</span> → <span className="font-mono">PackWise-unsigned.ipa</span>.</li>
                 <li>No release is advertised as downloadable until this step succeeds.</li>
               </ol>
-              <a href="https://github.com" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium">Open Actions <ExternalLink className="size-3.5" /></a>
+              <Link to="/setup" className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium">Create repo &amp; build IPA <ArrowRight className="size-3.5" /></Link>
             </div>
             <div className="rounded-2xl border border-border bg-card p-5">
               <div className="font-semibold" style={serif}>Sideload (choose one)</div>
