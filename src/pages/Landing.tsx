@@ -86,7 +86,7 @@ export default function Landing() {
             <div className="mt-4 rounded-2xl border border-border bg-card p-4">
               <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Primary delivery target</div>
               <div className="mt-1 font-mono text-sm">PackWise-unsigned.ipa</div>
-              <div className="text-xs text-muted-foreground">Reproducible via GitHub Actions (macOS 15 + Xcode 16) or <span className="font-mono">ios/build.sh</span>. Sideload with AltStore / Sideloadly / TrollStore. No TestFlight or App Store claim until Apple signing is actually completed.</div>
+              <div className="text-xs text-muted-foreground">Reproducible via <Link to="/setup" className="underline underline-offset-4">GitHub Actions</Link>, <a href="https://about.gitea.com" target="_blank" rel="noreferrer" className="underline underline-offset-4">Gitea Actions</a>, <a href="https://github.com/nektos/act" target="_blank" rel="noreferrer" className="underline underline-offset-4">act</a> (self-hosted), or <span className="font-mono">ios/build.sh</span>. Same <span className="font-mono">PackWise-unsigned.ipa</span> on every host.</div>
             </div>
           </div>
 
@@ -246,9 +246,9 @@ export default function Landing() {
                 <div className="mt-2 text-muted-foreground"># Unsigned IPA</div>
                 <div>./ios/build.sh  # → ios/build/PackWise-unsigned.ipa</div>
               </div>
-              <div className="mt-3 flex gap-2">
-                <a href="https://github.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-full border border-border bg-white hover:bg-secondary transition"><Copy className="size-3" /> Copy commands</a>
-                <span className="text-xs text-muted-foreground py-1.5">CI: .github/workflows/ios.yml does the same on macOS.</span>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link to="/setup" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition">All hosts — GitHub / Gitea / act <ArrowRight className="size-3" /></Link>
+                <span className="text-xs text-muted-foreground py-1.5">Mirroring repos is easier than rewriting YAML.</span>
               </div>
             </div>
             <div className="rounded-2xl athena-stone p-5">

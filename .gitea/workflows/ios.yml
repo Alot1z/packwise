@@ -1,0 +1,62 @@
+name: iOS — PackWise (Gitea)
+
+on:
+  push:
+    branches: [main]
+    paths: ["ios/**", ".gitea/workflows/ios.yml", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    # Self-hosted: must be a macOS runner with Xcode. For Gitea, label your
+    # runner e.g. `macos` (see ios/README.md — Gitea section).
+    runs-on: macos
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: xcodebuild -version; sudo xcode-select -s /Applications/Xcode.app/Contents/Developer 2>/dev/null || true; xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Run tests (simulator, no signing)
+        working-directory: ios
+        run: |
+          xcodebuild test \
+            -project PackWise.xcodeproj \
+            -scheme PackWise \
+            -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | xcpretty || xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" CODE_SIGNING_ALLOWED=NO
+
+      - name: Archive — unsigned IPA
+        working-directory: ios
+        run: |
+          set -e
+          xcodebuild archive \
+            -project PackWise.xcodeproj \
+            -scheme PackWise \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/PackWise.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          rm -rf build/Payload build/PackWise-unsigned.ipa
+          mkdir -p build/Payload
+          cp -R build/PackWise.xcarchive/Products/Applications/PackWise.app build/Payload/
+          (cd build && zip -r PackWise-unsigned.ipa Payload >/dev/null)
+          ls -lh build/PackWise-unsigned.ipa
+
+      - name: Upload artifact (Gitea)
+        uses: actions/upload-artifact@v4
+        with:
+          name: PackWise-unsigned-ipa
+          path: ios/build/PackWise-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
