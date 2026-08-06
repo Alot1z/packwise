@@ -1,26 +1,17 @@
-import { motion } from "framer-motion";
-
+import { Link } from "react-router";
+const serif = { fontFamily: "Instrument Serif, Cormorant Garamond, serif" } as const;
 export default function NotFound() {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="min-h-screen flex flex-col"
-    >
-
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="max-w-5xl mx-auto relative px-4">
-          <div className="flex items-center justify-center min-h-[200px]">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-              <p className="text-lg text-gray-600">Page Not Found</p>
-            </div>
-          </div>
+    <div className="min-h-screen grid place-items-center bg-background px-6">
+      <div className="text-center max-w-md">
+        <div className="text-[13px] font-mono uppercase tracking-[0.16em] text-muted-foreground">PackWise</div>
+        <h1 className="text-[44px] leading-none mt-2" style={serif}>Page not found</h1>
+        <p className="text-sm leading-6 text-muted-foreground mt-3">The page you were looking for does not exist. Return to your private workspace or the overview.</p>
+        <div className="mt-6 flex justify-center gap-3">
+          <Link to="/dashboard" className="px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium">Open workspace</Link>
+          <Link to="/" className="px-5 py-2.5 rounded-full border border-border bg-card text-sm font-medium">Overview</Link>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
