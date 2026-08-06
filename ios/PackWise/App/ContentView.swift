@@ -2,25 +2,57 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Query(sort: \Trip.updatedAt, order: .reverse) private var trips: [Trip]
-    @State private var selectedTrip: Trip?
-    @State private var selection: Tab = .trips
+    @Query private var prefs: [UserPreference]
+    @State private var selection: Tab = .dashboard
 
-    enum Tab { case trips, templates, settings }
+    enum Tab { case dashboard, trips, scanner, library, templates }
 
     var body: some View {
-        TabView(selection: $selection) {
-            TripListView(selectedTrip: $selectedTrip)
-                .tabItem { Label("Trips", systemImage: "suitcase") }
-                .tag(Tab.trips)
+        Group {
+            if prefs.first?.hasCompletedOnboarding != true {
+                OnboardingView()
+            } else {
+                TabView(selection: $selection) {
+                    DashboardView()
+                        .tabItem { Label("Dashboard", systemImage: "rectangle.grid.2x2") }
+                        .tag(Tab.dashboard)
 
-            TemplateLibraryView()
-                .tabItem { Label("Templates", systemImage: "doc.on.doc") }
-                .tag(Tab.templates)
+                    TripsRootView()
+                        .tabItem { Label("Trips", systemImage: "suitcase") }
+                        .tag(Tab.trips)
 
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(Tab.settings)
+                    PhotoScannerView()
+                        .tabItem { Label("Scanner", systemImage: "viewfinder") }
+                        .tag(Tab.scanner)
+
+                    LibraryView()
+                        .tabItem { Label("Library", systemImage: "shippingbox") }
+                        .tag(Tab.library)
+
+                    TemplatesRootView()
+                        .tabItem { Label("Templates", systemImage: "doc.on.doc") }
+                        .tag(Tab.templates)
+                }
+            }
+        }
+    }
+}
+
+private struct TripsRootView: View {
+    @State private var selected: Trip?
+    var body: some View { TripListView(selectedTrip: $selected) }
+}
+
+private struct TemplatesRootView: View {
+    var body: some View {
+        NavigationStack {
+            List {
+                NavigationLink("Templates") { TemplateLibraryView() }
+                NavigationLink("Reminders") { RemindersView() }
+                NavigationLink("Settings") { SettingsView() }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("More")
         }
     }
 }

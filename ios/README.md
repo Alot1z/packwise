@@ -1,56 +1,61 @@
-# PackWise — iOS (SwiftUI, on-device, offline-first)
+# PackWise — Native iOS · On-Device · Open Source
 
-Native iOS app. All core data (trips, packing lists, items, outfits, templates, photos/notes, progress) is stored locally via **SwiftData**. No account, server, or paid API required. Works fully offline.
+Premium, privacy-first packing assistant. SwiftUI + SwiftData + Vision (on device). Offline-first, no mandatory login, no paid APIs.
+
+## Architecture
+
+- **MVVM + Services:** `Services/VisionService` (Vision image classification, confirm-before-add), `Services/NotificationService` (UserNotifications).
+- **Models (SwiftData):** `Trip`, `PackingItem`, `PersonalItem` (library, reusable), `Outfit`, `PackCategory`, `PackTemplate`/`TemplateItem`, `Reminder`, `UserPreference`. Single source of truth, migrations handled by SwiftData, backup-safe.
+- **Navigation (no dead screens):** Launch → Onboarding → Dashboard → Trips → Trip Detail → Packing List (search/sort/filter) → Item Detail (photo/notes/favorite) → Photo Scanner (Vision) → Outfit Planner → Library → Templates (5 starters + custom) → Reminders → Settings.
+- **Support:** Light/Dark, Dynamic Type, VoiceOver, iPhone + iPad, empty/loading/error states.
 
 ## Requirements
 
-- Xcode 16+, iOS 17+, Swift 5.9+
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
+Xcode 16+, iOS 17+, Swift 5.9, XcodeGen (`brew install xcodegen`).
 
-## Generate & build locally
+## Generate & run
 
 ```bash
 cd ios
 xcodegen generate
 open PackWise.xcodeproj
-
-# Build (simulator, no signing)
-xcodebuild build -project PackWise.xcodeproj -scheme PackWise -destination "generic/platform=iOS Simulator" -configuration Release CODE_SIGNING_ALLOWED=NO
+# or simulator build:
+xcodebuild build -project PackWise.xcodeproj -scheme PackWise -destination "generic/platform=iOS Simulator" -configuration Debug CODE_SIGNING_ALLOWED=NO
 ```
 
-## Unsigned IPA (sideloading) — no Apple Developer account
+## Tests
 
-The GitHub Actions workflow `.github/workflows/ios.yml` builds on `macos-15` and produces an **unsigned IPA**.
-
-- **Trigger:** push to `main` touching `ios/**`, or manual **Run workflow**.
-- **Artifact:** `PackWise-unsigned-ipa` → `PackWise-unsigned.ipa` (a zipped `Payload/PackWise.app`).
-- **Sideload:** install with [AltStore](https://altstore.io/), [Sideloadly](https://sideloadly.io/), or TrollStore (requires re-signing on device/PC). No App Store distribution.
-
-> The unsigned IPA is **not** App Store signed and cannot be installed directly without a sideloading tool.
-
-### Code path (no Mac required — CI does it)
-
-```
+```bash
+cd ios
 xcodegen generate
-xcodebuild archive -project PackWise.xcodeproj -scheme PackWise -destination "generic/platform=iOS" -archivePath build/PackWise.xcarchive CODE_SIGNING_ALLOWED=NO
-mkdir -p build/Payload && cp -R build/PackWise.xcarchive/Products/Applications/PackWise.app build/Payload
-(cd build && zip -r PackWise-unsigned.ipa Payload)
+xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" CODE_SIGNING_ALLOWED=NO
+# Suites: PackWiseTests (unit + model + persistence) + PackWiseUITests (launch + tabs)
 ```
 
-## TestFlight / App Store (requires Apple Developer Program)
+## Unsigned IPA (sideloading)
 
-This repo does **not** claim TestFlight availability. To publish:
+No Apple Developer account needed.
 
-1. In Xcode, set **Signing & Capabilities** → Team, bundle `com.packwise.app`, automatic signing.
-2. Create App record in App Store Connect.
-3. Archive: `Product → Archive`, then **Distribute → TestFlight**, or via `fastlane`/`xcodebuild -exportArchive` with a signed export options plist.
-4. Upload is processed by Apple before TestFlight becomes available — the app is **not** on TestFlight until Apple finishes processing and you submit for review.
+**CI (free, no Mac required):** Push to `main` → GitHub Actions `macos-15` runs tests, archives with `CODE_SIGNING_ALLOWED=NO`, zips `Payload/PackWise.app` → `PackWise-unsigned.ipa` artifact (`PackWise-unsigned-ipa`, 14 days). Manual: Actions → *iOS — PackWise* → Run workflow.
 
-## Free hosting alternative
+**Local:**
 
-For the **web** companion: deploy on any static host (Vercel, Netlify, Cloudflare Pages, or GitHub Pages) via `vite build` output in `dist/`. No proprietary backend required for the iOS app’s core.
+```bash
+./ios/build.sh
+# → ios/build/PackWise-unsigned.ipa
+```
+
+Sideload via **AltStore / Sideloadly / TrollStore** (re-sign on device/PC). Unsigned IPA cannot be installed directly.
+
+## Web companion
+
+Static Vite build (`vite build` → `dist/`) deployable to Vercel/Netlify/CF Pages/GitHub Pages. The iOS core has no cloud dependency.
 
 ## Honesty contract
 
-- Do not claim the IPA is downloadable until the workflow has succeeded and an artifact/Release exists.
-- Do not claim TestFlight availability until a signed build has been uploaded and processed by App Store Connect.
+- Do not claim an IPA is downloadable until a workflow has succeeded.
+- Do not claim TestFlight/App Store until a signed build has been uploaded and processed by Apple in App Store Connect.
+
+## License
+
+MIT — see `LICENSE`.
