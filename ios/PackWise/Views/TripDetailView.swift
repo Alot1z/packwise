@@ -36,7 +36,6 @@ struct TripDetailView: View {
         if essentialsOnly { list = list.filter(\.essential) }
         return list.sorted { $0.createdAt < $1.createdAt }
     }
-
     var grouped: [String: [PackingItem]] { Dictionary(grouping: filtered, by: \.category) }
 
     var body: some View {
@@ -45,7 +44,6 @@ struct TripDetailView: View {
             Picker("Section", selection: $tab) {
                 ForEach(Tab.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented).padding(.horizontal).padding(.vertical, 8)
-
             TabView(selection: $tab) {
                 itemsTab.tag(Tab.items)
                 outfitsTab.tag(Tab.outfits)
@@ -79,8 +77,26 @@ struct TripDetailView: View {
             if let s = trip.startDate, let e = trip.endDate {
                 Label("\(s.formatted(date: .abbreviated, time: .omitted)) — \(e.formatted(date: .abbreviated, time: .omitted))", systemImage: "calendar").font(.caption).foregroundStyle(.secondary)
             }
-            if let a = trip.activities, !a.isEmpty { Text(a).font(.caption).foregroundStyle(.secondary) }
+            if let a = trip.activities, !a.isEmpty { Label(a, systemImage: "figure.hiking").font(.caption).foregroundStyle(.secondary) }
+            if let c = trip.climateInfo, !c.isEmpty { Label(c, systemImage: "cloud.sun").font(.caption).foregroundStyle(.secondary) }
             if trip.essentialsMissing > 0 { Text("\(trip.essentialsMissing) essentials still unpacked").font(.caption2).foregroundStyle(.orange) }
+
+            // Local recommendations
+            let recs = RecommendationService.suggestions(for: trip)
+            if !recs.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Suggested — confirm to add").font(.caption2.bold())
+                    ForEach(recs.prefix(3)) { r in
+                        Button {
+                            let item = PackingItem(name: r.title, category: r.category, trip: trip)
+                            context.insert(item); trip.updatedAt = Date(); try? context.save()
+                        } label: {
+                            HStack { Text(r.title).font(.caption); Text(r.reason).font(.caption2).foregroundStyle(.secondary); Spacer(); Image(systemName: "plus.circle") }
+                        }
+                    }
+                }.padding(8).background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            }
+
             ProgressView(value: trip.progress).tint(trip.status == .ready ? .green : .accentColor)
             Text("\(trip.items.filter(\.packed).count) of \(trip.items.count) packed").font(.caption2).foregroundStyle(.secondary)
         }
@@ -98,7 +114,6 @@ struct TripDetailView: View {
                 Picker("Status", selection: $filterPacked) { ForEach(PackedFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
                 Toggle("Essentials only", isOn: $essentialsOnly)
             }
-
             Section("Add item") {
                 TextField("Item name", text: $newName)
                 Picker("Category", selection: $newCategory) { ForEach(builtInCategoryNames, id: \.self) { Text($0).tag($0) } }
@@ -111,7 +126,6 @@ struct TripDetailView: View {
                     newName = ""; newNotes = ""; newEssential = false; newQty = 1
                 }.disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-
             if grouped.isEmpty {
                 Section { Text("No items match. Adjust search or add a new item.").font(.caption).foregroundStyle(.secondary) }
             } else {
@@ -119,9 +133,7 @@ struct TripDetailView: View {
                     Section("\(cat) · \(grouped[cat]!.count)") {
                         ForEach(grouped[cat]!) { item in
                             NavigationLink(value: item) {
-                                ItemRowInline(item: item) {
-                                    item.packed.toggle(); trip.updatedAt = Date(); try? context.save()
-                                }
+                                ItemRowInline(item: item) { item.packed.toggle(); trip.updatedAt = Date(); try? context.save() }
                             }
                         }
                     }
@@ -174,9 +186,7 @@ struct TripDetailView: View {
 
     private var exportTab: some View {
         List {
-            Section("Local data") {
-                Text("All data is on device and portable via JSON export. No cloud required.").font(.caption).foregroundStyle(.secondary)
-            }
+            Section("Local data") { Text("All data is on device and portable via JSON export. No cloud required.").font(.caption).foregroundStyle(.secondary) }
             Section {
                 ShareLink(item: exportURL(), preview: SharePreview("PackWise — \(trip.title)")) { Label("Share file", systemImage: "square.and.arrow.up") }
                 Button { UIPasteboard.general.string = exportString() } label: { Label("Copy JSON", systemImage: "doc.on.doc") }
@@ -195,7 +205,7 @@ struct TripDetailView: View {
         return url
     }
     private func duplicate() {
-        let copy = Trip(title: trip.title + " (Copy)", destination: trip.destination, startDate: trip.startDate, endDate: trip.endDate, purpose: trip.purpose, activities: trip.activities, notes: trip.notes, tripCategory: trip.tripCategory, status: .planning)
+        let copy = Trip(title: trip.title + " (Copy)", destination: trip.destination, startDate: trip.startDate, endDate: trip.endDate, purpose: trip.purpose, activities: trip.activities, climateInfo: trip.climateInfo, notes: trip.notes, tripCategory: trip.tripCategory, status: .planning)
         context.insert(copy)
         for it in trip.items { context.insert(PackingItem(name: it.name, category: it.category, quantity: it.quantity, essential: it.essential, notes: it.notes, photoData: it.photoData, trip: copy)) }
         try? context.save()
@@ -234,9 +244,7 @@ private struct OutfitDetailView: View {
                     else { Text("Missing item").foregroundStyle(.secondary) }
                 }
             }
-            Section("Note") {
-                TextEditor(text: Binding(get: { outfit.note ?? "" }, set: { outfit.note = $0.isEmpty ? nil : $0 })).frame(minHeight: 60)
-            }
+            Section("Note") { TextEditor(text: Binding(get: { outfit.note ?? "" }, set: { outfit.note = $0.isEmpty ? nil : $0 })).frame(minHeight: 60) }
         }.navigationTitle("Outfit").navigationBarTitleDisplayMode(.inline)
     }
 }
