@@ -1,0 +1,49 @@
+name: Wiki — Sync
+
+on:
+  push:
+    branches: [main]
+    paths: ["wiki/**", ".github/workflows/wiki.yml", "README.md", "assets/**"]
+  workflow_dispatch:
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push wiki/ to Alot1z/packwise.wiki
+        run: |
+          set -e
+          if [ ! -d wiki ]; then echo "No wiki/ dir — nothing to sync"; exit 0; fi
+          echo "wiki/ contents:"; ls -lh wiki/
+          # Clone or init the wiki repo (it's a separate git repo: <repo>.wiki.git)
+          WIKI_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          rm -rf /tmp/wiki && git clone "$WIKI_URL" /tmp/wiki 2>&1 | head -n 20 || {
+            echo "Wiki repo not yet initialized — will push initial wiki"
+            mkdir -p /tmp/wiki
+            git -C /tmp/wiki init
+            git -C /tmp/wiki remote add origin "$WIKI_URL"
+          }
+          # Sync files — keep Home.md as entry, copy all wiki/*.md
+          rsync -av --delete wiki/ /tmp/wiki/ 2>&1 | head -n 60
+          # Ensure at least Home.md exists (GitHub Wiki needs it)
+          if [ ! -f /tmp/wiki/Home.md ]; then
+            cp wiki/Home.md /tmp/wiki/Home.md 2>/dev/null || echo "# PackWise Wiki" > /tmp/wiki/Home.md
+          fi
+          cd /tmp/wiki
+          git config user.name "packwise-bot"
+          git config user.email "bot@packwise.app"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Wiki already up to date — nothing to push"
+            exit 0
+          fi
+          git commit -m "Wiki sync from main @ ${GITHUB_SHA::7} — packwise-bot"
+          git push origin HEAD:master 2>&1 | head -n 40 || git push origin HEAD:main 2>&1 | head -n 40
+          echo "✓ Wiki synced to https://github.com/${GITHUB_REPOSITORY}/wiki"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
