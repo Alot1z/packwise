@@ -78,15 +78,18 @@ act -W .github/workflows/ios.yml -P macos-15=-self-hosted
 
 `upload-artifact` **wraps** uploads in an outer container zip for "Download artifact" — that's GitHub's design, not the PackWise build. Inside the artifact zip is `PackWise-unsigned.ipa` (the real `Payload/*.app` zip). On **Releases** you download the raw `.ipa` directly — that's why we now publish `dev` on every main push.
 
-### How the IPA is built (validated, device-first)
+### How the IPA is built (validated, device-first, self-healing)
 
-`xcodebuild archive` with `CODE_SIGNING_ALLOWED=NO` on Xcode 16 can exit 0 while emitting an app shell **without the main executable** — which sideloaders report as `Failed to map …/PackWise: Bad file descriptor` (the file is not there). So the pipeline no longer uses `archive`:
+Xcode 16 with `CODE_SIGNING_ALLOWED=NO` can exit 0 while emitting an app shell **without the main executable** (or with test bundles injected) — sideloaders report that as `Failed to map …/PackWise: Bad file descriptor` (the file is not there). We confirmed it by inspecting the old published `dev` IPA. `build.sh` therefore tries **three strategies in order** and validates every candidate:
 
-1. **Build** — `xcodebuild build -sdk iphoneos -destination "generic/platform=iOS" -derivedDataPath build/DerivedData` → `Release-iphoneos/PackWise.app` (a real **device arm64** binary, never a simulator build).
-2. **Validate the executable** — `Payload/PackWise.app/PackWise` must exist, be non-empty, be arm64 (`file`), carry the iOS device platform (`otool -l` → `LC_BUILD_VERSION platform 2`, not 7 = simulator); any `x86_64` slice is stripped via `lipo -thin arm64`.
-3. **Strip test injection** — `PlugIns/*.xctest`, `_CodeSignature`, and XCTest frameworks are removed from the staged bundle.
-4. **Package** — `ditto -c -k --sequesterRsrc --keepParent Payload PackWise-unsigned.ipa` (zip fallback on non-macOS).
-5. **Publish gate** — the `.ipa` MUST contain `Payload/PackWise.app/PackWise` + `Info.plist` and NO `.xctest` entries, or the workflow **fails** — nothing broken is ever released.
+1. **A · Build** — `xcodebuild build -sdk iphoneos -destination "generic/platform=iOS" -derivedDataPath build/DerivedData` → `Release-iphoneos/PackWise.app` (a real **device arm64** binary, never a simulator build).
+2. **B · Archive** — `xcodebuild archive -archivePath build/PackWise.xcarchive` → `Products/Applications/PackWise.app`.
+3. **C · Legacy build** — same `build` without `-destination` (classic product layout).
+
+Whichever wins, it is **validated**: `Payload/PackWise.app/PackWise` must exist, be non-empty, be arm64 (`file`), carry the iOS device platform (`otool -l` → `LC_BUILD_VERSION platform 2`, never 7 = simulator); any `x86_64` slice is stripped via `lipo -thin arm64`. Then:
+4. **Strip test injection** — `PlugIns/*.xctest`, `_CodeSignature`, `SC_Info`, and every XCTest/XC*/Testing framework or dylib are removed from the staged bundle.
+5. **Package** — `ditto -c -k --sequesterRsrc --keepParent Payload PackWise-unsigned.ipa` (zip fallback on non-macOS).
+6. **Publish gate** — the `.ipa` MUST pass `unzip -t`, contain `Payload/PackWise.app/PackWise` + `Info.plist`, and contain NO test/signing artifacts, or the build **fails loudly** — nothing broken is ever released. Diagnostics land in `build/diagnostics.txt` (uploaded by CI as `ios-build-diagnostics`).
 
 ```bash
 file ios/build/PackWise-unsigned.ipa

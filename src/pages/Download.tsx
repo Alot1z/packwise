@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Copy, Download, ExternalLink, Package, Zap, Terminal, Smartphone, AlertTriangle, BadgeCheck } from "lucide-react";
+import { Check, Copy, Download as DownloadIcon, ExternalLink, Package, Zap, Terminal, Smartphone, AlertTriangle, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import {
   SiteNav, SiteFooter, PageHeader, serif,
@@ -120,7 +120,7 @@ export default function Download() {
             <div>shasum -a 256 PackWise-unsigned.ipa    <span className="text-zinc-400"># → compare with .sha256 from the Release</span></div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium"><Download className="size-4" /> Download latest IPA</a>
+            <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium"><DownloadIcon className="size-4" /> Download latest IPA</a>
             <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-white text-sm font-medium">All Releases <ExternalLink className="size-3.5" /></a>
           </div>
         </div>

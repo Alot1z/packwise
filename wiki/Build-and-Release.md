@@ -51,17 +51,25 @@ xcodebuild test -project PackWise.xcodeproj -scheme PackWise \
 file ios/build/PackWise-unsigned.ipa && unzip -l ios/build/PackWise-unsigned.ipa | head
 ```
 
-## The "Archive did not produce an app bundle" fix
+## The "missing executable" fix — self-healing cascade
 
-On Xcode 16, `xcodebuild archive CODE_SIGNING_ALLOWED=NO` sometimes exits 0 with an empty `.xcarchive/Products/Applications/`. CI and `ios/build.sh` now:
+On Xcode 16, `CODE_SIGNING_ALLOWED=NO` can exit 0 while emitting an app bundle **without the main executable** (or with test bundles injected). We confirmed this by downloading the old `dev` build and inspecting it: it contained `PlugIns/PackWiseTests.xctest`, a dozen XCTest frameworks, and **no `Payload/PackWise.app/PackWise` binary at all** — that is literally the `Failed to map …/PackWise: Bad file descriptor` sideload failure.
 
-1. Try `xcodebuild archive -archivePath build/PackWise.xcarchive ... -skipPackagePluginValidation -skipMacroValidation`
-2. If `…/PackWise.app/Info.plist` missing → `xcodebuild build -destination generic/platform=iOS -derivedDataPath build/DerivedData …` + `find … -name PackWise.app`
-3. Whichever `.app` found → `Payload/` → `zip -r -y PackWise-unsigned.ipa` → `file` + `unzip -l` validation (must contain `Payload/PackWise.app/`) + `shasum`
+`ios/build.sh` (used by both CI workflows) is now self-healing — it tries, in order:
 
-Diagnostics (`find build -type d`, `ls -R build`, `cat build/archive.log`, `unzip -l`) always print. Tests are `continue-on-error` + `if: always()` on archive/upload/summary — the IPA still builds if tests flake.
+1. **A · `xcodebuild build -sdk iphoneos`** (device arm64, isolated `DerivedData`)
+2. **B · `xcodebuild archive`** (classic product path)
+3. **C · legacy build** (no `-destination`)
 
-Live failure that triggered this: [#31163718082](https://github.com/Alot1z/packwise/actions/runs/31163718082) and [#31164548645](https://github.com/Alot1z/packwise/actions/runs/31164548645) (artifact zip inside an `.ipa`).
+Each candidate `.app` must pass validation before it is used: the executable must exist, be non-empty, be arm64 Mach-O, and carry `LC_BUILD_VERSION platform 2` (never `7` = simulator — simulator binaries cannot sideload). The winning bundle is staged to `Payload/`, test injection is stripped (`PlugIns`, `_CodeSignature`, `*.xctest`, `XCTest`/`XCUnit`/`XCUIAutomation`/`XCTAutomationSupport`/`Testing.framework`, `libXCTest*`), and the final `.ipa` must pass a strict publish gate:
+
+- `unzip -t` integrity passes
+- contains `Payload/PackWise.app/PackWise` **and** `Info.plist`
+- contains **no** test/signing artifacts — otherwise the job fails loudly
+
+Full diagnostics (`tail build/build.log`, `find`, `ls`) are written to `ios/build/diagnostics.txt` and uploaded as the **`ios-build-diagnostics`** artifact on every run (`if: always()`) — so any future failure is publicly readable without sign-in, and the job summary shows the last 60 lines on failure.
+
+Live failures that triggered this: [#31163718082](https://github.com/Alot1z/packwise/actions/runs/31163718082) (tests blocked the old archive step), [#31164548645](https://github.com/Alot1z/packwise/actions/runs/31164548645) (artifact zip vs direct `.ipa`), and the 2026-08-07 `dev` build inspection (missing executable + test injection).
 
 ## Wiki sync
 

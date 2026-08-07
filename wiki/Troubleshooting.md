@@ -26,23 +26,29 @@ gh release download dev -R Alot1z/packwise -p "PackWise-unsigned.ipa"
 curl -L -o PackWise-unsigned.ipa https://github.com/Alot1z/packwise/releases/download/dev/PackWise-unsigned.ipa
 ```
 
-## "Archive did not produce an app bundle. No IPA artifact."
+## "Failed to map …/PackWise: Bad file descriptor" (sideload fails)
 
-**Seen on:** `macos-15` + Xcode 16 + `CODE_SIGNING_ALLOWED=NO` — archive exits 0 but creates no `.app`.
+**Root cause (confirmed by inspecting the published IPA):** the earlier `dev` build was packaged **without its main executable** — the bundle contained only `Info.plist`, `Assets.car`, `PkgInfo`, plus **injected test bundles** (`PlugIns/PackWiseTests.xctest`, `XCTest`/`XCUnit`/`XCUIAutomation`/`Testing` frameworks). The sideloader can't map a binary that isn't there.
 
-**Fix (already in repo):** Workflow now validates the IPA explicitly. Steps: archive → if no `.app` in xcarchive, fallback to `xcodebuild build -derivedDataPath build/DerivedData` → `zip -r -y PackWise-unsigned.ipa Payload` → `file` + `unzip -l` must show `Payload/PackWise.app/` or the job fails. Diagnostics (`find build -type d`, `ls -R build`, `cat archive.log`) always print.
+**Fix (already in repo):** `ios/build.sh` now tries **three strategies** (device build → archive → legacy build), validates that `Payload/PackWise.app/PackWise` exists, is non-empty, is arm64 Mach-O with `LC_BUILD_VERSION platform 2`, strips all test injection, and **refuses to publish** anything that fails. Download the latest [`dev`](https://github.com/Alot1z/packwise/releases/tag/dev) build (or run `./ios/build.sh` locally) and verify before sideloading:
 
 ```bash
-cat ios/build/archive.log | tail -n 120
-find ios/build -type d | head -n 60
-./ios/build.sh   # same fallback + validation locally
+unzip -l PackWise-unsigned.ipa | grep -E "Payload/PackWise.app/(PackWise|Info.plist)"  # both must appear
+unzip -l PackWise-unsigned.ipa | grep -iE "xctest|XCTest|XCUnit" || echo "clean ✓"
+shasum -a 256 PackWise-unsigned.ipa
 ```
 
-**CI logs that triggered fixes:** [#31163718082](https://github.com/Alot1z/packwise/actions/runs/31163718082) (tests blocked archive — now `continue-on-error` + `if: always()`) and [#31164548645](https://github.com/Alot1z/packwise/actions/runs/31164548645) (outer zip vs direct `.ipa` — now `dev` prerelease added).
+**Old failure logs:** [#31163718082](https://github.com/Alot1z/packwise/actions/runs/31163718082) (tests blocked the old archive step — now non-blocking) and [#31164548645](https://github.com/Alot1z/packwise/actions/runs/31164548645) (outer zip vs direct `.ipa` — now a `dev` prerelease ships the direct `.ipa`).
 
 ## "Run tests (simulator, no signing): failure" but IPA missing
 
-Before the fix, archive had no `if: always()` so test failure skipped the IPA entirely. Now it's non-blocking — the IPA still builds. Pull `main` if you see old behavior.
+Before the fix, archive had no `if: always()` so test failure skipped the IPA entirely. Now tests are non-blocking — the IPA still builds. Pull `main` if you see old behavior.
+
+## Build step failed (exit 1)? Where are the logs?
+
+- The **`ios-build-diagnostics` artifact** (uploaded on every run, kept 30 days) contains `build.log`, `tests.log`, `ci.log` and `diagnostics.txt` — no sign-in needed.
+- The run **Summary** shows the last 60 lines of `diagnostics.txt` on failure.
+- The most common cause on Xcode 16 is the no-signing quirk (missing executable / test injection) — the cascade + gate in `ios/build.sh` handles it; a genuinely failing build now prints exactly why.
 
 ## AltStore / Sideloadly: "Untrusted Developer" / install fails
 

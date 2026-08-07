@@ -14,6 +14,8 @@ settings:
     TARGETED_DEVICE_FAMILY: "1,2"
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
+    # Testability injects test bundles into Release products. Never ship that.
+    ENABLE_TESTABILITY: NO
 targets:
   PackWise:
     type: application
@@ -28,6 +30,8 @@ targets:
         PRODUCT_NAME: PackWise
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_NAME: AccentColor
+        # Real 1024px icon ships in the appiconset (programmatically generated).
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: NO
         SWIFT_VERSION: "5.9"
         CODE_SIGN_STYLE: Automatic
         # Device-first, arm64 only — matches the unsigned IPA pipeline and
