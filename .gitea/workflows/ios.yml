@@ -58,6 +58,45 @@ jobs:
         if: env.BUILT_UNSIGNED_IPA == '1'
         run: ./scripts/verify-ipa.sh ios/build/PackWise-unsigned.ipa
 
+      # Algorithm-friendly manifest — attached to every Gitea release so any
+      # AI / script can fetch ONE URL to find the newest build. Schema:
+      # packwise.releases/v1.
+      - name: Generate release manifest
+        if: env.BUILT_UNSIGNED_IPA == '1'
+        run: |
+          set -euo pipefail
+          mkdir -p _artifacts
+          case "${GITHUB_REF:-}" in
+            refs/tags/v*) TAG="${GITHUB_REF#refs/tags/}"; PREREL=0;;
+            refs/heads/main|*) TAG="dev"; PREREL=1;;
+          esac
+          PRIOR=""
+          if [ "$TAG" = "dev" ] && [ -n "${GITEA_API_URL:-}${GITEA_TOKEN:-}" ]; then
+            echo "→ fetching prior manifest (best effort)"
+            if curl -fsSL --retry 2 --max-time 20 \
+                 -o _artifacts/prior.json \
+                 "${GITEA_API_URL:-https://gitea.com/api/v1}/repos/${GITHUB_REPOSITORY}/releases/tags/dev/assets/PackWise-releases.json" 2>/dev/null; then
+              if python3 -c "import json,sys;json.load(open('_artifacts/prior.json'))" 2>/dev/null; then
+                PRIOR="--prior _artifacts/prior.json"
+                echo "   loaded prior ($(wc -c <_artifacts/prior.json) bytes)"
+              else
+                echo "   prior was not JSON — discarding"
+                rm -f _artifacts/prior.json
+              fi
+            else
+              echo "   no prior manifest (first publish)"
+              rm -f _artifacts/prior.json
+            fi
+          fi
+          ./scripts/release-manifest.sh \
+            --tag "$TAG" \
+            --ipa ios/build/PackWise-unsigned.ipa \
+            --output _artifacts/PackWise-releases.json \
+            --repo "${GITHUB_REPOSITORY}" \
+            $([ "$PREREL" = "1" ] && echo --prerelease) \
+            $PRIOR
+          python3 -c "import json;assert json.load(open('_artifacts/PackWise-releases.json'))['schema']=='packwise.releases/v1';print('manifest validated')"
+
       - name: Upload unsigned IPA (debug artifact)
         if: env.BUILT_UNSIGNED_IPA == '1'
         uses: actions/upload-artifact@v4
@@ -85,11 +124,19 @@ jobs:
             curl -s -X POST -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
               -d '{"tag_name":"dev","name":"dev — latest main build","prerelease":true,"target_commitish":"main"}' "$API/repos/${{ github.repository }}/releases" >/dev/null
           fi
-          curl -s -X POST -H "Authorization: token $GITEA_TOKEN" \
-            -F "attachment=@ios/build/PackWise-unsigned.ipa" \
-            -F "attachment=@ios/build/PackWise-unsigned.ipa.sha256" \
-            "$API/repos/${{ github.repository }}/releases/tags/dev/assets" >/dev/null || true
-          echo "Published to Gitea dev release."
+          if [ -f "_artifacts/PackWise-releases.json" ]; then
+            curl -s -X POST -H "Authorization: token $GITEA_TOKEN" \
+              -F "attachment=@ios/build/PackWise-unsigned.ipa" \
+              -F "attachment=@ios/build/PackWise-unsigned.ipa.sha256" \
+              -F "attachment=@_artifacts/PackWise-releases.json" \
+              "$API/repos/${{ github.repository }}/releases/tags/dev/assets" >/dev/null || true
+          else
+            curl -s -X POST -H "Authorization: token $GITEA_TOKEN" \
+              -F "attachment=@ios/build/PackWise-unsigned.ipa" \
+              -F "attachment=@ios/build/PackWise-unsigned.ipa.sha256" \
+              "$API/repos/${{ github.repository }}/releases/tags/dev/assets" >/dev/null || true
+          fi
+          echo "Published to Gitea dev release (with manifest if available)."
 
       # Diagnostics always uploaded — failures stay readable.
       - name: Upload build diagnostics (always)

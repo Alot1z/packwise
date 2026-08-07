@@ -6,13 +6,31 @@ on:
     paths: ["ios/**", ".github/workflows/ios.yml", ".gitea/workflows/ios.yml", "scripts/**"]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      xcode_version:
+        description: 'macOS / Xcode runner image'
+        type: choice
+        required: false
+        default: 'macos-15'
+        options: ['macos-14', 'macos-15']
+      skip_tests:
+        description: 'Skip simulator tests for a faster IPA-only build'
+        type: boolean
+        required: false
+        default: false
+      release_channel:
+        description: 'Which release channel to publish to (push events ignore this; dispatch defaults to dev)'
+        type: choice
+        required: false
+        default: 'auto'
+        options: ['auto', 'dev']
 
 permissions:
   contents: write
 
 jobs:
   build-and-test:
-    runs-on: macos-15
+    runs-on: ${{ inputs.xcode_version || 'macos-15' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
@@ -35,6 +53,7 @@ jobs:
       # ── Tests: informative, non-blocking. A flaky test must never block the IPA. ──
       - name: Run tests (simulator, no signing — non-blocking)
         id: tests
+        if: ${{ !inputs.skip_tests }}
         continue-on-error: true
         working-directory: ios
         run: |
@@ -72,6 +91,66 @@ jobs:
         if: env.BUILT_UNSIGNED_IPA == '1'
         run: ./scripts/verify-ipa.sh ios/build/PackWise-unsigned.ipa
 
+      # ── Algorithm-friendly release manifest — attached to every published
+      # release so any AI / script can fetch one JSON and find the newest
+      # stable build, the freshest dev prerelease, and recent release history
+      # with sha256s. Schema: packwise.releases/v1.
+      #
+      # Stable URLs (no GitHub API key required):
+      #   releases/latest/download/PackWise-releases.json
+      #   releases/dev/download/PackWise-releases.json
+      #   releases/vX.Y.Z/download/PackWise-releases.json
+      - name: Generate release manifest (${{ inputs.release_channel || 'auto' }})
+        if: env.BUILT_UNSIGNED_IPA == '1'
+        run: |
+          set -euo pipefail
+          mkdir -p _artifacts
+
+          # Decide tag + prerelease based on trigger + dispatch inputs.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.release_channel }}" = "dev" ]; then
+            TAG="dev"; PREREL=1
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="dev"; PREREL=1
+          else
+            case "${GITHUB_REF:-}" in
+              refs/tags/v*) TAG="${GITHUB_REF#refs/tags/}"; PREREL=0;;
+              refs/heads/main) TAG="dev"; PREREL=1;;
+              *) TAG="dev"; PREREL=1;;
+            esac
+          fi
+
+          PRIOR=""
+          # For dev prerelease, re-fetch the prior manifest so history accumulates.
+          if [ "$TAG" = "dev" ]; then
+            echo "→ fetching prior manifest from dev release"
+            if curl -fsSL --retry 2 --max-time 20 \
+                 -o _artifacts/prior.json \
+                 "https://github.com/${GITHUB_REPOSITORY}/releases/download/dev/PackWise-releases.json"; then
+              PRIOR="--prior _artifacts/prior.json"
+              echo "   loaded prior ($(wc -c <_artifacts/prior.json) bytes)"
+            else
+              echo "   no prior manifest (first publish or asset missing) — starting fresh"
+              rm -f _artifacts/prior.json
+            fi
+          fi
+
+          ./scripts/release-manifest.sh \
+            --tag "$TAG" \
+            --ipa ios/build/PackWise-unsigned.ipa \
+            --output _artifacts/PackWise-releases.json \
+            --repo "${GITHUB_REPOSITORY}" \
+            $([ "$PREREL" = "1" ] && echo --prerelease) \
+            $PRIOR
+
+          # Validate the produced JSON before publishing.
+          python3 -c "
+import json, sys
+m = json.load(open('_artifacts/PackWise-releases.json'))
+assert m['schema'] == 'packwise.releases/v1', 'schema mismatch'
+assert m['repository'] == '${GITHUB_REPOSITORY}', 'repo mismatch'
+print('manifest validated: latest=', m.get('latest',{}).get('tag'), 'dev=', m.get('dev',{}).get('tag'), 'count=', len(m['releases']))
+"
+
       # ── Direct .ipa download (no outer zip) — versioned Release on tag v* ──
       - name: Publish to GitHub Release (on tag v*)
         if: startsWith(github.ref, 'refs/tags/v') && env.BUILT_UNSIGNED_IPA == '1'
@@ -80,11 +159,12 @@ jobs:
           files: |
             ios/build/PackWise-unsigned.ipa
             ios/build/PackWise-unsigned.ipa.sha256
+            _artifacts/PackWise-releases.json
           generate_release_notes: true
 
       # ── Direct .ipa — auto dev prerelease on every push to main ──
       - name: Publish dev prerelease (every main push — 1-click .ipa)
-        if: github.ref == 'refs/heads/main' && env.BUILT_UNSIGNED_IPA == '1'
+        if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.BUILT_UNSIGNED_IPA == '1'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: dev
@@ -94,6 +174,7 @@ jobs:
           files: |
             ios/build/PackWise-unsigned.ipa
             ios/build/PackWise-unsigned.ipa.sha256
+            _artifacts/PackWise-releases.json
 
       # ── Debug artifact — GitHub wraps this in an outer .zip on download ──
       - name: Upload unsigned IPA (debug artifact — unwrap once to .ipa)
@@ -135,9 +216,10 @@ jobs:
           if [ "${BUILT_UNSIGNED_IPA:-0}" = "1" ]; then
             echo "✅ **Unsigned IPA produced — \`PackWise-unsigned.ipa\`**" >> "$GITHUB_STEP_SUMMARY"
             echo "- Validated: \`Payload/PackWise.app/PackWise\` present, arm64 device Mach-O, no test bundles" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Direct .ipa (no unwrap): **[dev](https://github.com/${{ github.repository }}/releases/tag/dev)** (every main push) and **[Latest](https://github.com/${{ github.repository }}/releases/latest)** (tag \`v*\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Direct .ipa (no unwrap): **[dev](https://github.com/${{ github.repository }}/releases/tag/dev)** (every main push + dispatch) and **[Latest](https://github.com/${{ github.repository }}/releases/latest)** (tag \`v*\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Algorithm-friendly manifest** \`PackWise-releases.json\` attached ([dev](https://github.com/${{ github.repository }}/releases/download/dev/PackWise-releases.json) · [latest](https://github.com/${{ github.repository }}/releases/latest/download/PackWise-releases.json)) — scripts can fetch one URL to find the newest stable + dev + history" >> "$GITHUB_STEP_SUMMARY"
             echo "- Artifact \`PackWise-unsigned-ipa\` is an outer zip — unwrap once to get the \`.ipa\`" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Verify: \`unzip -l PackWise-unsigned.ipa | grep Payload\` · \`shasum -a 256\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Verify: \`./scripts/verify-ipa.sh <file>\` · \`shasum -a 256\`" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "❌ **No IPA produced** — see Build step log or the \`ios-build-diagnostics\` artifact." >> "$GITHUB_STEP_SUMMARY"
             if [ -f "ios/build/diagnostics.txt" ]; then

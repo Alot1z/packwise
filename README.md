@@ -259,7 +259,7 @@ ios/                  # Native iOS app — the product
   Resources/Assets.xcassets/AppIcon.appiconset/  # programmatic 1024px icon
   project.yml         # XcodeGen → PackWise.xcodeproj
   build.sh            # Self-healing IPA: build → archive → legacy + strict gate
-scripts/              # generate-appicon.py (icon is code) + verify-ipa.sh (verify any download)
+scripts/              # generate-appicon.py (icon is code) + verify-ipa.sh (verify any download) + release-manifest.sh (algorithm-friendly JSON)
 wiki/                 # Wiki source — synced to Alot1z/packwise.wiki
 src/                  # Live docs site only (Vite + Tailwind) — not the app
 .github/workflows/    # ios.yml (build+release) + wiki.yml (docs sync)
@@ -289,6 +289,27 @@ bun install && bun run build   # → dist/ (deploy to Pages/Netlify/any static h
 **Is the iPad supported?** Yes — iPhone and iPad (TARGETED_DEVICE_FAMILY 1,2).
 
 **Will there be an App Store version?** Only if you sign it with your own Apple account and submit it to App Store Connect — this repo does not claim TestFlight/App Store distribution.
+
+---
+
+## 🤖 Algorithm-friendly — find the newest build without scraping
+
+Every published release ships a **machine-readable manifest** as an asset so any script, tool, or AI can fetch ONE URL and find:
+
+- the newest **stable** build (`manifest.latest`)
+- the newest **dev** prerelease (`manifest.dev`)
+- recent history with `sha256` + `size` + dates (`manifest.releases[]`)
+
+```bash
+# Stable URLs — public, no GitHub API key required:
+curl -fsSL https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json | jq -r '.latest | "tag=\(.tag) sha=\(.sha256) url=\(.asset_url)"'
+curl -fsSL https://github.com/Alot1z/packwise/releases/download/dev/PackWise-releases.json | jq -r '.dev    | "tag=\(.tag) sha=\(.sha256) url=\(.asset_url)"'
+
+# Or via the GitHub API:
+curl -fsSL https://api.github.com/repos/Alot1z/packwise/releases/latest | jq -r '.tag_name + " " + .assets_url'
+```
+
+Schema: `packwise.releases/v1` (stable, versioned). CI runs `scripts/release-manifest.sh` on every publish — see [`scripts/`](scripts) + [`.github/workflows/ios.yml`](.github/workflows/ios.yml). The workflow also exposes **easy config** via *Run workflow* inputs (`xcode_version`, `skip_tests`, `release_channel`).
 
 ---
 
