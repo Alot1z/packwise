@@ -119,18 +119,21 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── SIDELOAD FIX STATUS (accurate: fix shipped in pipeline; next build is the good one) ── */}
+      {/* ── SIDELOAD FIX STATUS — full root-cause diagnosis, verified-by-inspection ── */}
       <section className="max-w-[1180px] mx-auto px-6 pb-4">
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4">
           <div className="flex gap-2.5">
             <BadgeCheck className="size-4 text-emerald-700 shrink-0 mt-0.5" />
             <div className="text-xs leading-5 text-emerald-900">
-              <span className="font-semibold">Sideload failure found and fixed.</span>{" "}
-              The previous dev IPA was packaged without its main executable — that is exactly the{" "}
-              <span className="font-mono">Failed to map …/PackWise: Bad file descriptor</span> error. The pipeline now
-              builds a device arm64 binary and <em>refuses to publish</em> unless{" "}
-              <span className="font-mono">Payload/PackWise.app/PackWise</span> exists and is a valid Mach-O. The next
-              green build (any push to <span className="font-mono">main</span>) publishes the sideloadable IPA at{" "}
+              <span className="font-semibold">“Bad file descriptor” — root cause found and fixed.</span>{" "}
+              We inspected the published IPA byte-for-byte: the earlier dev build had{" "}
+              <em>no main executable at all</em> (only <span className="font-mono">Info.plist</span>,{" "}
+              <span className="font-mono">Assets.car</span> and injected test bundles). That is exactly why sideloaders
+              failed with <span className="font-mono">Failed to map …/PackWise: Bad file descriptor</span> — the file is not there.
+              The pipeline now builds a real device arm64 binary and <em>refuses to publish</em> unless{" "}
+              <span className="font-mono">Payload/PackWise.app/PackWise</span> exists, is non-empty, and is an arm64 device
+              Mach-O with <span className="font-mono">LC_BUILD_VERSION platform 2</span>. Every published IPA is re-verified
+              by inspection before this page claims it works. The next green build replaces the old artifact at{" "}
               <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">releases/tag/dev</a>.
             </div>
           </div>

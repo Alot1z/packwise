@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# iOS build artifacts (generated)
+ios/build/
+ios/PackWise.xcodeproj/
+ios/DerivedData/
+*.xcarchive
+*.ipa
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
