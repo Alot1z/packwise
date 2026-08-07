@@ -15,6 +15,7 @@ struct ItemDetailView: View {
             Section {
                 if let data = item.photoData, let ui = UIImage(data: data) {
                     Image(uiImage: ui).resizable().scaledToFit().frame(maxHeight: 220).clipShape(RoundedRectangle(cornerRadius: 12))
+                        .accessibilityLabel("Item photo")
                     Button("Remove photo", role: .destructive) { item.photoData = nil; try? context.save() }
                 }
                 PhotosPicker(selection: $pickerItem, matching: .images) {
@@ -34,6 +35,7 @@ struct ItemDetailView: View {
             Section("Notes") {
                 TextEditor(text: Binding(get: { item.notes ?? "" }, set: { item.notes = $0.isEmpty ? nil : $0 }))
                     .frame(minHeight: 80)
+                    .accessibilityLabel("Notes")
             }
 
             Section {

@@ -28,7 +28,9 @@ struct TemplateLibraryView: View {
                                 let m = PackTemplate(name: t.name, tag: t.tag, detail: t.detail, items: t.items)
                                 context.insert(m)
                                 try? context.save()
-                            }.buttonStyle(.bordered).controlSize(.small)
+                            }
+                            .buttonStyle(.bordered).controlSize(.small)
+                            .accessibilityLabel("Add template \(t.name) to library")
                         }
                     }
                 }
@@ -56,11 +58,14 @@ struct TemplateLibraryView: View {
                                         }
                                         trip.updatedAt = Date()
                                         try? context.save()
-                                    }.disabled(selectedTripID == nil)
+                                    }
+                                    .disabled(selectedTripID == nil)
                                     .buttonStyle(.borderedProminent).controlSize(.small)
+                                    .accessibilityLabel("Apply \(tpl.name) to selected trip")
                                     Spacer()
                                     Button("Delete", role: .destructive) { context.delete(tpl); try? context.save() }
                                         .buttonStyle(.bordered).controlSize(.small)
+                                        .accessibilityLabel("Delete template \(tpl.name)")
                                 }
                             }
                             .padding(.vertical, 4)

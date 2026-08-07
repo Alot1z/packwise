@@ -91,13 +91,15 @@ struct TripDetailView: View {
                             let item = PackingItem(name: r.title, category: r.category, trip: trip)
                             context.insert(item); trip.updatedAt = Date(); try? context.save()
                         } label: {
-                            HStack { Text(r.title).font(.caption); Text(r.reason).font(.caption2).foregroundStyle(.secondary); Spacer(); Image(systemName: "plus.circle") }
+                            HStack { Text(r.title).font(.caption); Text(r.reason).font(.caption2).foregroundStyle(.secondary); Spacer(); Image(systemName: "plus.circle").accessibilityHidden(true) }
                         }
+                        .accessibilityLabel("Add \(r.title) — \(r.reason)")
                     }
                 }.padding(8).background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             }
 
             ProgressView(value: trip.progress).tint(trip.status == .ready ? .green : .accentColor)
+                .accessibilityLabel("Packing progress")
             Text("\(trip.items.filter(\.packed).count) of \(trip.items.count) packed").font(.caption2).foregroundStyle(.secondary)
         }
         .padding()
@@ -156,8 +158,9 @@ struct TripDetailView: View {
                         Button {
                             if selectedIDs.contains(item.id) { selectedIDs.remove(item.id) } else { selectedIDs.insert(item.id) }
                         } label: {
-                            HStack { Text(item.name).foregroundStyle(.primary); Spacer(); if selectedIDs.contains(item.id) { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) } }
+                            HStack { Text(item.name).foregroundStyle(.primary); Spacer(); if selectedIDs.contains(item.id) { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).accessibilityHidden(true) } }
                         }
+                        .accessibilityAddTraits(selectedIDs.contains(item.id) ? .isSelected : [])
                     }
                 }
                 Button("Save outfit") {
@@ -218,7 +221,15 @@ private struct ItemRowInline: View {
     var onToggle: () -> Void
     var body: some View {
         HStack(spacing: 10) {
-            Button(action: onToggle) { Image(systemName: item.packed ? "checkmark.circle.fill" : "circle").foregroundStyle(item.packed ? .green : .secondary) }.buttonStyle(.plain)
+            Button(action: onToggle) {
+                Image(systemName: item.packed ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(item.packed ? .green : .secondary)
+                    .accessibilityHidden(true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(item.packed ? "Mark \(item.name) as unpacked" : "Mark \(item.name) as packed")
+            .accessibilityValue(item.packed ? "Packed" : "Unpacked")
+            .accessibilityHint("Double-tap to toggle")
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name).strikethrough(item.packed).font(.subheadline)
                 if let n = item.notes, !n.isEmpty { Text(n).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
@@ -244,7 +255,7 @@ private struct OutfitDetailView: View {
                     else { Text("Missing item").foregroundStyle(.secondary) }
                 }
             }
-            Section("Note") { TextEditor(text: Binding(get: { outfit.note ?? "" }, set: { outfit.note = $0.isEmpty ? nil : $0 })).frame(minHeight: 60) }
+            Section("Note") { TextEditor(text: Binding(get: { outfit.note ?? "" }, set: { outfit.note = $0.isEmpty ? nil : $0 })).frame(minHeight: 60).accessibilityLabel("Note") }
         }.navigationTitle("Outfit").navigationBarTitleDisplayMode(.inline)
     }
 }

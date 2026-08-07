@@ -46,4 +46,45 @@ final class PackWiseUITests: XCTestCase {
         }
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
     }
+
+    /// VoiceOver regression: the item toggle must expose an explicit label
+    /// ("Mark <name> as packed" / "as unpacked") — never the raw SF Symbol
+    /// name. Guards against regressions where an unlabeled Image becomes the
+    /// only accessible element of the toggle button.
+    func testItemToggleHasVoiceOverLabel() throws {
+        let app = launchPastOnboarding()
+        app.tabBars.buttons["Trips"].tap()
+
+        // Always create a fresh trip so the item assertion is deterministic.
+        let newTrip = app.buttons["New trip"]
+        XCTAssertTrue(newTrip.waitForExistence(timeout: 8))
+        newTrip.tap()
+
+        let titleField = app.textFields["Title — for example, Kyoto in Spring"]
+        XCTAssertTrue(titleField.waitForExistence(timeout: 5))
+        titleField.tap()
+        titleField.typeText("Accessibility")
+
+        let destinationField = app.textFields["Destination"]
+        XCTAssertTrue(destinationField.waitForExistence(timeout: 5))
+        destinationField.tap()
+        destinationField.typeText("VoiceOver City")
+
+        app.buttons["Create"].tap()
+
+        // Open the trip row.
+        let tripRow = app.staticTexts["Accessibility"].firstMatch
+        XCTAssertTrue(tripRow.waitForExistence(timeout: 8))
+        tripRow.tap()
+
+        // Add one item.
+        let itemName = app.textFields["Item name"]
+        XCTAssertTrue(itemName.waitForExistence(timeout: 5))
+        itemName.tap()
+        itemName.typeText("Passport")
+        app.buttons["Add"].tap()
+
+        // The toggle must expose the explicit VoiceOver label.
+        XCTAssertTrue(app.buttons["Mark Passport as packed"].waitForExistence(timeout: 5))
+    }
 }

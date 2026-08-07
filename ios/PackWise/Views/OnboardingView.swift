@@ -5,6 +5,9 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var context
     @Query private var prefs: [UserPreference]
     @State private var step = 0
+    /// Scales with Dynamic Type (relative to .largeTitle) so the onboarding
+    /// icon grows at accessibility text sizes instead of staying fixed at 44pt.
+    @ScaledMetric(relativeTo: .largeTitle) private var iconSize: CGFloat = 44
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,7 +39,7 @@ struct OnboardingView: View {
 
     private func page(icon: String, title: String, subtitle: String, tag: Int) -> some View {
         VStack(spacing: 16) {
-            Image(systemName: icon).font(.system(size: 44, weight: .light)).foregroundStyle(.primary)
+            Image(systemName: icon).font(.system(size: iconSize, weight: .light)).foregroundStyle(.primary).accessibilityHidden(true)
             Text(title).font(.title.bold())
             Text(subtitle).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.horizontal, 32)
         }.tag(tag)

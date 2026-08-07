@@ -37,9 +37,9 @@ struct LibraryView: View {
                     NavigationLink(value: item) {
                         HStack(spacing: 10) {
                             if let d = item.photoData, let ui = UIImage(data: d) {
-                                Image(uiImage: ui).resizable().scaledToFill().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 8))
+                                Image(uiImage: ui).resizable().scaledToFill().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 8)).accessibilityHidden(true)
                             } else {
-                                RoundedRectangle(cornerRadius: 8).fill(.secondary.opacity(0.15)).frame(width: 44, height: 44).overlay(Image(systemName: "shippingbox"))
+                                RoundedRectangle(cornerRadius: 8).fill(.secondary.opacity(0.15)).frame(width: 44, height: 44).overlay(Image(systemName: "shippingbox")).accessibilityHidden(true)
                             }
                             VStack(alignment: .leading) {
                                 Text(item.name).font(.subheadline.weight(.medium))
@@ -88,7 +88,7 @@ private struct AddPersonalItemSheet: View {
                 TextField("Notes", text: $notes)
                 Toggle("Favorite", isOn: $fav)
                 PhotosPicker(selection: $picker, matching: .images) { Label("Add photo", systemImage: "photo") }
-                if let d = data, let ui = UIImage(data: d) { Image(uiImage: ui).resizable().scaledToFit().frame(maxHeight: 180).clipShape(RoundedRectangle(cornerRadius: 12)) }
+                if let d = data, let ui = UIImage(data: d) { Image(uiImage: ui).resizable().scaledToFit().frame(maxHeight: 180).clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityLabel("Selected photo") }
             }
             .navigationTitle("New Library Item")
             .navigationBarTitleDisplayMode(.inline)
@@ -116,7 +116,7 @@ private struct PersonalItemDetail: View {
     var body: some View {
         Form {
             Section("Photo") {
-                if let d = item.photoData, let ui = UIImage(data: d) { Image(uiImage: ui).resizable().scaledToFit().frame(maxHeight: 200).clipShape(RoundedRectangle(cornerRadius: 12)) }
+                if let d = item.photoData, let ui = UIImage(data: d) { Image(uiImage: ui).resizable().scaledToFit().frame(maxHeight: 200).clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityLabel("Item photo") }
                 PhotosPicker(selection: $picker, matching: .images) { Label("Change photo", systemImage: "photo") }
             }
             Section {

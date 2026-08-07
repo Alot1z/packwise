@@ -20,6 +20,7 @@ struct PhotoScannerView: View {
                     }
                     if let img = uiImage {
                         Image(uiImage: img).resizable().scaledToFit().frame(maxHeight: 260).clipShape(RoundedRectangle(cornerRadius: 12))
+                            .accessibilityLabel("Imported photo")
                         if vision.isProcessing { ProgressView("Analysing on device…") }
                     }
                     Button("Analyse on device") {
@@ -46,9 +47,10 @@ struct PhotoScannerView: View {
                                         Text("\(s.category) · \(s.displayConfidence)").font(.caption).foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    if selected.contains(s.id) { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
+                                    if selected.contains(s.id) { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).accessibilityHidden(true) }
                                 }
                             }
+                            .accessibilityAddTraits(selected.contains(s.id) ? .isSelected : [])
                         }
                         Button("Add selected to trip") {
                             guard let tid = selectedTripID, let trip = trips.first(where: { $0.id == tid }) else { return }
