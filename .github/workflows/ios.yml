@@ -3,7 +3,8 @@ name: iOS — PackWise
 on:
   push:
     branches: [main]
-    paths: [ "ios/**", ".github/workflows/ios.yml" ]
+    paths: ["ios/**", ".github/workflows/ios.yml", ".gitea/workflows/ios.yml"]
+    tags: ["v*"]
   workflow_dispatch:
 
 jobs:
@@ -14,30 +15,37 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16*.app/Contents/Developer 2>/dev/null || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer; xcodebuild -version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16*.app/Contents/Developer 2>/dev/null || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+          swift --version
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
       - name: Generate Xcode project
         working-directory: ios
-        run: xcodegen generate
+        run: xcodegen generate && ls -lh PackWise.xcodeproj
 
       - name: Run tests (simulator, no signing)
         working-directory: ios
         run: |
+          set -o pipefail
           xcodebuild test \
             -project PackWise.xcodeproj \
             -scheme PackWise \
             -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            | xcpretty || xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" CODE_SIGNING_ALLOWED=NO
+            | xcpretty || xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" CODE_SIGNING_ALLOWED=NO | tail -n 80
 
-      - name: Archive — unsigned IPA
+      - name: Archive — unsigned IPA (with build fallback)
         working-directory: ios
         run: |
           set -e
+          rm -rf build/Payload build/PackWise-unsigned.ipa build/DerivedData
+          echo "→ Attempt 1: xcodebuild archive (xcarchive layout)"
+          set +e
           xcodebuild archive \
             -project PackWise.xcodeproj \
             -scheme PackWise \
@@ -45,34 +53,80 @@ jobs:
             -destination "generic/platform=iOS" \
             -archivePath build/PackWise.xcarchive \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            || echo "ARCHIVE_FAILED=true" >> $GITHUB_ENV
+            -skipPackagePluginValidation -skipMacroValidation 2>&1 | tee build/archive.log | tail -n 80
+          ARCH_EXIT=${PIPESTATUS[0]}
+          set -e
+          echo "archive exit: $ARCH_EXIT"
 
+          APP=""
           if [ -f build/PackWise.xcarchive/Products/Applications/PackWise.app/Info.plist ]; then
-            rm -rf build/Payload build/PackWise-unsigned.ipa
-            mkdir -p build/Payload
-            cp -R build/PackWise.xcarchive/Products/Applications/PackWise.app build/Payload/
-            (cd build && zip -r PackWise-unsigned.ipa Payload >/dev/null)
-            echo "BUILT_UNSIGNED_IPA=1" >> $GITHUB_ENV
-            ls -lh build/PackWise-unsigned.ipa
+            APP="build/PackWise.xcarchive/Products/Applications/PackWise.app"
+            echo "✓ Found app in xcarchive: $APP"
+          else
+            echo "⚠️ Archive did not produce .app — falling back to xcodebuild build (DerivedData)"
+            cat build/archive.log | tail -n 120 || true
+            xcodebuild build \
+              -project PackWise.xcodeproj \
+              -scheme PackWise \
+              -configuration Release \
+              -destination "generic/platform=iOS" \
+              -derivedDataPath build/DerivedData \
+              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tail -n 80
+            APP=$(find build/DerivedData -name "PackWise.app" -type d | head -n1 || true)
+            if [ -n "$APP" ]; then echo "✓ Found app in DerivedData: $APP"; fi
           fi
+
+          if [ -z "$APP" ] || [ ! -d "$APP" ]; then
+            echo "❌ No PackWise.app found. Diagnostics:"
+            find build -type d | head -n 60 || true
+            ls -R build 2>&1 | head -n 120 || true
+            exit 1
+          fi
+
+          rm -rf build/Payload build/PackWise-unsigned.ipa
+          mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          # Ensure no code signature remnants confuse sideloaders
+          find build/Payload -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
+          (cd build && zip -r PackWise-unsigned.ipa Payload >/dev/null)
+          echo "BUILT_UNSIGNED_IPA=1" >> $GITHUB_ENV
+          ls -lh build/PackWise-unsigned.ipa
+          unzip -l build/PackWise-unsigned.ipa | head -n 20
+          shasum -a 256 build/PackWise-unsigned.ipa | tee build/PackWise-unsigned.ipa.sha256
 
       - name: Upload unsigned IPA
         if: env.BUILT_UNSIGNED_IPA == '1'
         uses: actions/upload-artifact@v4
         with:
           name: PackWise-unsigned-ipa
-          path: ios/build/PackWise-unsigned.ipa
-          if-no-files-found: warn
+          path: |
+            ios/build/PackWise-unsigned.ipa
+            ios/build/PackWise-unsigned.ipa.sha256
+          if-no-files-found: error
           retention-days: 14
 
+      - name: Publish to GitHub Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v') && env.BUILT_UNSIGNED_IPA == '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ios/build/PackWise-unsigned.ipa
+            ios/build/PackWise-unsigned.ipa.sha256
+          generate_release_notes: true
+
       - name: Summary
+        if: always()
         run: |
           echo "### PackWise — iOS" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$BUILT_UNSIGNED_IPA" = "1" ]; then
-            echo "✅ Tests ran. Unsigned IPA produced: \`PackWise-unsigned.ipa\` (AltStore / Sideloadly / TrollStore)." >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Unsigned IPA produced** — \`PackWise-unsigned.ipa\` (zip of \`Payload/PackWise.app\`)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Install with **AltStore / Sideloadly / TrollStore** (re-sign on device/PC). No Apple Developer account required to generate." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📦 Artifact: **PackWise-unsigned-ipa** (14 days) · Tag push → GitHub Release" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Archive did not produce an app bundle. No IPA artifact." >> $GITHUB_STEP_SUMMARY
+            echo "❌ **No IPA produced** — archive and fallback both failed. See logs above." >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "TestFlight / App Store are **not** claimed — that requires Apple signing and App Store Connect processing (see ios/README.md)." >> $GITHUB_STEP_SUMMARY

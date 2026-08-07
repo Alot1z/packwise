@@ -18,23 +18,49 @@ xcodebuild build \
   -configuration Release \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -n 40
 
-echo "→ Archiving (generic iOS, unsigned)..."
+echo "→ Archiving (generic iOS, unsigned) — with fallback to DerivedData build..."
+rm -rf build/Payload build/PackWise-unsigned.ipa build/DerivedData
+
+set +e
 xcodebuild archive \
   -project PackWise.xcodeproj \
   -scheme PackWise \
   -configuration Release \
   -destination "generic/platform=iOS" \
   -archivePath build/PackWise.xcarchive \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -n 40
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+  -skipPackagePluginValidation -skipMacroValidation 2>&1 | tee build/archive.log | tail -n 80
+set -e
 
-if [ -d build/PackWise.xcarchive/Products/Applications/PackWise.app ]; then
-  rm -rf build/Payload build/PackWise-unsigned.ipa
-  mkdir -p build/Payload
-  cp -R build/PackWise.xcarchive/Products/Applications/PackWise.app build/Payload/
-  (cd build && zip -r PackWise-unsigned.ipa Payload >/dev/null)
-  echo "✓ Unsigned IPA: ios/build/PackWise-unsigned.ipa"
-  echo "  Sideload with AltStore / Sideloadly / TrollStore (re-sign on device)."
+APP=""
+if [ -f build/PackWise.xcarchive/Products/Applications/PackWise.app/Info.plist ]; then
+  APP="build/PackWise.xcarchive/Products/Applications/PackWise.app"
 else
-  echo "Archive produced no .app — check xcodebuild output." >&2
+  echo "⚠️ Archive did not emit .app — building for generic iOS device instead..."
+  xcodebuild build \
+    -project PackWise.xcodeproj \
+    -scheme PackWise \
+    -configuration Release \
+    -destination "generic/platform=iOS" \
+    -derivedDataPath build/DerivedData \
+    CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tail -n 80
+  APP=$(find build/DerivedData -name "PackWise.app" -type d | head -n1 || true)
+fi
+
+if [ -z "$APP" ] || [ ! -d "$APP" ]; then
+  echo "❌ No PackWise.app found — check logs above." >&2
+  find build -type d 2>&1 | head -n 60 || true
+  ls -R build 2>&1 | head -n 100 || true
   exit 1
 fi
+
+rm -rf build/Payload build/PackWise-unsigned.ipa
+mkdir -p build/Payload
+cp -R "$APP" build/Payload/
+find build/Payload -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
+(cd build && zip -r PackWise-unsigned.ipa Payload >/dev/null)
+shasum -a 256 build/PackWise-unsigned.ipa > build/PackWise-unsigned.ipa.sha256
+echo "✓ Unsigned IPA: ios/build/PackWise-unsigned.ipa"
+cat build/PackWise-unsigned.ipa.sha256
+unzip -l build/PackWise-unsigned.ipa | head -n 20
+echo "  Sideload with AltStore / Sideloadly / TrollStore (re-sign on device)."

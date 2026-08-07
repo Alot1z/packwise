@@ -1,14 +1,7 @@
-# nektos/act — run GitHub Actions locally.
-# iOS builds require macOS + Xcode, so `act` must run ON a Mac.
-# Linux/Windows cannot compile xcodebuild (same hard requirement as CI).
-#
-# Usage (on your Mac, from repo root):
-#   brew install act
-#   act -W .github/workflows/ios.yml --container-architecture linux/amd64
-# Prefer running directly for iOS (no container — needs native Xcode):
-#   act -W .github/workflows/ios.yml -P macos-15=-self-hosted
-# Or just: ./ios/build.sh
-#
+# act — run GitHub Actions locally (nektos/act)
+# https://github.com/nektos/act
+# macOS is required to actually compile iOS (xcodebuild only on macOS).
+# Linux act can lint workflows but cannot produce an IPA.
 -P macos-15=-self-hosted
 -P macos=-self-hosted
--P ubuntu-latest=catthehacker/ubuntu:act-latest
+--container-daemon-socket -

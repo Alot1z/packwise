@@ -3,10 +3,14 @@ import { motion } from "framer-motion";
 import {
   ArrowRight, Shield, HardDrive, Scan, Eye, Shirt, Library,
   Layers, Search, CalendarDays, Bell, Box, Cpu, Github,
-  Download, Wrench, BookOpen, Check, Terminal, Smartphone, FileText, Copy, ExternalLink
+  Download, Wrench, BookOpen, Check, Terminal, Smartphone, FileText, ExternalLink
 } from "lucide-react";
 
 const serif = { fontFamily: "Instrument Serif, Cormorant Garamond, serif" } as const;
+const LIVE_REPO = "https://github.com/Alot1z/packwise";
+const LIVE_RELEASES = "https://github.com/Alot1z/packwise/releases";
+const LIVE_RELEASE_LATEST = "https://github.com/Alot1z/packwise/releases/latest";
+const LIVE_ACTIONS = "https://github.com/Alot1z/packwise/actions";
 
 function SectionTitle({ kicker, title, desc }: { kicker: string; title: string; desc?: string }) {
   return (
@@ -21,7 +25,7 @@ function SectionTitle({ kicker, title, desc }: { kicker: string; title: string; 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-[oklch(0.62_0.115_38/0.18)]">
-      {/* Nav — docs only */}
+      {/* Nav */}
       <nav className="sticky top-0 z-30 backdrop-blur-xl bg-background/80 border-b border-border/60">
         <div className="max-w-[1180px] mx-auto px-6 h-[58px] flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
@@ -37,28 +41,30 @@ export default function Landing() {
             <a href="#changelog" className="px-3 py-1.5 rounded-full hover:bg-secondary transition">Changelog</a>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Link to="/setup" className="hidden sm:inline-flex text-sm font-medium px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition">Create repo &amp; build IPA</Link>
-            <a href="#install" className="hidden lg:inline-flex text-sm font-medium px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">Installation guide</a>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">
-              <Github className="size-3.5" /> <span className="hidden sm:inline">GitHub</span> <ExternalLink className="size-3" />
+            <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="hidden sm:inline-flex text-sm font-medium px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition items-center gap-1.5">
+              <Download className="size-3.5" /> Download IPA
+            </a>
+            <Link to="/setup" className="hidden lg:inline-flex text-sm font-medium px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">Build guide</Link>
+            <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">
+              <Github className="size-3.5" /> <span className="hidden sm:inline">Alot1z/packwise</span> <ExternalLink className="size-3" />
             </a>
           </div>
         </div>
       </nav>
 
-      {/* Hero — declares iOS is product, web is docs */}
+      {/* Hero */}
       <section className="max-w-[1180px] mx-auto px-6 pt-10 sm:pt-14 pb-8">
         <div className="grid lg:grid-cols-[1.08fr_0.92fr] gap-8 items-start">
           <div>
             <div className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-[oklch(0.62_0.115_38)]" /> Complete native iOS application — not a prototype
+              <span className="size-1.5 rounded-full bg-[oklch(0.62_0.115_38)]" /> Native iOS — SwiftUI · SwiftData · Vision · On device
             </div>
             <h1 className="mt-3 text-[40px] sm:text-[52px] leading-[0.92] tracking-[-0.03em]" style={serif}>
               PackWise for iPhone.<br />
               <span className="italic font-light">Your trips, on device.</span>
             </h1>
             <p className="mt-4 text-[15px] leading-6 text-muted-foreground max-w-[58ch]">
-              PackWise is a premium, privacy-first travel packing assistant built natively for iOS with SwiftUI and SwiftData. Every trip, packing list, personal item, photo, outfit, template, reminder, and preference is stored locally and works fully offline. No server, no mandatory account, no cloud AI.
+              A premium, privacy-first travel packing assistant. Every trip, packing list, photo, outfit, template and reminder lives on your iPhone and works offline. No account. No cloud. No tracking.
             </p>
             <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs">
               <Box className="size-3.5 text-amber-700" />
@@ -67,14 +73,16 @@ export default function Landing() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/setup" className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
-                <Download className="size-4" /> Create repo &amp; build IPA
-              </Link>
-              <a href="#build" className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-border bg-card text-sm font-medium hover:bg-secondary transition">
-                <Terminal className="size-4" /> Build from source
+              <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
+                <Download className="size-4" /> Download IPA — Latest Release
+              </a>
+              <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-border bg-card text-sm font-medium hover:bg-secondary transition">
+                <Terminal className="size-4" /> View builds
               </a>
             </div>
-            <div className="text-xs text-muted-foreground mt-2">Cannot build on this Linux preview — use GitHub&apos;s macOS runner. <Link to="/setup" className="underline underline-offset-4">Full setup guide →</Link></div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Live repo: <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="underline underline-offset-4 font-mono">Alot1z/packwise</a> · Releases are the download source — no clone needed. <Link to="/setup" className="underline underline-offset-4">Build guide →</Link>
+            </p>
 
             <div className="mt-5 flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5"><Shield className="size-3.5" /> Private by design</span>
@@ -86,11 +94,10 @@ export default function Landing() {
             <div className="mt-4 rounded-2xl border border-border bg-card p-4">
               <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Primary delivery target</div>
               <div className="mt-1 font-mono text-sm">PackWise-unsigned.ipa</div>
-              <div className="text-xs text-muted-foreground">Reproducible via <Link to="/setup" className="underline underline-offset-4">GitHub Actions</Link>, <a href="https://about.gitea.com" target="_blank" rel="noreferrer" className="underline underline-offset-4">Gitea Actions</a>, <a href="https://github.com/nektos/act" target="_blank" rel="noreferrer" className="underline underline-offset-4">act</a> (self-hosted), or <span className="font-mono">ios/build.sh</span>. Same <span className="font-mono">PackWise-unsigned.ipa</span> on every host.</div>
+              <div className="text-xs text-muted-foreground">Available via <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="underline underline-offset-4">GitHub Releases</a> and Actions artifacts. Also reproducible via <a href="https://about.gitea.com" target="_blank" rel="noreferrer" className="underline underline-offset-4">Gitea Actions</a>, <a href="https://github.com/nektos/act" target="_blank" rel="noreferrer" className="underline underline-offset-4">act</a> (self-hosted), or <span className="font-mono">ios/build.sh</span>. Same artifact on every host.</div>
             </div>
           </div>
 
-          {/* Hero device mock — docs, not app */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="athena-paper rounded-[28px] p-5 sm:p-6 border border-white/60 shadow-[0_20px_60px_-24px_oklch(0.3_0.05_42/0.25)]">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground">iOS — Native SwiftUI</span>
@@ -125,11 +132,15 @@ export default function Landing() {
               <Cpu className="size-3.5" /> On-device recommendations — no external AI
               <span className="ml-auto font-mono text-[11px] text-muted-foreground">MVVM · SwiftData</span>
             </div>
+            <div className="mt-3 flex gap-2">
+              <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full bg-primary text-primary-foreground">Download IPA <ExternalLink className="size-3" /></a>
+              <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-border bg-white">Build logs <Terminal className="size-3" /></a>
+            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Features — everything in the IPA */}
+      {/* Features */}
       <section id="features" className="max-w-[1180px] mx-auto px-6 pb-10">
         <div className="athena-rule mb-8" />
         <SectionTitle kicker="Inside the IPA" title="Every feature lives in the native app" desc="No essential capability depends on this website. The list below describes what ships inside PackWise-unsigned.ipa." />
@@ -188,7 +199,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Screenshots placeholder — honest */}
+      {/* Screenshots */}
       <section className="max-w-[1180px] mx-auto px-6 pb-10">
         <SectionTitle kicker="Preview" title="Screenshots (from the native app)" desc="Add real device captures under ios/screenshots/ — shown here as placeholders." />
         <div className="mt-6 grid sm:grid-cols-3 gap-4">
@@ -205,17 +216,20 @@ export default function Landing() {
       {/* Install */}
       <section id="install" className="max-w-[1180px] mx-auto px-6 pb-10">
         <div className="rounded-[24px] border border-border bg-white p-6 sm:p-7">
-          <SectionTitle kicker="Install" title="Install PackWise-unsigned.ipa" desc="The IPA is built automatically — no Apple Developer account required to generate it." />
+          <SectionTitle kicker="Install" title="Install PackWise-unsigned.ipa" desc="The IPA is built automatically from the live repo — no Apple Developer account required to generate it." />
           <div className="mt-6 grid md:grid-cols-2 gap-6">
             <div className="rounded-2xl athena-stone p-5">
               <div className="font-semibold flex items-center gap-2" style={serif}><Download className="size-4" /> Get the artifact</div>
               <ol className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground list-decimal list-inside">
-                <li>Push to <span className="font-mono">main</span> or run the workflow manually: GitHub → Actions → <span className="font-mono">iOS — PackWise</span> → Run workflow.</li>
-                <li>Wait for the <span className="font-mono">macos-15</span> job to finish (tests + archive).</li>
-                <li>Download artifact <span className="font-mono">PackWise-unsigned-ipa</span> → <span className="font-mono">PackWise-unsigned.ipa</span>.</li>
-                <li>No release is advertised as downloadable until this step succeeds.</li>
+                <li>Open <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">Releases</a> (or <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Actions → iOS — PackWise</a>).</li>
+                <li>Download <span className="font-mono">PackWise-unsigned.ipa</span> from the latest Release (or artifact).</li>
+                <li>Every push to <span className="font-mono">main</span> rebuilds automatically — sync is already wired, no manual clone.</li>
+                <li>No release is advertised as downloadable until a workflow has succeeded.</li>
               </ol>
-              <Link to="/setup" className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium">Create repo &amp; build IPA <ArrowRight className="size-3.5" /></Link>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium">Download latest IPA <ExternalLink className="size-3.5" /></a>
+                <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-full border border-border bg-white">Build logs</a>
+              </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-5">
               <div className="font-semibold" style={serif}>Sideload (choose one)</div>
@@ -224,7 +238,7 @@ export default function Landing() {
                 <div><span className="font-medium">Sideloadly:</span> <span className="text-muted-foreground">Drag the IPA onto Sideloadly, enter Apple ID for local signing, install.</span></div>
                 <div><span className="font-medium">TrollStore (where compatible):</span> <span className="text-muted-foreground">Open TrollStore → + → select IPA — no re-signing needed on supported versions.</span></div>
               </div>
-              <div className="mt-4 text-xs text-muted-foreground border-t border-border pt-3">Unsigned IPAs require re-signing via the chosen tool. They are not App Store signed.</div>
+              <div className="mt-4 text-xs text-muted-foreground border-t border-border pt-3">Unsigned IPAs require re-signing via the chosen tool. They are not App Store signed. Verify: <span className="font-mono">unzip -l PackWise-unsigned.ipa | head</span></div>
             </div>
           </div>
         </div>
@@ -243,12 +257,12 @@ export default function Landing() {
                 <div>cd ios && xcodegen generate && open PackWise.xcodeproj</div>
                 <div className="mt-2 text-muted-foreground"># Tests</div>
                 <div>xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16"</div>
-                <div className="mt-2 text-muted-foreground"># Unsigned IPA</div>
+                <div className="mt-2 text-muted-foreground"># Unsigned IPA (same as CI)</div>
                 <div>./ios/build.sh  # → ios/build/PackWise-unsigned.ipa</div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link to="/setup" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition">All hosts — GitHub / Gitea / act <ArrowRight className="size-3" /></Link>
-                <span className="text-xs text-muted-foreground py-1.5">Mirroring repos is easier than rewriting YAML.</span>
+                <Link to="/setup" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition">Full build guide — GitHub / Gitea / act <ArrowRight className="size-3" /></Link>
+                <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-border bg-white">Live build logs <ExternalLink className="size-3" /></a>
               </div>
             </div>
             <div className="rounded-2xl athena-stone p-5">
@@ -256,31 +270,31 @@ export default function Landing() {
               <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
                 {[
                   "xcodebuild build + test must pass",
-                  "archive with CODE_SIGNING_ALLOWED=NO must produce PackWise.app",
-                  "ipa must be zip of Payload/PackWise.app",
-                  "artifact must be verifiable (ls -lh, unzip -l)",
+                  "archive now falls back to DerivedData build — never silent no-ipa",
+                  "ipa is zip of Payload/PackWise.app + .sha256",
+                  "artifact verifiable: unzip -l + shasum",
                 ].map(t=> <li key={t} className="flex gap-2"><Check className="size-3.5 mt-0.5 text-emerald-600" />{t}</li>)}
               </ul>
-              <div className="mt-4 text-xs text-muted-foreground">Documentation: <span className="font-mono">ios/README.md</span> · License: MIT · Open source, no paid APIs.</div>
+              <div className="mt-4 text-xs text-muted-foreground">Source: <span className="font-mono">ios/README.md</span> · License: MIT · No paid APIs. Live logs: <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Alot1z/packwise Actions</a></div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Changelog + troubleshooting */}
+      {/* Changelog */}
       <section id="changelog" className="max-w-[1180px] mx-auto px-6 pb-10 grid lg:grid-cols-2 gap-6">
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="flex items-center gap-2"><BookOpen className="size-4" /><span className="font-semibold" style={serif}>Changelog</span></div>
           <div className="mt-3 space-y-3 text-sm">
-            <div><div className="font-mono text-xs text-muted-foreground">1.0.0 — Native iOS</div><div className="text-muted-foreground">Initial native release: Dashboard, Trips, Packing Lists, Library, Vision Scanner, Outfit Planner, Global Search, Templates, Reminders. SwiftData persistence, on-device Vision, local notifications.</div></div>
-            <div className="border-t border-border pt-3"><div className="font-mono text-xs text-muted-foreground">Build</div><div className="text-muted-foreground">Xcode project via XcodeGen, unit + UI tests, unsigned IPA via GitHub Actions (macOS 15).</div></div>
+            <div><div className="font-mono text-xs text-muted-foreground">1.0.0 — Native iOS</div><div className="text-muted-foreground">Initial native release: Dashboard, Trips, Packing Lists, Library, Vision Scanner, Outfit Planner, Global Search, Templates, Reminders. SwiftData persistence, on-device Vision, local notifications. Unsigned IPA via GitHub Actions macos-15 with archive+fallback.</div></div>
+            <div className="border-t border-border pt-3"><div className="font-mono text-xs text-muted-foreground">Build</div><div className="text-muted-foreground">XcodeGen, unit + UI tests, artifact + Release upload, sha256. Mirror for Gitea and local act.</div></div>
           </div>
         </div>
         <div className="rounded-2xl border border-border bg-white p-6">
           <div className="font-semibold" style={serif}>Troubleshooting</div>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li><span className="font-medium text-foreground">No IPA artifact?</span> — Check Actions logs; ensure the archive step produced <span className="font-mono">PackWise.app</span>.</li>
-            <li><span className="font-medium text-foreground">Install fails?</span> — Unsigned IPAs must be re-signed via your sideload tool (AltStore/Sideloadly) or installed via TrollStore on supported versions.</li>
+            <li><span className="font-medium text-foreground">No IPA artifact?</span> — Open <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Actions logs</a> → <span className="font-mono">Archive — unsigned IPA</span> now prints fallback diagnostics (see fix above).</li>
+            <li><span className="font-medium text-foreground">Install fails?</span> — Unsigned IPAs must be re-signed via AltStore/Sideloadly or via TrollStore on supported versions.</li>
             <li><span className="font-medium text-foreground">Vision finds nothing?</span> — Try a clearer, well-lit photo; Vision is on device and conservative.</li>
             <li className="pt-2 border-t border-border text-xs">TestFlight / App Store are never claimed without real Apple signing and App Store Connect processing.</li>
           </ul>
@@ -289,11 +303,11 @@ export default function Landing() {
 
       <footer className="border-t border-border/70">
         <div className="max-w-[1180px] mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
-          <span>PackWise — native iOS is the product. This site documents the project.</span>
+          <span>PackWise — <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="underline underline-offset-4">Alot1z/packwise</a> · Native iOS is the product. This site documents the project.</span>
           <span className="inline-flex items-center gap-2">
-            <Link to="/dashboard" className="inline-flex items-center gap-1.5 font-medium text-foreground">Install guide <ArrowRight className="size-4" /></Link>
+            <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-foreground">Download IPA <Download className="size-4" /></a>
             <span className="text-border">·</span>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1">GitHub <ExternalLink className="size-3" /></a>
+            <Link to="/setup" className="inline-flex items-center gap-1">Build guide <ArrowRight className="size-3" /></Link>
           </span>
         </div>
       </footer>
