@@ -1,78 +1,96 @@
-# PackWise — Native iOS · On-Device · Open Source
+# PackWise iOS — the app is the product
 
-Premium, privacy-first packing assistant. SwiftUI + SwiftData + Vision (on device). Offline-first, no mandatory login, no paid APIs.
+Native, private, offline. SwiftUI + SwiftData + Vision — everything on device.
 
-## Architecture
+> **Get the IPA →** [Releases · Latest](https://github.com/Alot1z/packwise/releases/latest) · or **Actions → iOS — PackWise → PackWise-unsigned-ipa**
+> This doc is for building it yourself.
 
-- **MVVM + Services:** `Services/VisionService` (Vision, confirm-before-add), `Services/NotificationService` (UserNotifications), `Services/RecommendationService` (local rules).
-- **Models (SwiftData):** `Trip`, `PackingItem`, `PersonalItem`, `Outfit`, `PackCategory`, `PackTemplate`, `Reminder`, `UserPreference`. Migrations handled by SwiftData, backup-safe.
-- **Navigation:** Launch → Onboarding → Dashboard → Trips → Trip Detail → Packing List (search/sort/filter) → Item Detail (photo/notes) → Photo Scanner (Vision) → Outfit Planner → Library → Global Search → Templates (5 starters + custom) → Reminders → Settings.
-- **Support:** Light/Dark, Dynamic Type, VoiceOver, iPhone + iPad, empty/loading/error states.
-
-## Requirements
-
-Xcode 16+, iOS 17+, Swift 5.9, XcodeGen (`brew install xcodegen`).
-
-## Generate & run
+## Quick start
 
 ```bash
+brew install xcodegen
 cd ios
 xcodegen generate
 open PackWise.xcodeproj
-# or:
-xcodebuild build -project PackWise.xcodeproj -scheme PackWise -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO
 ```
+
+Run on simulator or device (no signing needed for the simulator build):
+
+```bash
+xcodebuild build -project PackWise.xcodepoj -scheme PackWise \
+  -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" CODE_SIGNING_ALLOWED=NO
+```
+
+## What's inside
+
+**Models (SwiftData):** `Trip` · `PackingItem` · `PersonalItem` · `Outfit` · `PackCategory` · `PackTemplate` · `Reminder` · `UserPreference` — all local, offline, backup-safe.
+
+**Services:** `VisionService` (on-device `VNClassifyImageRequest`, confirm-before-add) · `NotificationService` (local `UserNotifications`) · `RecommendationService` (rule-based, no cloud).
+
+**Navigation (no dead screens):** Launch → Onboarding → **Dashboard** (upcoming, progress, missing) → **Trips** → **Trip Detail** (list + progress + search) → **Item Detail** → **Photo Scanner** → **Outfit Planner** → **Library** → **Search** → **Templates** → **Reminders** → **Settings**. Light/Dark, Dynamic Type, VoiceOver, iPhone + iPad.
 
 ## Tests
 
 ```bash
-cd ios
-xcodegen generate
-xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" CODE_SIGNING_ALLOWED=NO
+cd ios && xcodegen generate
+xcodebuild test -project PackWise.xcodeproj -scheme PackWise \
+  -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" CODE_SIGNING_ALLOWED=NO
 ```
 
-## Unsigned IPA — fully open, fully reproducible
+Targets: `PackWise` · `PackWiseTests` (unit/model/persistence) · `PackWiseUITests` (smoke).
 
-The same `ios/` source builds identically on **any** of these (pick what you prefer — no lock-in):
+## Unsigned IPA — reproducible, three equal hosts
 
-### 1) GitHub Actions (free, no Mac needed on your side)
+All three produce the **identical** `PackWise-unsigned.ipa` (zip of `Payload/PackWise.app`) for AltStore / Sideloadly / TrollStore.
 
-Push to `main` → workflow `.github/workflows/ios.yml` runs on `macos-15` (Xcode 16), runs tests, archives with `CODE_SIGNING_ALLOWED=NO`, zips `Payload/PackWise.app` → artifact `PackWise-unsigned-ipa` (14 days). Manual: Actions → *iOS — PackWise* → Run workflow.
+### 1 — GitHub Actions (no Mac needed on your side)
 
-### 2) Gitea Actions (self-hosted, FOSS)
-
-Mirroring is trivial — the YAML is the same.
-
-- Host Gitea (https://about.gitea.com/) and enable **Actions** (`[actions] ENABLED=true` in `app.ini`).
-- Add a **macOS runner** (must be a Mac with Xcode): register a runner labeled `macos` against your Gitea instance. See https://docs.gitea.io/en-us/usage/actions/comparison/ and https://docs.gitea.io/en-us/usage/actions/act-runner/.
-- Mirror or push this repo to Gitea. Workflow at `.gitea/workflows/ios.yml` (identical to GitHub's, `runs-on: macos`) will build the same unsigned IPA and upload artifact `PackWise-unsigned-ipa`.
-
-> GitHub stabilizes / Gitea fluctuates? Just `git push` to the other remote — no YAML rewrite. The two workflows are mirrors by design.
-
-### 3) Self-hosted `act` (nektos/act — run Actions locally, 100% offline if you want)
-
-`act` lets you execute the GitHub Actions YAML **on your own machine**, including a Mac you control. Fully FOSS, no cloud required after clone. Requires macOS + Xcode to actually compile iOS (hard Apple requirement — Linux cannot run `xcodebuild`).
+Push to `main` or `Actions → iOS — PackWise → Run workflow` (free `macos-15` runner, Xcode 16). Artifact `PackWise-unsigned-ipa` is kept 14 days. Tag `v*` also publishes a **GitHub Release**.
 
 ```bash
-# On your Mac:
-brew install act
-# Dry-run the same workflow locally, on the host (no Docker, so Xcode is available):
-act -W .github/workflows/ios.yml -P macos-15=-self-hosted -P macos=-self-hosted
-# → ios/build/PackWise-unsigned.ipa
-
-# Or skip act entirely and just:
-./ios/build.sh
+git tag v1.0.0 && git push origin v1.0.0
 ```
 
-Config for `act` is in `.actrc` at repo root. Linux `act` can lint workflows but cannot build IPAs — again, Apple toolchain only on macOS.
+### 2 — Gitea Actions (self-hosted, FOSS)
 
-**All three produce the same `PackWise-unsigned.ipa`:** a zip of `Payload/PackWise.app` suitable for **AltStore / Sideloadly / TrollStore** (re-sign on device/PC). Unsigned IPAs are not App Store signed.
+Same YAML at `.gitea/workflows/ios.yml` (`runs-on: macos`). Enable `[actions]` in `app.ini`, register a **macOS runner** labeled `macos`, push to your Gitea — same artifact. See https://docs.gitea.io/en-us/usage/actions/comparison/
 
-## Web companion
+Just mirror — no YAML rewrite:
 
-Static Vite build (`vite build` → `dist/`) — docs only. The IPA is the product. Deployable to any static host.
+```bash
+git remote add gitea https://YOUR_GITEA/YOU/packwise.git
+git push gitea main
+```
 
-## Honesty contract
+### 3 — act locally (nektos/act, fully offline after clone)
 
-- Do not claim an IPA is downloadable until a workflow (any host) has succeeded.
-- Do not claim TestFlight/App Store until a signed build has been uploaded and processed by Apple.
+Requires a Mac with Xcode (Apple restriction — Linux cannot run `xcodebuild`):
+
+```bash
+brew install act
+act -W .github/workflows/ios.yml -P macos-15=-self-hosted
+# or simply:
+./ios/build.sh   # → ios/build/PackWise-unsigned.ipa + .sha256
+```
+
+`.actrc` at repo root maps `macos-15`/`macos` to `-self-hosted`.
+
+### How the IPA is built (so the "archive produced no .app" error never bites you again)
+
+Xcode 16’s `xcodebuild archive CODE_SIGNING_ALLOWED=NO` sometimes exits empty when`archivearchive/`. script (aut) try `archive` first, then **fallback** to `xcodebuild build -destination generic/platform=iOS -derivedDataPath ...` and find the `PackWise.app` in `DerivedData`. Verification:
+
+```bash
+ls -lh ios/build/PackWise-unsigned.ipa
+unzip -l ios/build/PackWise-unsigned.ipa | head
+shasum -a 256 ios/build/PackWise-unsigned.ipa
+```
+
+## Troubleshooting
+
+- **Install fails / Untrusted Developer** — Unsigned IPAs must be re-signed. In AltStore/Sideloadly enter an Apple ID for local signing; in TrollStore just tap + (where supported).
+- **Vision suggests nothing** — use a clearer, well-lit photo; Vision is on-device and conservative.
+- **Build says "no IPA"** — open the *Archive — unsigned IPA* step logs; the fallback + diagnostics (`find build -type d`, `ls -R build`) will show where the `.app` landed.
+
+## Honesty
+
+No IPA is advertised until a workflow has actually produced it. No TestFlight/App Store claim without real Apple signing and App Store Connect processing.
