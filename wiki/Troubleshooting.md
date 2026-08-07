@@ -11,7 +11,13 @@
 
 > Every push to `main` now also publishes a **`dev` prerelease** with the direct `.ipa` (`releases/tag/dev`) so you never need to unwrap if you don't want to. Tags `v*` publish versioned Releases.
 
-**Verify any `.ipa`:**
+**Verify any download (one command — auto-unwraps artifact zips):**
+
+```bash
+./scripts/verify-ipa.sh <downloaded-file>   # → "✓ sideload-ready" or exactly why not
+```
+
+Or manually:
 
 ```bash
 file PackWise-unsigned.ipa          # → Zip archive data (correct — .ipa IS a zip renamed)

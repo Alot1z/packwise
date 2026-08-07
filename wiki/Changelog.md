@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.2 — One-command IPA verification (2026-08-07)
+
+**New:** [`scripts/verify-ipa.sh`](https://github.com/Alot1z/packwise/blob/main/scripts/verify-ipa.sh) — one command that tells you whether **any** PackWise download is sideload-ready, before you sideload it:
+
+- Accepts the direct `.ipa`, the GitHub Actions artifact `.zip` (auto-unwraps the inner `.ipa`), or any folder.
+- Checks zip integrity, `Payload/<App>.app` presence, main-executable existence (the exact `Failed to map …/PackWise: Bad file descriptor` guard), arm64 device Mach-O, and no test/signing artifacts — then prints the sha256 to compare against the Release.
+- Wired into **both** CI pipelines (`.github/workflows/ios.yml` and `.gitea/workflows/ios.yml`) as the final publish gate, so CI and users share one verifier.
+
+**Also:** README, wiki (Troubleshooting, Build-and-Release), `ios/README.md`, `ios/build.sh` notes, and the live Download page now lead with the one-liner.
+
 ## 1.0.1 — Sideload fix verified + self-healing IPA pipeline (2026-08-07)
 
 **Root cause confirmed by inspection:** the earlier `dev` IPA contained `PlugIns/PackWiseTests.xctest`, injected XCTest frameworks, and **no main executable** — the literal cause of `Failed to map …/PackWise: Bad file descriptor`.

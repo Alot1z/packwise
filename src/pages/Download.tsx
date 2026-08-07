@@ -114,7 +114,9 @@ export default function Download() {
             </p>
           </div>
           <div className="mt-4 rounded-xl bg-[#1a1a1e] text-zinc-100 p-3 font-mono text-xs leading-5">
-            <div className="text-zinc-400"># Verify any download before sideloading</div>
+            <div className="text-zinc-400"># One command verifies ANY download — .ipa, Actions artifact .zip (auto-unwrap), or folder</div>
+            <div className="text-emerald-300">./scripts/verify-ipa.sh &lt;downloaded-file&gt;  <span className="text-zinc-400"># → ✓ sideload-ready, or ✗ exactly why not</span></div>
+            <div className="text-zinc-500 mt-1"># …or manually:</div>
             <div>file PackWise-unsigned.ipa            <span className="text-zinc-400"># → Zip archive data (correct — .ipa IS a zip of Payload/)</span></div>
             <div>unzip -l PackWise-unsigned.ipa | head <span className="text-zinc-400"># → Payload/PackWise.app/PackWise must be listed</span></div>
             <div>shasum -a 256 PackWise-unsigned.ipa    <span className="text-zinc-400"># → compare with .sha256 from the Release</span></div>
