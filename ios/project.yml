@@ -30,6 +30,12 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_NAME: AccentColor
         SWIFT_VERSION: "5.9"
         CODE_SIGN_STYLE: Automatic
+        # Device-first, arm64 only — matches the unsigned IPA pipeline and
+        # guarantees the packaged executable can run on physical iPhones.
+        SUPPORTED_PLATFORMS: "iphoneos"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
   PackWiseTests:
     type: bundle.unit-test
     platform: iOS
@@ -54,11 +60,15 @@ targets:
         SWIFT_VERSION: "5.9"
 schemes:
   PackWise:
+    # CRITICAL: test targets must NOT be part of the scheme's build/archive
+    # action. When they are, `xcodebuild archive` (and the fallback build)
+    # can inject PackWiseTests.xctest + XCTest frameworks into the app
+    # bundle and — worse — the produced bundle can miss the main executable,
+    # which makes sideloaders fail with "Failed to map .../PackWise:
+    # Bad file descriptor" (the file is not there).
     build:
       targets:
         PackWise: all
-        PackWiseTests: all
-        PackWiseUITests: all
     run:
       config: Debug
     test:

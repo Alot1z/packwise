@@ -30,113 +30,128 @@ jobs:
         working-directory: ios
         run: xcodegen generate && ls -lh PackWise.xcodeproj
 
+      # ── Tests: informative, non-blocking. A flaky test must never block the IPA. ──
       - name: Run tests (simulator, no signing — non-blocking)
         id: tests
         continue-on-error: true
         working-directory: ios
         run: |
           set -o pipefail
-          echo "→ Running tests (xcpretty if available, never blocks archive)"
+          echo "→ Running tests (never blocks archive)"
           if command -v xcpretty >/dev/null 2>&1; then
             xcodebuild test \
-              -project PackWise.xcodeproj \
-              -scheme PackWise \
+              -project PackWise.xcodeproj -scheme PackWise \
               -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" \
               -configuration Debug \
               CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-              | xcpretty --color && echo "TESTS_PASSED=1" >> $GITHUB_ENV || echo "TESTS_PASSED=0" >> $GITHUB_ENV
+              | xcpretty --color && echo "TESTS_PASSED=1" >> "$GITHUB_ENV" || echo "TESTS_PASSED=0" >> "$GITHUB_ENV"
           else
-            echo "xcpretty not found — running raw"
+            mkdir -p build
             xcodebuild test \
-              -project PackWise.xcodeproj \
-              -scheme PackWise \
+              -project PackWise.xcodeproj -scheme PackWise \
               -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" \
               -configuration Debug \
-              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee build/tests.log | tail -n 120
+              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+              2>&1 | tee build/tests.log | tail -n 120
             TEST_EXIT=${PIPESTATUS[0]}
-            if [ "$TEST_EXIT" = "0" ]; then echo "TESTS_PASSED=1" >> $GITHUB_ENV; else echo "TESTS_PASSED=0" >> $GITHUB_ENV; echo "Tests exited $TEST_EXIT — continuing to archive"; fi
+            if [ "$TEST_EXIT" = "0" ]; then echo "TESTS_PASSED=1" >> "$GITHUB_ENV"; else echo "TESTS_PASSED=0" >> "$GITHUB_ENV"; echo "Tests exited $TEST_EXIT — continuing to archive"; fi
           fi
           exit 0
 
-      # ── 1 real build phase → 1 true Payload/PackWise.app → 1 PackWise-unsigned.ipa ──
-      - name: Archive — unsigned IPA (with build fallback)
+      # ── THE REAL PRODUCT: one device build → one true Payload/PackWise.app → .ipa ──
+      # Why not `xcodebuild archive`? On Xcode 16 with CODE_SIGNING_ALLOWED=NO the
+      # archive step can emit an app bundle WITHOUT the main executable (only
+      # Info.plist/Assets.car/PkgInfo) or with test-injected PlugIns — exactly the
+      # "Failed to map …/PackWise: Bad file descriptor" sideload failure.
+      # `xcodebuild build -sdk iphoneos` + strict validation is the reliable path.
+      - name: Build unsigned IPA (device, arm64 — validated)
         if: always()
         working-directory: ios
         run: |
           set -e
-          rm -rf build/Payload build/PackWise-unsigned.ipa build/DerivedData
-          echo "→ Attempt 1: xcodebuild archive (xcarchive layout)"
-          set +e
-          xcodebuild archive \
-            -project PackWise.xcodeproj \
-            -scheme PackWise \
+          rm -rf build/DerivedData build/Payload build/PackWise-unsigned.ipa build/PackWise.xcarchive
+          echo "→ xcodebuild build (iphoneos, generic iOS device, arm64, no signing)"
+          xcodebuild build \
+            -project PackWise.xcodeproj -scheme PackWise \
             -configuration Release \
+            -sdk iphoneos \
             -destination "generic/platform=iOS" \
-            -archivePath build/PackWise.xcarchive \
+            -derivedDataPath build/DerivedData \
+            ONLY_ACTIVE_ARCH=NO ARCHS="arm64" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            -skipPackagePluginValidation -skipMacroValidation 2>&1 | tee build/archive.log | tail -n 80
-          ARCH_EXIT=${PIPESTATUS[0]}
-          set -e
-          echo "archive exit: $ARCH_EXIT"
+            -skipPackagePluginValidation -skipMacroValidation \
+            2>&1 | tee build/build.log | tail -n 60
 
           APP=""
-          if [ -f build/PackWise.xcarchive/Products/Applications/PackWise.app/Info.plist ]; then
-            APP="build/PackWise.xcarchive/Products/Applications/PackWise.app"
-            echo "✓ Found app in xcarchive: $APP"
-          else
-            echo "⚠️ Archive did not produce .app — falling back to xcodebuild build (DerivedData)"
-            cat build/archive.log 2>&1 | tail -n 120 || true
-            xcodebuild build \
-              -project PackWise.xcodeproj \
-              -scheme PackWise \
-              -configuration Release \
-              -destination "generic/platform=iOS" \
-              -derivedDataPath build/DerivedData \
-              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tail -n 80
-            APP=$(find build/DerivedData -name "PackWise.app" -type d | head -n1 || true)
-            if [ -n "$APP" ]; then echo "✓ Found app in DerivedData: $APP"; fi
+          for c in build/DerivedData/Build/Products/Release-iphoneos/PackWise.app build/DerivedData/Build/Products/Release/PackWise.app; do
+            if [ -f "$c/Info.plist" ]; then APP="$c"; break; fi
+          done
+          if [ -z "$APP" ]; then
+            APP=$(find build/DerivedData -name "PackWise.app" -type d 2>/dev/null | grep -v ".xctest" | head -n1 || true)
           fi
-
           if [ -z "$APP" ] || [ ! -d "$APP" ]; then
-            echo "❌ No PackWise.app found. Diagnostics:"
-            find build -type d 2>&1 | head -n 60 || true
-            ls -R build 2>&1 | head -n 120 || true
-            exit 1
+            echo "❌ No PackWise.app produced. Diagnostics:"; find build -type d -maxdepth 6 | head -n 60; ls -R build | head -n 120; exit 1
+          fi
+          echo "✓ App: $APP"
+
+          EXEC="$APP/PackWise"
+          if [ ! -f "$EXEC" ] || [ ! -s "$EXEC" ]; then
+            echo "❌ Main executable missing or empty: $EXEC — refusing to publish (Bad-file-descriptor sideload bug)."
+            ls -la "$APP"; exit 1
+          fi
+          chmod +x "$EXEC"
+          file "$EXEC" || true
+          if command -v otool >/dev/null 2>&1; then
+            PLATFORM=$(otool -l "$EXEC" 2>/dev/null | grep -A5 "LC_BUILD_VERSION" | grep -m1 "platform" | awk '{print $2}')
+            echo "platform=$PLATFORM (2=iOS device, 7=simulator)"
+            if [ "$PLATFORM" = "7" ]; then echo "❌ Simulator binary — cannot sideload."; exit 1; fi
+          fi
+          if command -v lipo >/dev/null 2>&1 && lipo -info "$EXEC" 2>/dev/null | grep -q "x86_64"; then
+            lipo -thin arm64 "$EXEC" -output "$EXEC.tmp" && mv "$EXEC.tmp" "$EXEC"
           fi
 
-          # True IPA: Payload/App.app zipped + renamed to .ipa (Apple spec)
-          rm -rf build/Payload build/PackWise-unsigned.ipa
+          echo "→ Staging Payload (stripping test injection)"
           mkdir -p build/Payload
           cp -R "$APP" build/Payload/
-          find build/Payload -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
-          (cd build && zip -r -y PackWise-unsigned.ipa Payload >/dev/null)
-          echo "BUILT_UNSIGNED_IPA=1" >> $GITHUB_ENV
-          echo "--- IPA validation ---"
+          STAGED="build/Payload/PackWise.app"
+          rm -rf "$STAGED/_CodeSignature" "$STAGED/PlugIns" 2>/dev/null || true
+          find "$STAGED/Frameworks" -maxdepth 1 \( -name "*XCTest*" -o -name "Testing.framework" -o -name "XCUnit*" -o -name "XCUIAutomation*" -o -name "XCTAutomationSupport*" -o -name "libXCTest*" \) -exec rm -rf {} + 2>/dev/null || true
+          if [ -d "$STAGED/Frameworks" ] && [ -z "$(ls -A "$STAGED/Frameworks" 2>/dev/null)" ]; then rmdir "$STAGED/Frameworks" 2>/dev/null || true; fi
+          [ -f "$STAGED/PackWise" ] || { echo "❌ Staged app missing executable"; exit 1; }
+          chmod +x "$STAGED/PackWise"
+
+          echo "→ Compressing Payload → .ipa"
+          (cd build && ditto -c -k --sequesterRsrc --keepParent Payload PackWise-unsigned.ipa)
+
+          echo "→ Validating .ipa"
           ls -lh build/PackWise-unsigned.ipa
           file build/PackWise-unsigned.ipa || true
           unzip -l build/PackWise-unsigned.ipa | head -n 24
-          # must contain Payload/PackWise.app/ — refuse to publish otherwise
-          if ! unzip -l build/PackWise-unsigned.ipa | grep -q "Payload/PackWise.app/"; then
-            echo "❌ IPA missing Payload/PackWise.app/ — not installable"; exit 1
+          for required in "Payload/PackWise.app/PackWise" "Payload/PackWise.app/Info.plist"; do
+            if ! unzip -l build/PackWise-unsigned.ipa | grep -q "$required"; then
+              echo "❌ IPA missing $required — refusing to publish."; exit 1
+            fi
+          done
+          if unzip -l build/PackWise-unsigned.ipa | grep -qE "\.xctest/|Frameworks/XCTest"; then
+            echo "❌ IPA still contains test bundles — refusing to publish."; exit 1
           fi
           shasum -a 256 build/PackWise-unsigned.ipa | tee build/PackWise-unsigned.ipa.sha256
-          # also publish the inner structure for the Summary
-          du -sh build/Payload/PackWise.app || true
+          echo "BUILT_UNSIGNED_IPA=1" >> "$GITHUB_ENV"
 
-      - name: Upload unsigned IPA (for debugging)
+      - name: Upload unsigned IPA (debug artifact — outer zip, unwrap to .ipa)
         if: always() && env.BUILT_UNSIGNED_IPA == '1'
         uses: actions/upload-artifact@v4
         with:
           name: PackWise-unsigned-ipa
-          # NOTE: GitHub wraps this in an outer artifact .zip for Download. The inner file IS the .ipa.
-          # Direct .ipa lives on Releases — see steps below.
+          # NOTE: GitHub wraps uploads in an outer container .zip for Download.
+          # The inner file IS the .ipa. Direct .ipa lives on Releases (below).
           path: |
             ios/build/PackWise-unsigned.ipa
             ios/build/PackWise-unsigned.ipa.sha256
           if-no-files-found: error
           retention-days: 14
 
-      # ── Direct .ipa download (no outer zip) — tag Release ──
+      # ── Direct .ipa download (no outer zip) — versioned Release on tag v* ──
       - name: Publish to GitHub Release (on tag v*)
         if: startsWith(github.ref, 'refs/tags/v') && env.BUILT_UNSIGNED_IPA == '1'
         uses: softprops/action-gh-release@v2
@@ -146,9 +161,8 @@ jobs:
             ios/build/PackWise-unsigned.ipa.sha256
           generate_release_notes: true
 
-      # ── Direct .ipa download (no outer zip) — auto dev prerelease on main ──
-      # So every push to main has a 1-click PackWise-unsigned.ipa — no unwrapping the artifact zip.
-      - name: Publish dev prerelease (on main — so Releases/latest always has a .ipa)
+      # ── Direct .ipa — auto dev prerelease on every push to main ──
+      - name: Publish dev prerelease (every main push — 1-click .ipa)
         if: github.ref == 'refs/heads/main' && env.BUILT_UNSIGNED_IPA == '1'
         uses: softprops/action-gh-release@v2
         with:
@@ -163,22 +177,20 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "### PackWise — iOS" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${TESTS_PASSED:-0}" = "1" ]; then echo "✅ Tests passed" >> $GITHUB_STEP_SUMMARY; else echo "⚠️ Tests did not pass (see log) — IPA still built (non-blocking)" >> $GITHUB_STEP_SUMMARY; fi
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### PackWise — iOS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${TESTS_PASSED:-0}" = "1" ]; then echo "✅ Tests passed" >> "$GITHUB_STEP_SUMMARY"; else echo "⚠️ Tests did not pass (non-blocking) — IPA still built" >> "$GITHUB_STEP_SUMMARY"; fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ "${BUILT_UNSIGNED_IPA:-0}" = "1" ]; then
-            echo "✅ **Unsigned IPA produced — \`PackWise-unsigned.ipa\`** (zip of \`Payload/PackWise.app\`)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Download (direct .ipa, no unwrap):** Releases → **[Latest](https://github.com/${{ github.repository }}/releases/latest)** or **[dev](https://github.com/${{ github.repository }}/releases/tag/dev)** (artifact is inside a zip — unwrap to get the .ipa)." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Install with **AltStore / Sideloadly / TrollStore** (re-sign on device/PC). Verify: \`unzip -l PackWise-unsigned.ipa | head\` · \`shasum -a 256 PackWise-unsigned.ipa\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📦 Artifact: **PackWise-unsigned-ipa** (14 days) · Tag \`v*\` → full Release · Every main push → \`dev\` prerelease" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Unsigned IPA produced — \`PackWise-unsigned.ipa\`**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Validated: \`Payload/PackWise.app/PackWise\` present, arm64 device Mach-O, no test bundles" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Direct .ipa (no unwrap): **[dev](https://github.com/${{ github.repository }}/releases/tag/dev)** (every main push) and **[Latest](https://github.com/${{ github.repository }}/releases/latest)** (tag \`v*\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Artifact \`PackWise-unsigned-ipa\` is an outer zip — unwrap once to get the \`.ipa\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Sideload: AltStore / Sideloadly / TrollStore. Verify: \`unzip -l PackWise-unsigned.ipa | grep Payload\` · \`shasum -a 256\`" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "❌ **No IPA produced** — check Archive logs above." >> $GITHUB_STEP_SUMMARY
+            echo "❌ **No IPA produced** — see Build step log above." >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "TestFlight / App Store are **not** claimed — that requires Apple signing and App Store Connect processing (see ios/README.md)." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Logs: [Live run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) · [Wiki](https://github.com/$GITHUB_REPOSITORY/wiki) · [Verify](https://github.com/${{ github.repository }}/actions)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "TestFlight / App Store are **not** claimed — that requires Apple signing and App Store Connect processing (see ios/README.md)." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Logs: [Live run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) · [Wiki](https://github.com/$GITHUB_REPOSITORY/wiki) · [Releases](https://github.com/${{ github.repository }}/releases)" >> "$GITHUB_STEP_SUMMARY"

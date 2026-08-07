@@ -1,27 +1,14 @@
 import { Link } from "react-router";
 import { motion } from "framer-motion";
 import {
-  ArrowRight, Shield, HardDrive, Scan, Eye, Shirt, Library,
+  Shield, HardDrive, Scan, Eye, Shirt, Library,
   Layers, Search, CalendarDays, Bell, Box, Cpu, Github,
-  Download, Wrench, BookOpen, Check, Terminal, Smartphone, FileText, ExternalLink, Zap, Lock, Sparkles, Package
+  Download, Wrench, BookOpen, Check, Terminal, Smartphone, FileText, ExternalLink, Zap, Lock, Sparkles, Package, AlertTriangle, BadgeCheck,
 } from "lucide-react";
-
-const serif = { fontFamily: "Instrument Serif, Cormorant Garamond, serif" } as const;
-const LIVE_REPO = "https://github.com/Alot1z/packwise";
-const LIVE_RELEASES = "https://github.com/Alot1z/packwise/releases";
-const LIVE_RELEASE_LATEST = "https://github.com/Alot1z/packwise/releases/latest";
-const LIVE_RELEASE_DEV = "https://github.com/Alot1z/packwise/releases/tag/dev";
-const LIVE_ACTIONS = "https://github.com/Alot1z/packwise/actions";
-
-function SectionTitle({ kicker, title, desc }: { kicker: string; title: string; desc?: string }) {
-  return (
-    <div>
-      <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground">{kicker}</div>
-      <h2 className="mt-2 text-[28px] sm:text-[32px] leading-none tracking-[-0.02em]" style={serif}>{title}</h2>
-      {desc && <p className="mt-2.5 text-[14px] leading-6 text-muted-foreground max-w-[70ch]">{desc}</p>}
-    </div>
-  );
-}
+import {
+  SiteNav, SiteFooter, SectionTitle, serif,
+  LIVE_REPO, LIVE_RELEASES, LIVE_RELEASE_LATEST, LIVE_RELEASE_DEV, LIVE_ACTIONS,
+} from "@/components/site-shared";
 
 function FeatureCard({ icon: Icon, title, desc }: { icon: typeof Scan; title: string; desc: string }) {
   return (
@@ -40,38 +27,15 @@ function FeatureCard({ icon: Icon, title, desc }: { icon: typeof Scan; title: st
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-[oklch(0.62_0.115_38/0.18)]">
-      {/* Nav */}
-      <nav className="sticky top-0 z-30 backdrop-blur-xl bg-background/80 border-b border-border/60">
-        <div className="max-w-[1180px] mx-auto px-6 h-[58px] flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <span className="size-8 rounded-[10px] bg-primary text-primary-foreground grid place-items-center"><Scan className="size-4" /></span>
-            <span className="text-[15px] font-semibold tracking-[-0.02em]" style={serif}>PackWise</span>
-            <span className="hidden lg:inline text-[11px] font-mono uppercase tracking-[0.12em] text-muted-foreground border border-border rounded-full px-2.5 py-0.5 ml-1">Docs · IPA is the product</span>
-          </Link>
-          <div className="hidden md:flex items-center gap-1 text-sm">
-            <a href="#features" className="px-3 py-1.5 rounded-full hover:bg-secondary transition">Features</a>
-            <a href="#architecture" className="px-3 py-1.5 rounded-full hover:bg-secondary transition">Architecture</a>
-            <a href="#install" className="px-3 py-1.5 rounded-full hover:bg-secondary transition">Install</a>
-            <a href="#build" className="px-3 py-1.5 rounded-full hover:bg-secondary transition">Build</a>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="hidden sm:inline-flex text-sm font-medium px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition items-center gap-1.5">
-              <Download className="size-3.5" /> Download IPA
-            </a>
-            <Link to="/setup" className="hidden lg:inline-flex text-sm font-medium px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">Build guide</Link>
-            <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-full border border-border bg-card hover:bg-secondary transition">
-              <Github className="size-3.5" /> <span className="hidden sm:inline">Alot1z/packwise</span> <ExternalLink className="size-3" />
-            </a>
-          </div>
-        </div>
-      </nav>
+      <SiteNav />
 
-      {/* Hero */}
-      <section className="max-w-[1180px] mx-auto px-6 pt-10 sm:pt-14 pb-8">
+      {/* ── HERO — NATIVE iOS · SWIFTUI · SWIFTDATA · VISION · ON DEVICE ── */}
+      <section className="max-w-[1180px] mx-auto px-6 pt-10 sm:pt-14 pb-6">
         <div className="grid lg:grid-cols-[1.06fr_0.94fr] gap-8 items-start">
           <div>
             <div className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-[oklch(0.62_0.115_38)] animate-pulse" /> Native iOS — SwiftUI · SwiftData · Vision · On device
+              <span className="size-1.5 rounded-full bg-[oklch(0.62_0.115_38)] animate-pulse" />
+              Native iOS — SwiftUI · SwiftData · Vision · On device
             </div>
             <h1 className="mt-3 text-[40px] sm:text-[54px] leading-[0.9] tracking-[-0.03em]" style={serif}>
               PackWise for iPhone.<br />
@@ -81,18 +45,6 @@ export default function Landing() {
               A premium, privacy-first travel packing assistant. Every trip, packing list, photo, outfit, template and reminder lives on your iPhone and works offline. No account. No cloud. No tracking.
             </p>
 
-            {/* What is .ipa? + zip vs ipa clarity — FIX B */}
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/90 p-4">
-              <div className="flex gap-2.5">
-                <Package className="size-4 text-amber-700 shrink-0 mt-0.5" />
-                <div className="text-xs leading-5 text-amber-900">
-                  <span className="font-semibold">Did your download arrive as a <span className="font-mono">.zip</span>?</span> That&apos;s GitHub&apos;s artifact container — not the PackWise build. Inside <span className="font-mono">PackWise-unsigned-ipa.zip</span> is the real <span className="font-mono">PackWise-unsigned.ipa</span>.
-                  For a direct <span className="font-mono">.ipa</span> (1 click, no unwrap): use <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">Releases → Latest</a> or <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">dev (latest main)</a> — every push to <span className="font-mono">main</span> now publishes it.
-                  <div className="mt-2 font-mono text-[11px] bg-white/80 border border-amber-200 rounded-lg px-2.5 py-1.5">file PackWise-unsigned.ipa → Zip archive data · unzip -l PackWise-unsigned.ipa → Payload/PackWise.app/</div>
-                </div>
-              </div>
-            </div>
-
             <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white border border-border px-3 py-1 text-xs">
               <Box className="size-3.5 text-muted-foreground" />
               <span className="font-medium">This website is documentation only.</span>
@@ -101,36 +53,34 @@ export default function Landing() {
 
             <div className="mt-6 flex flex-wrap gap-3">
               <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition shadow-[0_8px_24px_-12px_oklch(0.25_0.05_42/0.5)]">
-                <Download className="size-4" /> Download IPA — Latest
+                <Download className="size-4" /> Download IPA — Latest Release
               </a>
-              <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-border bg-card text-sm font-medium hover:bg-secondary transition">
+              <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-border bg-card text-sm font-medium hover:bg-secondary transition">
+                <Terminal className="size-4" /> View builds
+              </a>
+              <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-border bg-white text-sm font-medium hover:bg-secondary transition">
                 <Zap className="size-4" /> dev — latest main
-              </a>
-              <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-border bg-white text-sm font-medium hover:bg-secondary transition">
-                <Terminal className="size-4" /> Builds
               </a>
             </div>
             <p className="text-[11px] text-muted-foreground mt-2 font-mono">
-              <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="underline underline-offset-4">Alot1z/packwise</a> · <Link to="/setup" className="underline underline-offset-4">Build guide →</Link> · <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="underline underline-offset-4">All Releases</a>
+              <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="underline underline-offset-4">Alot1z/packwise</a> · <Link to="/build" className="underline underline-offset-4">Build guide →</Link> · <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="underline underline-offset-4">All Releases</a>
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2.5 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card border border-border"><Shield className="size-3.5" /> Private by design</span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card border border-border"><HardDrive className="size-3.5" /> SwiftData</span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card border border-border"><Eye className="size-3.5" /> Vision on-device</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card border border-border"><HardDrive className="size-3.5" /> SwiftData on device</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card border border-border"><Eye className="size-3.5" /> Vision on device</span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card border border-border"><Lock className="size-3.5" /> Offline-first</span>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground"><Package className="size-3.5" /> Primary delivery target</div>
-              <div className="mt-1 font-mono text-sm font-medium">PackWise-unsigned.ipa</div>
-              <div className="text-xs text-muted-foreground mt-1 leading-5">Direct <span className="font-mono">.ipa</span> on <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="underline underline-offset-4">Releases</a> (<a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="underline underline-offset-4">dev</a> + <span className="font-mono">v*</span>). Artifact is an outer zip — unwrap to get the same <span className="font-mono">.ipa</span>. Also via <a href="https://about.gitea.com" target="_blank" rel="noreferrer" className="underline underline-offset-4">Gitea</a> / <a href="https://github.com/nektos/act" target="_blank" rel="noreferrer" className="underline underline-offset-4">act</a> / <span className="font-mono">ios/build.sh</span>.</div>
             </div>
           </div>
 
+          {/* IOS — NATIVE SWIFTUI card (3D hero art) */}
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: "easeOut" }} className="athena-paper rounded-[28px] p-5 sm:p-6 border border-white/60 shadow-[0_20px_60px_-24px_oklch(0.3_0.05_42/0.25)]">
-            {/* Programmatic 3D hero — imported from assets so README + site share the same art */}
-            <img src="/assets/packwise-hero.svg" alt="PackWise — isometric suitcase with packing layers" className="w-full rounded-[18px] border border-white/60 shadow-sm" loading="eager" />
+            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              <span>iOS — Native SwiftUI</span>
+              <span>iOS 17+ · iPad</span>
+            </div>
+            <img src="/assets/packwise-hero.svg" alt="PackWise — isometric suitcase with packing layers" className="mt-3 w-full rounded-[18px] border border-white/60 shadow-sm" loading="eager" />
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-white border border-border p-3">
                 <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">Dashboard</div>
@@ -149,7 +99,7 @@ export default function Landing() {
                 { k: "Trips", v: "Destination, dates, activities, climate" },
                 { k: "Lists", v: "Categories, qty, packed, progress" },
                 { k: "Outfits", v: "Day-by-day, from packed items" },
-              ].map(b => (
+              ].map((b) => (
                 <div key={b.k} className="rounded-xl bg-white border border-border p-2.5">
                   <div className="text-xs font-semibold" style={serif}>{b.k}</div>
                   <div className="text-[10px] leading-tight text-muted-foreground mt-1">{b.v}</div>
@@ -169,20 +119,42 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Polish band */}
-      <section className="max-w-[1180px] mx-auto px-6 pb-6">
-        <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap items-center gap-3 text-xs">
-          <span className="inline-flex items-center gap-1.5 font-medium"><Sparkles className="size-3.5 text-[oklch(0.62_0.115_38)]" /> Clean · Premium · Technical</span>
-          <span className="text-border">·</span>
-          <span className="text-muted-foreground">Apple-quality calm utility — not a loud marketing site, not a chatbot.</span>
-          <span className="ml-auto inline-flex items-center gap-1.5 font-mono"><Zap className="size-3.5" /> Fast startup · Offline · No mandatory login</span>
+      {/* ── SIDELOAD FIX STATUS (accurate: fix shipped in pipeline; next build is the good one) ── */}
+      <section className="max-w-[1180px] mx-auto px-6 pb-4">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4">
+          <div className="flex gap-2.5">
+            <BadgeCheck className="size-4 text-emerald-700 shrink-0 mt-0.5" />
+            <div className="text-xs leading-5 text-emerald-900">
+              <span className="font-semibold">Sideload failure found and fixed.</span>{" "}
+              The previous dev IPA was packaged without its main executable — that is exactly the{" "}
+              <span className="font-mono">Failed to map …/PackWise: Bad file descriptor</span> error. The pipeline now
+              builds a device arm64 binary and <em>refuses to publish</em> unless{" "}
+              <span className="font-mono">Payload/PackWise.app/PackWise</span> exists and is a valid Mach-O. The next
+              green build (any push to <span className="font-mono">main</span>) publishes the sideloadable IPA at{" "}
+              <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">releases/tag/dev</a>.
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Features */}
+      {/* ── PRIMARY DELIVERY TARGET band ── */}
+      <section className="max-w-[1180px] mx-auto px-6 pb-10">
+        <div className="rounded-2xl border border-border bg-card p-5 grid md:grid-cols-[auto_1fr] gap-5 items-center">
+          <div>
+            <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-muted-foreground"><Package className="size-3.5" /> Primary delivery target</div>
+            <div className="mt-1 font-mono text-lg font-medium">PackWise-unsigned.ipa</div>
+          </div>
+          <div className="text-[13px] leading-6 text-muted-foreground md:border-l md:border-border md:pl-5">
+            Available via <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="underline underline-offset-4 font-medium text-foreground">GitHub Releases</a> (<a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="underline underline-offset-4">dev</a> + <span className="font-mono">v*</span>) and Actions artifacts. Also reproducible via Gitea Actions,{" "}
+            <a href="https://github.com/nektos/act" target="_blank" rel="noreferrer" className="underline underline-offset-4">act</a> (self-hosted), or <span className="font-mono">ios/build.sh</span>. Same validated artifact on every host.
+          </div>
+        </div>
+      </section>
+
+      {/* ── INSIDE THE IPA ── */}
       <section id="features" className="max-w-[1180px] mx-auto px-6 pb-10">
         <div className="athena-rule mb-8" />
-        <SectionTitle kicker="Inside the IPA" title="Every feature lives in the native app" desc="No essential capability depends on this website. What you see below ships inside PackWise-unsigned.ipa." />
+        <SectionTitle kicker="Inside the IPA" title="Every feature lives in the native app" desc="No essential capability depends on this website. The list below describes what ships inside PackWise-unsigned.ipa." />
         <div className="mt-6 grid md:grid-cols-3 gap-4">
           <FeatureCard icon={CalendarDays} title="Trip management" desc="Create, edit, delete, set destination/dates/activities/climate, categorize, view history, duplicate, apply templates." />
           <FeatureCard icon={Layers} title="Smart packing lists" desc="Categories (Clothing, Electronics, Toiletries, Documents, Medical, Accessories, Outdoor + custom), quantities, packed state, progress, search/sort/filter." />
@@ -196,7 +168,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Architecture */}
+      {/* ── ARCHITECTURE + LOCAL DATA MODELS ── */}
       <section id="architecture" className="max-w-[1180px] mx-auto px-6 pb-10">
         <SectionTitle kicker="Architecture" title="Native Apple stack, built for longevity" desc="Clean separation of UI, business logic, and persistence. Designed for maintainability and testability." />
         <div className="mt-6">
@@ -213,7 +185,7 @@ export default function Landing() {
                 ["Photos + Camera", "Import and capture"],
                 ["UserNotifications", "Local reminders"],
                 ["WidgetKit (optional)", "Future extension"],
-              ].map(([a,b])=>(
+              ].map(([a, b]) => (
                 <div key={a} className="rounded-xl athena-stone p-3"><div className="font-medium text-sm">{a}</div><div className="text-xs text-muted-foreground mt-0.5">{b}</div></div>
               ))}
             </div>
@@ -224,7 +196,14 @@ export default function Landing() {
           <div className="rounded-2xl border border-border bg-white p-5">
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Local data models</div>
             <ul className="mt-3 space-y-1.5 text-sm">
-              {["Trip — title, destination, dates, activities, climate, category, status", "PackingList (via Trip.items) + PackingItem (qty, packed, essential, photo, notes)", "PersonalItem (library, favorites, reuse)", "Outfit (day assignment, preview)", "PackCategory (built-in + custom)", "PackTemplate / TemplateItem, Reminder, UserPreference"].map(t=>(
+              {[
+                "Trip — title, destination, dates, activities, climate, category, status",
+                "PackingList (via Trip.items) + PackingItem (qty, packed, essential, photo, notes)",
+                "PersonalItem (library, favorites, reuse)",
+                "Outfit (day assignment, preview)",
+                "PackCategory (built-in + custom)",
+                "PackTemplate / TemplateItem, Reminder, UserPreference",
+              ].map((t) => (
                 <li key={t} className="flex gap-2"><Check className="size-3.5 mt-0.5 text-emerald-600 shrink-0" /><span className="text-muted-foreground text-[13px]">{t}</span></li>
               ))}
             </ul>
@@ -233,11 +212,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Screenshots */}
+      {/* ── PREVIEW ── */}
       <section className="max-w-[1180px] mx-auto px-6 pb-10">
-        <SectionTitle kicker="Preview" title="Screenshots (from the native app)" desc="Real captures go under ios/screenshots/ — shown as tasteful placeholders here." />
+        <SectionTitle kicker="Preview" title="Screenshots (from the native app)" desc="Real captures go under ios/screenshots/ — shown as placeholders here." />
         <div className="mt-6 grid sm:grid-cols-3 gap-4">
-          {[1,2,3].map(i=>(
+          {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-2xl border border-dashed border-border bg-card p-6 text-center hover:border-primary/30 transition-colors">
               <div className="size-10 mx-auto rounded-xl bg-secondary grid place-items-center"><Smartphone className="size-5" /></div>
               <div className="text-sm font-medium mt-3" style={serif}>Screen {i}</div>
@@ -247,25 +226,22 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Install — with concrete zip vs ipa guidance */}
+      {/* ── INSTALL ── */}
       <section id="install" className="max-w-[1180px] mx-auto px-6 pb-10">
         <div className="rounded-[24px] border border-border bg-white p-6 sm:p-7 shadow-sm">
-          <SectionTitle kicker="Install" title="Install PackWise-unsigned.ipa" desc="The IPA is built automatically — no Apple Developer account required to generate it. Choose the direct .ipa path below." />
+          <SectionTitle kicker="Install" title="Install PackWise-unsigned.ipa" desc="The IPA is built automatically from the live repo — no Apple Developer account required to generate it." />
           <div className="mt-6 grid md:grid-cols-2 gap-6">
             <div className="rounded-2xl athena-stone p-5">
-              <div className="font-semibold flex items-center gap-2" style={serif}><Download className="size-4" /> Get the file (direct .ipa)</div>
+              <div className="font-semibold flex items-center gap-2" style={serif}><Download className="size-4" /> Get the artifact</div>
               <ol className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground list-decimal list-inside">
-                <li>Open <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">Releases → Latest</a> or <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">dev (latest main)</a> → <span className="font-mono">PackWise-unsigned.ipa</span>.</li>
-                <li>Prefer Actions? — <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Actions → iOS — PackWise</a> → artifact <span className="font-mono">PackWise-unsigned-ipa.zip</span> → unzip → <span className="font-mono">.ipa</span> inside.</li>
-                <li>Every push to <span className="font-mono">main</span> rebuilds automatically — <span className="font-mono">dev</span> updates in place.</li>
+                <li>Open <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">Releases</a> (or <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Actions → iOS — PackWise</a>).</li>
+                <li>Download <span className="font-mono">PackWise-unsigned.ipa</span> from the latest Release (or artifact).</li>
+                <li>Every push to <span className="font-mono">main</span> rebuilds automatically — sync is already wired, no manual clone.</li>
+                <li>No release is advertised as downloadable until a workflow has succeeded.</li>
               </ol>
               <div className="mt-4 flex flex-wrap gap-2">
-                <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium">Latest IPA <ExternalLink className="size-3.5" /></a>
+                <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium">Download latest IPA <ExternalLink className="size-3.5" /></a>
                 <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-white text-sm font-medium">dev — direct .ipa</a>
-              </div>
-              <div className="mt-3 rounded-xl bg-white border border-border p-2.5 font-mono text-[11px] leading-4">
-                <div className="text-muted-foreground">Direct download (no unwrap):</div>
-                <div className="mt-1">gh release download dev -R Alot1z/packwise -p &quot;PackWise-unsigned.ipa&quot;</div>
               </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-5">
@@ -273,21 +249,28 @@ export default function Landing() {
               <div className="mt-3 space-y-3 text-sm">
                 <div><span className="font-medium">AltStore:</span> <span className="text-muted-foreground">Install AltServer on Mac/PC → connect iPhone → AltStore → My Apps → + → select the <span className="font-mono">.ipa</span>.</span></div>
                 <div><span className="font-medium">Sideloadly:</span> <span className="text-muted-foreground">Drag the <span className="font-mono">.ipa</span> onto Sideloadly, enter Apple ID for local signing, install.</span></div>
-                <div><span className="font-medium">TrollStore (where compatible):</span> <span className="text-muted-foreground">Open TrollStore → + → select <span className="font-mono">.ipa</span> — no re-sign on supported versions.</span></div>
+                <div><span className="font-medium">TrollStore (where compatible):</span> <span className="text-muted-foreground">Open TrollStore → + → select <span className="font-mono">.ipa</span> — no re-signing needed on supported versions.</span></div>
               </div>
-              <div className="mt-4 text-xs text-muted-foreground border-t border-border pt-3 space-y-1">
-                <div>Verify: <span className="font-mono">file PackWise-unsigned.ipa</span> → <span className="font-mono">Zip archive data</span> (expected)</div>
-                <div><span className="font-mono">unzip -l PackWise-unsigned.ipa | head</span> → <span className="font-mono">Payload/PackWise.app/</span></div>
+              <div className="mt-4 text-xs text-muted-foreground border-t border-border pt-3">
+                Unsigned IPAs require re-signing via the chosen tool. They are not App Store signed.
+                <div className="mt-1 font-mono text-[11px]">unzip -l PackWise-unsigned.ipa | head</div>
               </div>
             </div>
           </div>
-          <div className="mt-4 rounded-xl border border-border bg-secondary/30 p-3 text-xs leading-5 text-muted-foreground">
-            <span className="font-medium text-foreground">Heads-up:</span> If you downloaded <span className="font-mono">PackWise-unsigned-ipa.zip</span> from Actions, that&apos;s the <em>container</em>. Unzip it once — the inner <span className="font-mono">PackWise-unsigned.ipa</span> is what you sideload. Releases give you the inner file directly.
+
+          {/* zip vs ipa clarity */}
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/90 p-4">
+            <div className="flex gap-2.5">
+              <AlertTriangle className="size-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="text-xs leading-5 text-amber-900">
+                <span className="font-semibold">Downloaded a <span className="font-mono">.zip</span> from Actions?</span> That&apos;s GitHub&apos;s artifact container — the real <span className="font-mono">PackWise-unsigned.ipa</span> is inside (<span className="font-mono">unzip PackWise-unsigned-ipa.zip</span> once). For a direct <span className="font-mono">.ipa</span> with no unwrap, use <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">Releases</a> or <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">dev</a>.
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Build */}
+      {/* ── BUILD ── */}
       <section id="build" className="max-w-[1180px] mx-auto px-6 pb-10">
         <div className="rounded-[24px] border border-border bg-card p-6 sm:p-7">
           <SectionTitle kicker="Build" title="Build from source (reproducible)" />
@@ -295,18 +278,18 @@ export default function Landing() {
             <div>
               <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Prerequisites</div>
               <p className="text-sm text-muted-foreground mt-1">Xcode 16+, iOS 17+, Swift 5.9, <span className="font-mono">brew install xcodegen</span>.</p>
-              <div className="mt-4 rounded-xl bg-white border border-border p-3 font-mono text-xs leading-5">
-                <div className="text-muted-foreground"># Generate Xcode project</div>
+              <div className="mt-4 rounded-xl bg-[#1a1a1e] text-zinc-100 border border-border p-3 font-mono text-xs leading-5">
+                <div className="text-zinc-400"># Generate Xcode project</div>
                 <div>cd ios && xcodegen generate && open PackWise.xcodeproj</div>
-                <div className="mt-2 text-muted-foreground"># Tests (non-blocking in CI)</div>
-                <div>xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination &quot;platform=iOS Simulator,name=iPhone 16&quot;</div>
-                <div className="mt-2 text-muted-foreground"># Unsigned IPA (same as CI)</div>
-                <div>./ios/build.sh  # → ios/build/PackWise-unsigned.ipa + .sha256</div>
-                <div className="mt-2 text-muted-foreground"># Verify</div>
-                <div>file ios/build/PackWise-unsigned.ipa && unzip -l ios/build/PackWise-unsigned.ipa | head</div>
+                <div className="mt-2 text-zinc-400"># Tests</div>
+                <div>xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16"</div>
+                <div className="mt-2 text-zinc-400"># Unsigned IPA (same as CI)</div>
+                <div>./ios/build.sh  # → ios/build/PackWise-unsigned.ipa</div>
+                <div className="mt-2 text-zinc-400"># Verify</div>
+                <div>unzip -l ios/build/PackWise-unsigned.ipa | grep Payload</div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link to="/setup" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition">Full build guide — GitHub / Gitea / act <ArrowRight className="size-3" /></Link>
+                <Link to="/build" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition">Full build guide — GitHub / Gitea / act <ExternalLink className="size-3" /></Link>
                 <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-border bg-white">Live build logs <ExternalLink className="size-3" /></a>
               </div>
             </div>
@@ -314,12 +297,12 @@ export default function Landing() {
               <div className="font-semibold flex items-center gap-2" style={serif}><Wrench className="size-4" /> Verification & honesty</div>
               <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
                 {[
-                  "xcodebuild build + test — must pass locally",
-                  "archive → DerivedData fallback — never silent no-ipa",
-                  "IPA validated: file + unzip -l must show Payload/PackWise.app/",
-                  "shasum -a 256 published alongside .ipa on every Release",
+                  "xcodebuild build + test must pass",
+                  "Build is device-first (iphoneos, arm64) — never a simulator binary",
+                  "Executable validated: Payload/PackWise.app/PackWise must exist before publish",
+                  "IPA verified: file + unzip -l + shasum -a 256 on every Release",
                   "No TestFlight / App Store claimed — requires Apple signing",
-                ].map(t=> <li key={t} className="flex gap-2"><Check className="size-3.5 mt-0.5 text-emerald-600 shrink-0" />{t}</li>)}
+                ].map((t) => <li key={t} className="flex gap-2"><Check className="size-3.5 mt-0.5 text-emerald-600 shrink-0" />{t}</li>)}
               </ul>
               <div className="mt-4 text-xs text-muted-foreground">Source: <span className="font-mono">ios/README.md</span> · License: MIT · Live logs: <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Alot1z/packwise Actions</a></div>
             </div>
@@ -327,39 +310,46 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Changelog */}
+      {/* ── CHANGELOG + TROUBLESHOOTING ── */}
       <section id="changelog" className="max-w-[1180px] mx-auto px-6 pb-10 grid lg:grid-cols-2 gap-6">
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="flex items-center gap-2"><BookOpen className="size-4" /><span className="font-semibold" style={serif}>Changelog</span></div>
           <div className="mt-3 space-y-3 text-sm">
-            <div><div className="font-mono text-xs text-muted-foreground">1.0.0 — Native iOS</div><div className="text-muted-foreground">Initial native release: Dashboard, Trips, Packing Lists, Library, Vision Scanner, Outfit Planner, Global Search, Templates, Reminders. SwiftData persistence, on-device Vision, local notifications. Unsigned IPA via GitHub Actions macos-15 with archive+fallback + file validation.</div></div>
-            <div className="border-t border-border pt-3"><div className="font-mono text-xs text-muted-foreground">Build</div><div className="text-muted-foreground">XcodeGen, unit + UI tests, artifact + <span className="font-mono">dev</span> prerelease + versioned Release, sha256. Mirror for Gitea and local act. Every main push now has a direct <span className="font-mono">.ipa</span>.</div></div>
+            <div>
+              <div className="font-mono text-xs text-muted-foreground">1.0.0 — Native iOS</div>
+              <div className="text-muted-foreground">Initial native release: Dashboard, Trips, Packing Lists, Library, Vision Scanner, Outfit Planner, Global Search, Templates, Reminders. SwiftData persistence, on-device Vision, local notifications. Unsigned IPA via GitHub Actions macos-15.</div>
+            </div>
+            <div className="border-t border-border pt-3">
+              <div className="font-mono text-xs text-muted-foreground">Sideload fix</div>
+              <div className="text-muted-foreground">Executable-validated build pipeline (device arm64, no test bundles, no missing binary). XcodeGen scheme isolates tests from archive. Direct .ipa on <span className="font-mono">dev</span> release every main push.</div>
+            </div>
           </div>
+          <Link to="/changelog" className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">Full changelog <ExternalLink className="size-3" /></Link>
         </div>
         <div className="rounded-2xl border border-border bg-white p-6">
           <div className="font-semibold" style={serif}>Troubleshooting</div>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li><span className="font-medium text-foreground">Got a .zip not a .ipa?</span> — Use <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="underline underline-offset-4">Releases</a> / <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="underline underline-offset-4">dev</a> for the direct <span className="font-mono">.ipa</span>. Artifacts are outer zips — unwrap once.</li>
-            <li><span className="font-medium text-foreground">No IPA at all?</span> — <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Actions logs</a> → <span className="font-mono">Archive — unsigned IPA</span> now prints <span className="font-mono">file</span> + <span className="font-mono">unzip -l</span>. Check that <span className="font-mono">Payload/PackWise.app/</span> is present.</li>
+            <li><span className="font-medium text-foreground">“Failed to map …/PackWise: Bad file descriptor”?</span> — The IPA was built before the fix. Grab the next <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="underline underline-offset-4">dev</a> build (or build locally with <span className="font-mono">./ios/build.sh</span>) — the binary is now validated before publishing.</li>
+            <li><span className="font-medium text-foreground">Got a .zip not a .ipa?</span> — Use <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="underline underline-offset-4">Releases</a> / <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="underline underline-offset-4">dev</a> for the direct <span className="font-mono">.ipa</span>.</li>
+            <li><span className="font-medium text-foreground">No IPA at all?</span> — <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Actions logs</a> → the build step now fails loudly with diagnostics if the executable is missing.</li>
             <li><span className="font-medium text-foreground">Install fails?</span> — Unsigned IPAs must be re-signed via AltStore/Sideloadly or TrollStore on supported versions.</li>
-            <li><span className="font-medium text-foreground">Vision finds nothing?</span> — Clearer, well-lit photo; Vision is on-device and conservative.</li>
             <li className="pt-2 border-t border-border text-xs">TestFlight / App Store are never claimed without real Apple signing and App Store Connect processing.</li>
           </ul>
+          <Link to="/troubleshooting" className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">More troubleshooting <ExternalLink className="size-3" /></Link>
         </div>
       </section>
 
-      <footer className="border-t border-border/70">
-        <div className="max-w-[1180px] mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
-          <span>PackWise — <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="underline underline-offset-4">Alot1z/packwise</a> · Native iOS is the product. This site documents the project.</span>
-          <span className="inline-flex items-center gap-2">
-            <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-foreground">Download IPA <Download className="size-4" /></a>
-            <span className="text-border">·</span>
-            <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="font-mono text-xs underline underline-offset-4">dev</a>
-            <span className="text-border">·</span>
-            <Link to="/setup" className="inline-flex items-center gap-1">Build guide <ArrowRight className="size-3" /></Link>
-          </span>
+      {/* Polish band */}
+      <section className="max-w-[1180px] mx-auto px-6 pb-10">
+        <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap items-center gap-3 text-xs">
+          <span className="inline-flex items-center gap-1.5 font-medium"><Sparkles className="size-3.5 text-[oklch(0.62_0.115_38)]" /> Clean · Premium · Technical</span>
+          <span className="text-border">·</span>
+          <span className="text-muted-foreground">Apple-quality calm utility — not a loud marketing site, not a chatbot.</span>
+          <span className="ml-auto inline-flex items-center gap-1.5 font-mono"><Zap className="size-3.5" /> Fast startup · Offline · No mandatory login</span>
         </div>
-      </footer>
+      </section>
+
+      <SiteFooter />
     </div>
   );
 }
