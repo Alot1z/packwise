@@ -21,13 +21,13 @@ final class VisionService: ObservableObject {
     /// Map Vision labels → PackWise categories (conservative, local).
     private func category(for label: String) -> String {
         let l = label.lowercased()
-        if ["shirt","jacket","dress","jeans","trouser","coat","sweater","t-shirt","blouse","skirt","shorts","sock","shoe","sneaker","boot","sandal","hat","scarf","glove"].contains(where: l.contains) { return "Clothing" }
-        if ["laptop","phone","camera","headphone","charger","cable","adapter","power","battery"].contains(where: l.contains) { return "Electronics" }
-        if ["toothbrush","bottle","lotion","shampoo","soap","cosmetic"].contains(where: l.contains) { return "Toiletries" }
-        if ["passport","document","book","paper"].contains(where: l.contains) { return "Documents" }
-        if ["medicine","pill","bandage","first aid"].contains(where: l.contains) { return "Medical" }
-        if ["sunglass","watch","jewelry","bag","backpack","suitcase","umbrella"].contains(where: l.contains) { return "Accessories" }
-        if ["tent","backpack","bottle","compass","rope"].contains(where: l.contains) { return "Outdoor" }
+        if ["shirt","jacket","dress","jeans","trouser","coat","sweater","t-shirt","blouse","skirt","shorts","sock","shoe","sneaker","boot","sandal","hat","scarf","glove","hoodie","parka","cardigan"].contains(where: l.contains) { return "Clothing" }
+        if ["laptop","phone","camera","headphone","charger","cable","adapter","power","battery","keyboard","monitor","tablet","earphone"].contains(where: l.contains) { return "Electronics" }
+        if ["toothbrush","bottle","lotion","shampoo","soap","cosmetic","deodorant","razor","perfume"].contains(where: l.contains) { return "Toiletries" }
+        if ["passport","document","book","paper","notebook","envelope","folder"].contains(where: l.contains) { return "Documents" }
+        if ["medicine","pill","bandage","first aid","capsule","syringe"].contains(where: l.contains) { return "Medical" }
+        if ["sunglass","watch","jewelry","bag","backpack","suitcase","umbrella","belt","wallet","glasses"].contains(where: l.contains) { return "Accessories" }
+        if ["tent","compass","rope","kayak","canoe","paddle","helmet","hiking","camping"].contains(where: l.contains) { return "Outdoor" }
         return "General"
     }
 
@@ -36,7 +36,7 @@ final class VisionService: ObservableObject {
         error = nil
         suggestions = []
         guard let cg = image.cgImage else {
-            error = "Could not read image."
+            error = "Could not read image. Try a different photo."
             isProcessing = false
             return
         }
@@ -46,18 +46,21 @@ final class VisionService: ObservableObject {
             try handler.perform([request])
             let results = (request.results ?? []).prefix(8)
             let mapped: [VisionSuggestion] = results
-                .filter { $0.confidence > 0.15 }
+                .filter { $0.confidence > 0.12 }
                 .map { obs in
                     let cat = self.category(for: obs.identifier)
                     return VisionSuggestion(label: obs.identifier.replacingOccurrences(of: ",", with: " ·").capitalized, confidence: obs.confidence, category: cat)
                 }
-            // Also try object detection for additional labels
-            suggestions = mapped.isEmpty ? [VisionSuggestion(label: "Unrecognized — add manually", confidence: 0, category: "General")] : mapped
+            if mapped.isEmpty {
+                suggestions = [VisionSuggestion(label: "Unrecognized — add manually", confidence: 0, category: "General")]
+            } else {
+                suggestions = mapped
+            }
         } catch {
             self.error = error.localizedDescription
         }
         isProcessing = false
     }
 
-    func reset() { suggestions = []; error = nil }
+    func reset() { suggestions = []; error = nil; isProcessing = false }
 }

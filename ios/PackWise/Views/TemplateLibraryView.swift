@@ -6,32 +6,38 @@ struct TemplateLibraryView: View {
     @Query(sort: \PackTemplate.createdAt, order: .reverse) private var templates: [PackTemplate]
     @Query(sort: \Trip.updatedAt, order: .reverse) private var trips: [Trip]
     @State private var selectedTripID: UUID?
+    @State private var showDeleteConfirm: PackTemplate?
 
     var body: some View {
         NavigationStack {
             List {
                 if templates.isEmpty {
                     Section {
-                        Text("No templates yet. Add a starter or save any trip — all stored locally.")
+                        Text("No templates yet. Add a starter below — all stored locally, no account needed.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Section("Starter templates") {
                     ForEach(Array(starterTemplates.enumerated()), id: \.offset) { _, t in
                         HStack {
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(t.name).font(.subheadline.weight(.medium))
                                 Text(t.detail).font(.caption).foregroundStyle(.secondary)
+                                Text("\(t.items.count) items · \(t.tag)").font(.caption2).foregroundStyle(.secondary)
                             }
                             Spacer()
                             Button("Add") {
                                 let m = PackTemplate(name: t.name, tag: t.tag, detail: t.detail, items: t.items)
                                 context.insert(m)
                                 try? context.save()
+                                #if canImport(UIKit)
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                #endif
                             }
                             .buttonStyle(.bordered).controlSize(.small)
                             .accessibilityLabel("Add template \(t.name) to library")
                         }
+                        .padding(.vertical, 2)
                     }
                 }
                 if !templates.isEmpty {
@@ -58,12 +64,15 @@ struct TemplateLibraryView: View {
                                         }
                                         trip.updatedAt = Date()
                                         try? context.save()
+                                        #if canImport(UIKit)
+                                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                        #endif
                                     }
                                     .disabled(selectedTripID == nil)
                                     .buttonStyle(.borderedProminent).controlSize(.small)
                                     .accessibilityLabel("Apply \(tpl.name) to selected trip")
                                     Spacer()
-                                    Button("Delete", role: .destructive) { context.delete(tpl); try? context.save() }
+                                    Button("Delete", role: .destructive) { showDeleteConfirm = tpl }
                                         .buttonStyle(.bordered).controlSize(.small)
                                         .accessibilityLabel("Delete template \(tpl.name)")
                                 }
@@ -75,6 +84,13 @@ struct TemplateLibraryView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Templates")
+            .confirmationDialog("Delete template?", isPresented: Binding(get: { showDeleteConfirm != nil }, set: { if !$0 { showDeleteConfirm = nil } }), titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    if let tpl = showDeleteConfirm { context.delete(tpl); try? context.save() }
+                    showDeleteConfirm = nil
+                }
+                Button("Cancel", role: .cancel) { showDeleteConfirm = nil }
+            }
         }
     }
 }
