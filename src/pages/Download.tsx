@@ -132,6 +132,23 @@ export default function Download() {
           <Smartphone className="size-4 shrink-0 mt-0.5" />
           <span>Transfer the <span className="font-mono">.ipa</span> to your iPhone via AirDrop, Files, or a computer, then open it in your sideload tool. iOS 17 or later is required.</span>
         </div>
+
+        {/* Algorithm picker — one JSON teaches any AI / script the project */}
+        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground"><Package className="size-3.5" /> For scripts, tools, AI — one URL</div>
+          <div className="font-semibold mt-2" style={serif}>Algorithm-friendly manifest</div>
+          <p className="text-sm leading-6 text-muted-foreground mt-1.5">
+            Every published release ships a <span className="font-mono">PackWise-releases.json</span> with the newest stable build, the freshest dev prerelease, and recent history. Any tool can fetch one URL &mdash; no scraping, no API key, no guesswork.
+          </p>
+          <div className="mt-3 grid sm:grid-cols-3 gap-2">
+            <a href={LIVE_RELEASE_DEV + '/download/PackWise-releases.json'} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-border bg-white">dev manifest <ExternalLink className="size-3" /></a>
+            <a href={LIVE_RELEASE_LATEST + '/download/PackWise-releases.json'} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-border bg-white">latest manifest <ExternalLink className="size-3" /></a>
+            <a href="https://api.github.com/repos/Alot1z/packwise/releases" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-border bg-white">GitHub releases API <ExternalLink className="size-3" /></a>
+          </div>
+          <div className="mt-3">
+            <CopyBlock label="Picker recipe (curl + jq)" text={`curl -fsSL https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json \\| jq -r '.latest | "tag=\(.tag) sha=\(.sha256) url=\(.asset_url)"'`} />
+          </div>
+        </div>
       </section>
 
       <SiteFooter />

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.3 — Algorithm-friendly release manifest + workflow inputs (2026-08-07)
+
+**New:** [`scripts/release-manifest.sh`](https://github.com/Alot1z/packwise/blob/main/scripts/release-manifest.sh) — emits [`PackWise-releases.json`](https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json) (schema `packwise.releases/v1`), attached as a release asset on every published build. Stable deterministic URLs (no GitHub API key required):
+
+- `https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json` — **newest stable** pointer + history
+- `https://github.com/Alot1z/packwise/releases/download/dev/PackWise-releases.json` — **newest dev** prerelease pointer
+
+`manifest.latest`, `manifest.dev`, and `manifest.releases[]` (newest-first, `is_latest` flagged, with `sha256`, `size_bytes`, `published_at`) give any AI / script one fetch. CI accumulates history by fetching the prior dev manifest, deduplicating per tag, and re-publishing — the dev release stays current forever.
+
+**Workflow config:** [.github/workflows/ios.yml](https://github.com/Alot1z/packwise/blob/main/.github/workflows/ios.yml) now exposes *Run workflow* inputs (`xcode_version: macos-14|macos-15`, `skip_tests: boolean`, `release_channel: auto|dev`); mirror change in [.gitea/workflows/ios.yml](https://github.com/Alot1z/packwise/blob/main/.gitea/workflows/ios.yml). Dispatch defaults to publishing a fresh `dev` prerelease.
+
+**Live site:** the [Download page](https://packwise.freebuff.app/download) has an "Algorithm-friendly" section with copy-pasteable `curl | jq` recipes.
+
 ## 1.0.2 — One-command IPA verification (2026-08-07)
 
 **New:** [`scripts/verify-ipa.sh`](https://github.com/Alot1z/packwise/blob/main/scripts/verify-ipa.sh) — one command that tells you whether **any** PackWise download is sideload-ready, before you sideload it:
