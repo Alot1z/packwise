@@ -15,12 +15,22 @@
 #   https://github.com/Alot1z/packwise/releases/download/dev/PackWise-releases.json
 #   https://github.com/Alot1z/packwise/releases/download/vX.Y.Z/PackWise-releases.json
 #
+# Each release entry carries:
+#   · verified_by_build  — true when the .ipa passed the strict publish gate
+#                          (ios/build.sh cascade + scripts/verify-ipa.sh). CI
+#                          only reaches the manifest step after the gate, so it
+#                          is true by default; use --no-verified for local
+#                          builds that skipped the gate.
+#   · changelog_url      — canonical changelog (wiki) for this release
+#   · release_notes_url  — per-release notes page (GitHub tag page)
+#
 # Usage:
 #   release-manifest.sh --tag <vX.Y.Z|dev> --ipa <path> \
 #                       --output <manifest.json> \
-#                       [--repo owner/repo] [--prerelease] \
+#                       [--repo owner/repo] [--prerelease] [--verified|--no-verified] \
 #                       [--sha256 <hash>] [--prior <manifest.json>] [--keep 12] \
-#                       [--published-at <ISO-8601 UTC>]
+#                       [--published-at <ISO-8601 UTC>] \
+#                       [--changelog-url <url>] [--release-notes-url <url>]
 #
 # Exit codes: 0 ok · 1 invalid · 64 usage
 # ─────────────────────────────────────────────────────────────────────────────
@@ -31,14 +41,17 @@ usage() {
 Usage: release-manifest.sh --tag <vX.Y.Z|dev> --ipa <path> \
                            --output <manifest.json> \
                            [--repo owner/repo] [--prerelease] \
+                           [--verified | --no-verified] \
                            [--sha256 <hash>] [--prior <manifest.json>] \
-                           [--keep 12] [--published-at ISO8601]
+                           [--keep 12] [--published-at ISO8601] \
+                           [--changelog-url <url>] [--release-notes-url <url>]
 EOF
   exit 64
 }
 
 TAG=""; IPA=""; OUT=""; REPO="${REPO_DEFAULT:-Alot1z/packwise}"
-SHA=""; IS_PRE="false"; PRIOR=""; KEEP="12"; PUB_AT=""
+SHA=""; IS_PRE="false"; PRIOR=""; KEEP="12"; PUB_AT=""; VERIFIED="true"
+CHANGELOG_URL=""; NOTES_URL=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --tag)        TAG="$2"; shift 2;;
@@ -47,9 +60,13 @@ while [ $# -gt 0 ]; do
     --output)     OUT="$2"; shift 2;;
     --repo)       REPO="$2"; shift 2;;
     --prerelease) IS_PRE="true"; shift;;
+    --verified)   VERIFIED="true"; shift;;
+    --no-verified) VERIFIED="false"; shift;;
     --prior)      PRIOR="$2"; shift 2;;
     --keep)       KEEP="$2"; shift 2;;
     --published-at) PUB_AT="$2"; shift 2;;
+    --changelog-url)   CHANGELOG_URL="$2"; shift 2;;
+    --release-notes-url) NOTES_URL="$2"; shift 2;;
     -h|--help)    usage;;
     *)            echo "unknown arg: $1" >&2; usage;;
   esac
@@ -88,13 +105,25 @@ if [ -z "$PUB_AT" ]; then
   PUB_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || python3 -c "import datetime;print(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))")
 fi
 
+# ── Changelog pointers (defaults, overridable) ────────────────────────────────
+if [ -z "$CHANGELOG_URL" ]; then
+  CHANGELOG_URL="https://github.com/$REPO/wiki/Changelog"
+fi
+if [ -z "$NOTES_URL" ]; then
+  NOTES_URL="https://github.com/$REPO/releases/tag/$TAG"
+fi
+
 # ── Compute output via python (guarantees valid JSON) ─────────────────────────
-IS_PRE_FLAG="$IS_PRE" PUB="$PUB_AT" KEEP_N="$KEEP" python3 - <<'PY' "$TAG" "$IPA" "$OUT" "$REPO" "$SHA" "$PRIOR" "$SIZE"
+IS_PRE_FLAG="$IS_PRE" PUB="$PUB_AT" KEEP_N="$KEEP" VERIFIED_FLAG="$VERIFIED" \
+CHANGELOG_URL="$CHANGELOG_URL" NOTES_URL="$NOTES_URL" python3 - <<'PY' "$TAG" "$IPA" "$OUT" "$REPO" "$SHA" "$PRIOR" "$SIZE"
 import json, os, sys, datetime
 (tag, ipa, out_path, repo, sha, prior, size) = sys.argv[1:]
 is_pre = os.environ["IS_PRE_FLAG"] == "true"
 keep   = int(os.environ["KEEP_N"])
 pub    = os.environ["PUB"]
+verified = os.environ["VERIFIED_FLAG"] == "true"
+changelog_url = os.environ["CHANGELOG_URL"]
+notes_url     = os.environ["NOTES_URL"]
 size_i = int(size)
 
 release_url = f"https://github.com/{repo}/releases/tag/{tag}"
@@ -108,6 +137,9 @@ entry = {
     "prerelease":   is_pre,
     "is_dev":       tag == "dev",
     "is_latest":    False,           # resolver sets this
+    "verified_by_build": verified,
+    "changelog_url":     changelog_url,
+    "release_notes_url": notes_url,
     "release_url":  release_url,
     "asset_url":    asset_url,
     "ipa_filename": "PackWise-unsigned.ipa",
@@ -140,14 +172,17 @@ dev_entry = next((r for r in trimmed if r.get("is_dev")), None)
 
 def pointer(r):
     return {
-        "tag":          r["tag"],
-        "release_url":  r["release_url"],
-        "asset_url":    r["asset_url"],
-        "sha256":       r["sha256"],
-        "prerelease":   r.get("prerelease", False),
-        "is_dev":       r.get("is_dev", False),
-        "size_bytes":   r.get("size_bytes"),
-        "published_at": r.get("published_at"),
+        "tag":               r["tag"],
+        "release_url":       r["release_url"],
+        "asset_url":         r["asset_url"],
+        "sha256":            r["sha256"],
+        "prerelease":        r.get("prerelease", False),
+        "is_dev":            r.get("is_dev", False),
+        "verified_by_build": r.get("verified_by_build", False),
+        "changelog_url":     r.get("changelog_url"),
+        "release_notes_url": r.get("release_notes_url"),
+        "size_bytes":        r.get("size_bytes"),
+        "published_at":      r.get("published_at"),
     } if r else None
 
 manifest = {
@@ -157,10 +192,12 @@ manifest = {
     "ipa_filename": "PackWise-unsigned.ipa",
     "generated_at": pub,
     "how_to_find_newest": {
-        "stable": "manifest.latest",
-        "dev":    "manifest.dev",
-        "history": "manifest.releases (sorted newest-first, is_latest flagged)",
-        "verify":  "compare assets[*].sha256 with manifest.latest.sha256"
+        "stable":     "manifest.latest",
+        "dev":        "manifest.dev",
+        "history":    "manifest.releases (sorted newest-first, is_latest flagged)",
+        "trust":      "prefer entries with verified_by_build=true (passed the publish gate)",
+        "changelog":  "each release carries changelog_url (wiki) + release_notes_url (tag page)",
+        "verify_sha": "compare the downloaded .ipa's sha256 with the entry's sha256"
     },
     "latest":   pointer(latest),
     "dev":      pointer(dev_entry),

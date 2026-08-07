@@ -93,6 +93,7 @@ jobs:
             --ipa ios/build/PackWise-unsigned.ipa \
             --output _artifacts/PackWise-releases.json \
             --repo "${GITHUB_REPOSITORY}" \
+            --verified \
             $([ "$PREREL" = "1" ] && echo --prerelease) \
             $PRIOR
           python3 -c "import json;assert json.load(open('_artifacts/PackWise-releases.json'))['schema']=='packwise.releases/v1';print('manifest validated')"

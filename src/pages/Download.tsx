@@ -146,7 +146,7 @@ export default function Download() {
             <a href="https://api.github.com/repos/Alot1z/packwise/releases" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-border bg-white">GitHub releases API <ExternalLink className="size-3" /></a>
           </div>
           <div className="mt-3">
-            <CopyBlock label="Picker recipe (curl + jq)" text={`curl -fsSL https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json \\| jq -r '.latest | "tag=\(.tag) sha=\(.sha256) url=\(.asset_url)"'`} />
+            <CopyBlock label="Picker recipe (curl + jq)" text={`curl -fsSL https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json \\| jq -r '.latest | "tag=\(.tag) sha=\(.sha256) verified=\(.verified_by_build) notes=\(.release_notes_url)"'`} />
           </div>
         </div>
       </section>

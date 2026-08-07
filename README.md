@@ -299,17 +299,19 @@ Every published release ships a **machine-readable manifest** as an asset so any
 - the newest **stable** build (`manifest.latest`)
 - the newest **dev** prerelease (`manifest.dev`)
 - recent history with `sha256` + `size` + dates (`manifest.releases[]`)
+- **`verified_by_build: true`** — the `.ipa` passed the strict publish gate (`ios/build.sh` cascade + `verify-ipa.sh`); CI marks every published build verified, local uploads can opt out with `--no-verified`
+- **`changelog_url` / `release_notes_url`** — per-release changelog pointer (wiki) and the tag page with generated notes
 
 ```bash
 # Stable URLs — public, no GitHub API key required:
-curl -fsSL https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json | jq -r '.latest | "tag=\(.tag) sha=\(.sha256) url=\(.asset_url)"'
-curl -fsSL https://github.com/Alot1z/packwise/releases/download/dev/PackWise-releases.json | jq -r '.dev    | "tag=\(.tag) sha=\(.sha256) url=\(.asset_url)"'
+curl -fsSL https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json | jq -r '.latest | "tag=\(.tag) sha=\(.sha256) verified=\(.verified_by_build) notes=\(.release_notes_url)"'
+curl -fsSL https://github.com/Alot1z/packwise/releases/download/dev/PackWise-releases.json | jq -r '.dev    | "tag=\(.tag) sha=\(.sha256) verified=\(.verified_by_build) notes=\(.release_notes_url)"'
 
 # Or via the GitHub API:
 curl -fsSL https://api.github.com/repos/Alot1z/packwise/releases/latest | jq -r '.tag_name + " " + .assets_url'
 ```
 
-Schema: `packwise.releases/v1` (stable, versioned). CI runs `scripts/release-manifest.sh` on every publish — see [`scripts/`](scripts) + [`.github/workflows/ios.yml`](.github/workflows/ios.yml). The workflow also exposes **easy config** via *Run workflow* inputs (`xcode_version`, `skip_tests`, `release_channel`).
+Schema: `packwise.releases/v1` (stable, additive fields). CI runs `scripts/release-manifest.sh` on every publish — see [`scripts/`](scripts) + [`.github/workflows/ios.yml`](.github/workflows/ios.yml). The workflow also exposes **easy config** via *Run workflow* inputs (`xcode_version`, `skip_tests`, `release_channel`).
 
 ---
 
