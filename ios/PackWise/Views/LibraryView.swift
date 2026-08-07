@@ -46,7 +46,7 @@ struct LibraryView: View {
                                 Text(item.category).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
-                            if item.isFavorite { Image(systemName: "star.fill").foregroundStyle(.yellow).font(.caption) }
+                            if item.isFavorite { Image(systemName: "star.fill").foregroundStyle(Color(red: 0.68, green: 0.52, blue: 0.0)).font(.caption).accessibilityLabel("Favorite") }
                         }
                     }
                 }

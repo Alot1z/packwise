@@ -64,7 +64,7 @@ private struct TripRow: View {
             }
             Text(trip.title).font(.headline).lineLimit(1)
             Label(trip.destination, systemImage: "mappin").font(.caption).foregroundStyle(.secondary)
-            if trip.essentialsMissing > 0 { Text("\(trip.essentialsMissing) essentials unpacked").font(.caption2).foregroundStyle(.orange) }
+            if trip.essentialsMissing > 0 { Label("\(trip.essentialsMissing) essentials unpacked", systemImage: "exclamationmark.triangle.fill").font(.caption2.weight(.semibold)).foregroundStyle(Color(red: 0.72, green: 0.36, blue: 0.0)) }
             ProgressView(value: trip.progress)
                 .tint(trip.status == .ready ? .green : .accentColor)
                 .accessibilityLabel("Packing progress")

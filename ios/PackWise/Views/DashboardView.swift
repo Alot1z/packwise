@@ -23,7 +23,7 @@ struct DashboardView: View {
                                         Text(trip.title).font(.subheadline.weight(.medium))
                                         Text(trip.destination).font(.caption).foregroundStyle(.secondary)
                                         if trip.essentialsMissing > 0 {
-                                            Text("\(trip.essentialsMissing) essentials still unpacked").font(.caption2).foregroundStyle(.orange)
+                                            Label("\(trip.essentialsMissing) essentials still unpacked", systemImage: "exclamationmark.triangle.fill").font(.caption2.weight(.semibold)).foregroundStyle(Color(red: 0.72, green: 0.36, blue: 0.0))
                                         }
                                     }
                                     Spacer()

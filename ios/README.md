@@ -33,6 +33,8 @@ xcodebuild build -project PackWise.xcodeproj -scheme PackWise \
 
 **Dynamic Type:** every text element uses a scalable text style (`.caption` … `.title3`) — no fixed-size fonts remain after the 1.0.5 audit. The onboarding hero icon scales via `@ScaledMetric(relativeTo: .largeTitle)`. Test in *Settings → Accessibility → Display & Text Size* at sizes up to accessibility maximums; rows and sheets reflow and wrap.
 
+**Reduced Motion & Contrast (1.0.6):** Onboarding's `withAnimation` gates on `accessibilityReduceMotion`; all essentials warnings and favorite/essential stars use high-contrast browns/ambers (≥4.5:1) paired with icons so state is never color-only. Test in *Settings → Accessibility → Motion → Reduce Motion* and *Display & Text Size → Increase Contrast / Smart Invert*.
+
 ## Tests
 
 ```bash
