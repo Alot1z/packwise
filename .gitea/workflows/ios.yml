@@ -26,7 +26,7 @@ jobs:
         working-directory: ios
         run: xcodegen generate && ls -lh PackWise.xcodeproj
 
-      - name: Run tests (simulator, no signing)
+      - name: Run tests (simulator, no signing — non-blocking)
         id: tests
         continue-on-error: true
         working-directory: ios
@@ -62,10 +62,14 @@ jobs:
           rm -rf build/Payload build/PackWise-unsigned.ipa
           mkdir -p build/Payload && cp -R "$APP" build/Payload/
           find build/Payload -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
-          (cd build && zip -r PackWise-unsigned.ipa Payload >/dev/null)
+          (cd build && zip -r -y PackWise-unsigned.ipa Payload >/dev/null)
           echo "BUILT_UNSIGNED_IPA=1" >> $GITHUB_ENV
-          ls -lh build/PackWise-unsigned.ipa && unzip -l build/PackWise-unsigned.ipa | head -n 20
+          echo "--- IPA validation ---"
+          ls -lh build/PackWise-unsigned.ipa && file build/PackWise-unsigned.ipa || true
+          unzip -l build/PackWise-unsigned.ipa | head -n 24
+          if ! unzip -l build/PackWise-unsigned.ipa | grep -q "Payload/PackWise.app/"; then echo "❌ IPA missing Payload/PackWise.app/"; exit 1; fi
           shasum -a 256 build/PackWise-unsigned.ipa | tee build/PackWise-unsigned.ipa.sha256
+          du -sh build/Payload/PackWise.app || true
 
       - name: Upload unsigned IPA
         if: always() && env.BUILT_UNSIGNED_IPA == '1'
@@ -83,4 +87,6 @@ jobs:
         run: |
           echo "### PackWise — iOS (Gitea)" >> $GITHUB_STEP_SUMMARY
           if [ "${TESTS_PASSED:-0}" = "1" ]; then echo "✅ Tests passed" >> $GITHUB_STEP_SUMMARY; else echo "⚠️ Tests non-blocking — see log" >> $GITHUB_STEP_SUMMARY; fi
-          if [ "$BUILT_UNSIGNED_IPA" = "1" ]; then echo "✅ Unsigned IPA: PackWise-unsigned.ipa" >> $GITHUB_STEP_SUMMARY; else echo "❌ No IPA produced" >> $GITHUB_STEP_SUMMARY; fi
+          if [ "${BUILT_UNSIGNED_IPA:-0}" = "1" ]; then
+            echo "✅ Unsigned IPA: PackWise-unsigned.ipa (Payload/PackWise.app — verify: unzip -l)" >> $GITHUB_STEP_SUMMARY
+          else echo "❌ No IPA produced" >> $GITHUB_STEP_SUMMARY; fi
