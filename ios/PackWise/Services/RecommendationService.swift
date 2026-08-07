@@ -12,9 +12,11 @@ enum RecommendationService {
     static func suggestions(for trip: Trip) -> [Suggestion] {
         var out: [Suggestion] = []
         let dest = (trip.destination + " " + (trip.purpose ?? "") + " " + (trip.activities ?? "")).lowercased()
+        // Inclusive day count: Jan 1 → Jan 3 is 3 days of travel.
         let days: Int = {
             guard let s = trip.startDate, let e = trip.endDate else { return 0 }
-            return max(1, Calendar.current.dateComponents([.day], from: s, to: e).day ?? 1 + 1)
+            let day = Calendar.current.dateComponents([.day], from: s, to: e).day ?? 0
+            return max(1, day + 1)
         }()
 
         if dest.contains("beach") || dest.contains("coast") || dest.contains("tropical") {

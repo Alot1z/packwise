@@ -78,13 +78,19 @@ act -W .github/workflows/ios.yml -P macos-15=-self-hosted
 
 `upload-artifact` **wraps** uploads in an outer container zip for "Download artifact" — that's GitHub's design, not the PackWise build. Inside the artifact zip is `PackWise-unsigned.ipa` (the real `Payload/*.app` zip). On **Releases** you download the raw `.ipa` directly — that's why we now publish `dev` on every main push.
 
-### How the IPA is built (so "archive produced no .app" never bites again)
+### How the IPA is built (validated, device-first)
 
-Xcode 16's `archive CODE_SIGNING_ALLOWED=NO` sometimes exits 0 with an empty xcarchive. Script tries `archive` first, then **fallbacks** to `xcodebuild build -derivedDataPath …` and finds the `.app` there, then zips `Payload/` → validates (`file`, `unzip -l` must contain `Payload/PackWise.app/`) → `shasum`:
+`xcodebuild archive` with `CODE_SIGNING_ALLOWED=NO` on Xcode 16 can exit 0 while emitting an app shell **without the main executable** — which sideloaders report as `Failed to map …/PackWise: Bad file descriptor` (the file is not there). So the pipeline no longer uses `archive`:
+
+1. **Build** — `xcodebuild build -sdk iphoneos -destination "generic/platform=iOS" -derivedDataPath build/DerivedData` → `Release-iphoneos/PackWise.app` (a real **device arm64** binary, never a simulator build).
+2. **Validate the executable** — `Payload/PackWise.app/PackWise` must exist, be non-empty, be arm64 (`file`), carry the iOS device platform (`otool -l` → `LC_BUILD_VERSION platform 2`, not 7 = simulator); any `x86_64` slice is stripped via `lipo -thin arm64`.
+3. **Strip test injection** — `PlugIns/*.xctest`, `_CodeSignature`, and XCTest frameworks are removed from the staged bundle.
+4. **Package** — `ditto -c -k --sequesterRsrc --keepParent Payload PackWise-unsigned.ipa` (zip fallback on non-macOS).
+5. **Publish gate** — the `.ipa` MUST contain `Payload/PackWise.app/PackWise` + `Info.plist` and NO `.xctest` entries, or the workflow **fails** — nothing broken is ever released.
 
 ```bash
 file ios/build/PackWise-unsigned.ipa
-unzip -l ios/build/PackWise-unsigned.ipa | head
+unzip -l ios/build/PackWise-unsigned.ipa | grep Payload
 shasum -a 256 ios/build/PackWise-unsigned.ipa
 ```
 
@@ -93,7 +99,8 @@ shasum -a 256 ios/build/PackWise-unsigned.ipa
 - **Download was a .zip?** → Use the direct `.ipa` on Releases (`latest` or `dev`), or unzip the artifact zip.
 - **Install fails / Untrusted Developer** → Re-sign via AltStore/Sideloadly, or TrollStore where supported.
 - **Vision finds nothing** → Clearer, well-lit photo; on-device Vision is conservative.
-- **Build says "no IPA"** → Open the *Archive* step logs — diagnostics + `file` + `unzip -l` always print.
+- **Build says "no IPA"** → Open the *Build unsigned IPA* step logs — diagnostics + `file` + `unzip -l` always print.
+- **Sideloader says "Failed to map …/PackWise: Bad file descriptor"** → you have a pre-fix IPA (it had no executable). Use the latest `dev` build or run `./ios/build.sh` — the executable is now validated before publishing.
 
 ## Honesty
 

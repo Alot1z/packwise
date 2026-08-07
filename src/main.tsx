@@ -8,6 +8,11 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 import Landing from "./pages/Landing.tsx";
 import Setup from "./pages/Setup.tsx";
+import Features from "./pages/Features.tsx";
+import Download from "./pages/Download.tsx";
+import Docs from "./pages/Docs.tsx";
+import Troubleshooting from "./pages/Troubleshooting.tsx";
+import Changelog from "./pages/Changelog.tsx";
 import "./index.css";
 import "./types/global.d.ts";
 
@@ -80,6 +85,12 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/setup" element={<Setup />} />
+      <Route path="/build" element={<Setup />} />
+      <Route path="/features" element={<Features />} />
+      <Route path="/download" element={<Download />} />
+      <Route path="/docs" element={<Docs />} />
+      <Route path="/troubleshooting" element={<Troubleshooting />} />
+      <Route path="/changelog" element={<Changelog />} />
       <Route
         path="/auth"
         element={

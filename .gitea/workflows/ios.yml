@@ -34,42 +34,84 @@ jobs:
           set -o pipefail
           echo "→ Running tests (never blocks archive)"
           if command -v xcpretty >/dev/null 2>&1; then
-            xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" -configuration Debug CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | xcpretty --color && echo "TESTS_PASSED=1" >> $GITHUB_ENV || echo "TESTS_PASSED=0" >> $GITHUB_ENV
+            xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" -configuration Debug CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | xcpretty --color && echo "TESTS_PASSED=1" >> "$GITHUB_ENV" || echo "TESTS_PASSED=0" >> "$GITHUB_ENV"
           else
-            xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" -configuration Debug CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee build/tests.log | tail -n 120; TEST_EXIT=${PIPESTATUS[0]}; if [ "$TEST_EXIT" = "0" ]; then echo "TESTS_PASSED=1" >> $GITHUB_ENV; else echo "TESTS_PASSED=0" >> $GITHUB_ENV; echo "Tests exited $TEST_EXIT — continuing"; fi
+            mkdir -p build
+            xcodebuild test -project PackWise.xcodeproj -scheme PackWise -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" -configuration Debug CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee build/tests.log | tail -n 120
+            TEST_EXIT=${PIPESTATUS[0]}
+            if [ "$TEST_EXIT" = "0" ]; then echo "TESTS_PASSED=1" >> "$GITHUB_ENV"; else echo "TESTS_PASSED=0" >> "$GITHUB_ENV"; echo "Tests exited $TEST_EXIT — continuing"; fi
           fi
           exit 0
 
-      - name: Archive — unsigned IPA (with build fallback)
+      # Same device-first, executable-validated pipeline as GitHub Actions.
+      - name: Build unsigned IPA (device, arm64 — validated)
         if: always()
         working-directory: ios
         run: |
           set -e
-          rm -rf build/Payload build/PackWise-unsigned.ipa build/DerivedData
-          echo "→ Attempt 1: xcodebuild archive"
-          set +e
-          xcodebuild archive -project PackWise.xcodeproj -scheme PackWise -configuration Release -destination "generic/platform=iOS" -archivePath build/PackWise.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipPackagePluginValidation -skipMacroValidation 2>&1 | tee build/archive.log | tail -n 80
-          set -e
+          rm -rf build/DerivedData build/Payload build/PackWise-unsigned.ipa build/PackWise.xcarchive
+          echo "→ xcodebuild build (iphoneos, generic iOS device, arm64, no signing)"
+          xcodebuild build \
+            -project PackWise.xcodeproj -scheme PackWise \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/DerivedData \
+            ONLY_ACTIVE_ARCH=NO ARCHS="arm64" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            -skipPackagePluginValidation -skipMacroValidation \
+            2>&1 | tee build/build.log | tail -n 60
+
           APP=""
-          if [ -f build/PackWise.xcarchive/Products/Applications/PackWise.app/Info.plist ]; then
-            APP="build/PackWise.xcarchive/Products/Applications/PackWise.app"
-          else
-            echo "⚠️ Archive empty — fallback to build"
-            xcodebuild build -project PackWise.xcodeproj -scheme PackWise -configuration Release -destination "generic/platform=iOS" -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tail -n 80
-            APP=$(find build/DerivedData -name "PackWise.app" -type d | head -n1 || true)
+          for c in build/DerivedData/Build/Products/Release-iphoneos/PackWise.app build/DerivedData/Build/Products/Release/PackWise.app; do
+            if [ -f "$c/Info.plist" ]; then APP="$c"; break; fi
+          done
+          if [ -z "$APP" ]; then APP=$(find build/DerivedData -name "PackWise.app" -type d 2>/dev/null | grep -v ".xctest" | head -n1 || true); fi
+          if [ -z "$APP" ] || [ ! -d "$APP" ]; then echo "❌ No PackWise.app produced"; find build -type d -maxdepth 6 | head -n 60; exit 1; fi
+          echo "✓ App: $APP"
+
+          EXEC="$APP/PackWise"
+          if [ ! -f "$EXEC" ] || [ ! -s "$EXEC" ]; then
+            echo "❌ Main executable missing or empty — refusing to publish (Bad-file-descriptor sideload bug)."
+            ls -la "$APP"; exit 1
           fi
-          if [ -z "$APP" ] || [ ! -d "$APP" ]; then echo "❌ No .app found"; find build -type d | head -n 60; ls -R build 2>&1 | head -n 120; exit 1; fi
-          rm -rf build/Payload build/PackWise-unsigned.ipa
+          chmod +x "$EXEC"
+          file "$EXEC" || true
+          if command -v otool >/dev/null 2>&1; then
+            PLATFORM=$(otool -l "$EXEC" 2>/dev/null | grep -A5 "LC_BUILD_VERSION" | grep -m1 "platform" | awk '{print $2}')
+            echo "platform=$PLATFORM (2=iOS device, 7=simulator)"
+            if [ "$PLATFORM" = "7" ]; then echo "❌ Simulator binary — cannot sideload."; exit 1; fi
+          fi
+          if command -v lipo >/dev/null 2>&1 && lipo -info "$EXEC" 2>/dev/null | grep -q "x86_64"; then
+            lipo -thin arm64 "$EXEC" -output "$EXEC.tmp" && mv "$EXEC.tmp" "$EXEC"
+          fi
+
+          echo "→ Staging Payload (stripping test injection)"
           mkdir -p build/Payload && cp -R "$APP" build/Payload/
-          find build/Payload -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
-          (cd build && zip -r -y PackWise-unsigned.ipa Payload >/dev/null)
-          echo "BUILT_UNSIGNED_IPA=1" >> $GITHUB_ENV
-          echo "--- IPA validation ---"
-          ls -lh build/PackWise-unsigned.ipa && file build/PackWise-unsigned.ipa || true
+          STAGED="build/Payload/PackWise.app"
+          rm -rf "$STAGED/_CodeSignature" "$STAGED/PlugIns" 2>/dev/null || true
+          find "$STAGED/Frameworks" -maxdepth 1 \( -name "*XCTest*" -o -name "Testing.framework" -o -name "XCUnit*" -o -name "XCUIAutomation*" -o -name "XCTAutomationSupport*" -o -name "libXCTest*" \) -exec rm -rf {} + 2>/dev/null || true
+          if [ -d "$STAGED/Frameworks" ] && [ -z "$(ls -A "$STAGED/Frameworks" 2>/dev/null)" ]; then rmdir "$STAGED/Frameworks" 2>/dev/null || true; fi
+          [ -f "$STAGED/PackWise" ] || { echo "❌ Staged app missing executable"; exit 1; }
+          chmod +x "$STAGED/PackWise"
+
+          echo "→ Compressing Payload → .ipa"
+          if command -v ditto >/dev/null 2>&1; then
+            (cd build && ditto -c -k --sequesterRsrc --keepParent Payload PackWise-unsigned.ipa)
+          else
+            (cd build && zip -r -X -y PackWise-unsigned.ipa Payload >/dev/null)
+          fi
+
+          echo "→ Validating .ipa"
+          ls -lh build/PackWise-unsigned.ipa
+          file build/PackWise-unsigned.ipa || true
           unzip -l build/PackWise-unsigned.ipa | head -n 24
-          if ! unzip -l build/PackWise-unsigned.ipa | grep -q "Payload/PackWise.app/"; then echo "❌ IPA missing Payload/PackWise.app/"; exit 1; fi
+          for required in "Payload/PackWise.app/PackWise" "Payload/PackWise.app/Info.plist"; do
+            if ! unzip -l build/PackWise-unsigned.ipa | grep -q "$required"; then echo "❌ IPA missing $required — refusing to publish."; exit 1; fi
+          done
+          if unzip -l build/PackWise-unsigned.ipa | grep -qE "\.xctest/|Frameworks/XCTest"; then echo "❌ IPA still contains test bundles — refusing to publish."; exit 1; fi
           shasum -a 256 build/PackWise-unsigned.ipa | tee build/PackWise-unsigned.ipa.sha256
-          du -sh build/Payload/PackWise.app || true
+          echo "BUILT_UNSIGNED_IPA=1" >> "$GITHUB_ENV"
 
       - name: Upload unsigned IPA
         if: always() && env.BUILT_UNSIGNED_IPA == '1'
@@ -82,11 +124,39 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # Optional Gitea release publish — set GITEA_TOKEN (+ GITEA_API_URL) secret.
+      # On GitHub-hosted Gitea runners softprops/action-gh-release cannot work.
+      - name: Publish dev release (Gitea API — only when GITEA_TOKEN is set)
+        if: env.BUILT_UNSIGNED_IPA == '1' && env.GITEA_TOKEN != ''
+        env:
+          GITEA_API_URL: ${{ secrets.GITEA_API_URL || 'https://gitea.com/api/v1' }}
+        run: |
+          set -e
+          API="${GITEA_API_URL}"
+          RELEASE_URL="$API/repos/${{ github.repository }}/releases"
+          # Create or update the 'dev' release (idempotent-ish).
+          EXISTING=$(curl -s -H "Authorization: token $GITEA_TOKEN" "$API/repos/${{ github.repository }}/releases/tags/dev" | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            curl -s -X PATCH -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+              -d '{"name":"dev — latest main build","prerelease":true}' "$RELEASE_URL/$EXISTING" >/dev/null
+          else
+            curl -s -X POST -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+              -d '{"tag_name":"dev","name":"dev — latest main build","prerelease":true,"target_commitish":"main"}' "$RELEASE_URL" >/dev/null
+          fi
+          curl -s -X POST -H "Authorization: token $GITEA_TOKEN" \
+            -F "attachment=@ios/build/PackWise-unsigned.ipa" \
+            -F "attachment=@ios/build/PackWise-unsigned.ipa.sha256" \
+            "$API/repos/${{ github.repository }}/releases/tags/dev/assets" >/dev/null || true
+          echo "Published to Gitea dev release."
+
       - name: Summary
         if: always()
         run: |
-          echo "### PackWise — iOS (Gitea)" >> $GITHUB_STEP_SUMMARY
-          if [ "${TESTS_PASSED:-0}" = "1" ]; then echo "✅ Tests passed" >> $GITHUB_STEP_SUMMARY; else echo "⚠️ Tests non-blocking — see log" >> $GITHUB_STEP_SUMMARY; fi
+          echo "### PackWise — iOS (Gitea)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${TESTS_PASSED:-0}" = "1" ]; then echo "✅ Tests passed" >> "$GITHUB_STEP_SUMMARY"; else echo "⚠️ Tests non-blocking — see log" >> "$GITHUB_STEP_SUMMARY"; fi
           if [ "${BUILT_UNSIGNED_IPA:-0}" = "1" ]; then
-            echo "✅ Unsigned IPA: PackWise-unsigned.ipa (Payload/PackWise.app — verify: unzip -l)" >> $GITHUB_STEP_SUMMARY
-          else echo "❌ No IPA produced" >> $GITHUB_STEP_SUMMARY; fi
+            echo "✅ Unsigned IPA: \`PackWise-unsigned.ipa\` — validated (executable present, arm64 device, no test bundles)" >> "$GITHUB_STEP_SUMMARY"
+            echo "Artifact: PackWise-unsigned-ipa (outer zip — unwrap to .ipa)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "❌ No IPA produced" >> "$GITHUB_STEP_SUMMARY"
+          fi

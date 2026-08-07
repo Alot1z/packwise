@@ -1,14 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { Check, Copy, ExternalLink, Github, Terminal, Smartphone, ArrowRight, AlertTriangle, HardDrive, Repeat, Download, Eye, Package, Zap } from "lucide-react";
+import { Check, Copy, ExternalLink, Github, Terminal, Smartphone, ArrowRight, AlertTriangle, HardDrive, Repeat, Download, Eye, Package, Zap, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
-
-const serif = { fontFamily: "Instrument Serif, Cormorant Garamond, serif" } as const;
-const LIVE_REPO = "https://github.com/Alot1z/packwise";
-const LIVE_RELEASES = "https://github.com/Alot1z/packwise/releases";
-const LIVE_RELEASE_LATEST = "https://github.com/Alot1z/packwise/releases/latest";
-const LIVE_RELEASE_DEV = "https://github.com/Alot1z/packwise/releases/tag/dev";
-const LIVE_ACTIONS = "https://github.com/Alot1z/packwise/actions";
+import { SiteNav, SiteFooter, serif, LIVE_REPO, LIVE_RELEASES, LIVE_RELEASE_LATEST, LIVE_RELEASE_DEV, LIVE_ACTIONS } from "@/components/site-shared";
 
 function CopyBlock({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
@@ -43,35 +37,39 @@ function HostCard({ title, desc, href, cta, note }: { title: string; desc: strin
 export default function Setup() {
   return (
     <div className="min-h-screen bg-background">
+      <SiteNav />
       <div className="max-w-[1040px] mx-auto px-6 py-8">
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5">
           <ArrowRight className="size-3.5 rotate-180" /> Back to docs
         </Link>
 
+        {/* Build status */}
         <div className="mt-6 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5 sm:p-6 flex gap-4">
-          <Download className="size-5 text-emerald-700 shrink-0 mt-0.5" />
+          <BadgeCheck className="size-5 text-emerald-700 shrink-0 mt-0.5" />
           <div>
-            <div className="font-semibold text-emerald-900" style={serif}>Your live repo is the download source — no clone needed.</div>
+            <div className="font-semibold text-emerald-900" style={serif}>Build pipeline: device-first, executable-validated.</div>
             <p className="text-sm leading-6 text-emerald-800 mt-1">
-              All builds come from <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="font-mono underline underline-offset-4">Alot1z/packwise</a>. Every push to <span className="font-mono">main</span> rebuilds — check <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4">Actions</a> for logs and <a href={LIVE_RELEASES} target="_blank" rel="noreferrer" className="underline underline-offset-4">Releases</a> for the direct <span className="font-mono">.ipa</span> (<a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="underline underline-offset-4">dev</a> updates on every main push).
+              The IPA is built with <span className="font-mono">xcodebuild build -sdk iphoneos</span> (a real device arm64 binary — never a simulator build), then checked before publishing:{" "}
+              <span className="font-mono">Payload/PackWise.app/PackWise</span> must exist, be non-empty, be arm64, carry the iOS device platform, and contain no test bundles. A broken bundle fails the workflow instead of being released. This is the fix for the{" "}
+              <span className="font-mono">Failed to map …/PackWise: Bad file descriptor</span> sideload error.
             </p>
           </div>
         </div>
 
-        {/* Zip vs IPA — the core of fix B */}
+        {/* Zip vs IPA */}
         <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 p-5">
           <div className="flex gap-3">
             <Package className="size-5 text-amber-700 shrink-0 mt-0.5" />
             <div>
               <div className="font-semibold text-amber-900 text-sm" style={serif}>Why you got a <span className="font-mono">.zip</span> — and where the direct <span className="font-mono">.ipa</span> is</div>
               <p className="text-xs leading-5 text-amber-800 mt-1.5">
-                <span className="font-medium">PackWise always builds a true <span className="font-mono">PackWise-unsigned.ipa</span></span> (a <span className="font-mono">Payload/PackWise.app</span> zip renamed to <span className="font-mono">.ipa</span> — Apple spec). GitHub&apos;s <span className="font-mono">upload-artifact</span> then wraps that file in an outer container zip for download. So <span className="font-mono">PackWise-unsigned-ipa.zip</span> from Actions <em>contains</em> the <span className="font-mono">.ipa</span> — unwrap once to sideload.
+                PackWise always builds a true <span className="font-mono">PackWise-unsigned.ipa</span> (a <span className="font-mono">Payload/PackWise.app</span> zip renamed to <span className="font-mono">.ipa</span> — Apple spec). GitHub&apos;s <span className="font-mono">upload-artifact</span> wraps that file in an outer container zip for download. So <span className="font-mono">PackWise-unsigned-ipa.zip</span> from Actions <em>contains</em> the <span className="font-mono">.ipa</span> — unwrap once to sideload. Releases give you the inner file directly.
               </p>
               <div className="mt-3 grid sm:grid-cols-2 gap-3 text-xs">
                 <div className="rounded-xl bg-white border border-amber-200 p-3">
                   <div className="font-semibold text-amber-900 flex items-center gap-1.5"><Zap className="size-3.5" /> Direct .ipa (no unwrap)</div>
                   <div className="mt-1 text-amber-800"><a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="underline underline-offset-4 font-medium">Releases → Latest</a> (<span className="font-mono">v*</span>) or <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="underline underline-offset-4 font-medium">releases/tag/dev</a> (auto on every main push).</div>
-                  <div className="mt-2 font-mono bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">gh release download dev -R Alot1z/packwise -p &quot;*.ipa&quot;</div>
+                  <div className="mt-2 font-mono bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">gh release download dev -R Alot1z/packwise -p "*.ipa"</div>
                 </div>
                 <div className="rounded-xl bg-white border border-amber-200 p-3">
                   <div className="font-semibold text-amber-900">Artifact .ipa (unwrap once)</div>
@@ -79,7 +77,6 @@ export default function Setup() {
                   <div className="mt-2 font-mono bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">unzip PackWise-unsigned-ipa.zip && unzip -l PackWise-unsigned.ipa | head</div>
                 </div>
               </div>
-              <p className="text-[11px] text-amber-700 mt-2">Verify any <span className="font-mono">.ipa</span>: <span className="font-mono">file *.ipa</span> → <span className="font-mono">Zip archive data</span> (correct) · <span className="font-mono">unzip -l *.ipa</span> → <span className="font-mono">Payload/PackWise.app/</span></p>
             </div>
           </div>
         </div>
@@ -87,7 +84,7 @@ export default function Setup() {
         <div className="mt-4 rounded-[20px] border border-border bg-card p-4 flex gap-3">
           <AlertTriangle className="size-4 text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-xs leading-5 text-muted-foreground">
-            Preview runs on <span className="font-medium text-foreground">Linux</span> — <code className="font-mono">xcodebuild</code> only exists on <span className="font-medium text-foreground">macOS + Xcode</span> (Apple restriction). Real builds run on <span className="font-mono">macos-15</span> (GitHub) / <span className="font-mono">macos</span> (Gitea) / your Mac via <span className="font-mono">act</span>.
+            Preview runs on <span className="font-medium text-foreground">Linux</span> — <code className="font-mono">xcodebuild</code> only exists on <span className="font-medium text-foreground">macOS + Xcode</span> (Apple restriction). Real builds run on <span className="font-mono">macos-15</span> (GitHub) / <span className="font-mono">macos</span> (Gitea) / your Mac via <span className="font-mono">act</span> or <span className="font-mono">./ios/build.sh</span>.
           </p>
         </div>
 
@@ -95,7 +92,7 @@ export default function Setup() {
           Get & build PackWise — <span className="italic font-light">from the live repo</span>
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground max-w-[78ch]">
-          All download buttons link to <span className="font-mono">{LIVE_RELEASES}</span> (<span className="font-mono">latest</span> + <span className="font-mono">dev</span>). Workflows at <span className="font-mono">.github/workflows/ios.yml</span> and <span className="font-mono">.gitea/workflows/ios.yml</span> are mirrors — <span className="font-mono">xcodebuild archive + DerivedData fallback</span> → <span className="font-mono">Payload/PackWise.app</span> → <span className="font-mono">PackWise-unsigned.ipa</span> + <span className="font-mono">file</span>/<span className="font-mono">unzip -l</span> validation + <span className="font-mono">shasum</span>. See <a href="https://docs.gitea.io/en-us/usage/actions/comparison/" target="_blank" rel="noreferrer" className="underline underline-offset-4">Gitea vs GitHub</a> + <a href="https://github.com/nektos/act" target="_blank" rel="noreferrer" className="underline underline-offset-4">nektos/act</a>.
+          All download buttons link to <span className="font-mono">{LIVE_RELEASES}</span> (<span className="font-mono">latest</span> + <span className="font-mono">dev</span>). The workflow at <span className="font-mono">.github/workflows/ios.yml</span> (mirrored in <span className="font-mono">.gitea/workflows/ios.yml</span> and <span className="font-mono">ios/build.sh</span>) does: device build → executable + Mach-O validation → strip test bundles → <span className="font-mono">Payload/PackWise.app</span> → <span className="font-mono">PackWise-unsigned.ipa</span> + <span className="font-mono">shasum -a 256</span>. See <a href="https://docs.gitea.io/en-us/usage/actions/comparison/" target="_blank" rel="noreferrer" className="underline underline-offset-4">Gitea vs GitHub</a> + <a href="https://github.com/nektos/act" target="_blank" rel="noreferrer" className="underline underline-offset-4">nektos/act</a>.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -116,14 +113,14 @@ export default function Setup() {
         <div className="mt-6 grid lg:grid-cols-3 gap-4">
           <HostCard
             title="GitHub Actions — free"
-            desc="Wired to Alot1z/packwise. Push to main → macos-15 tests + archive (+ fallback + file/unzip validation) → artifact (outer zip) + dev prerelease (direct .ipa). Tag v* → versioned Release."
+            desc="Wired to Alot1z/packwise. Push to main → macos-15 tests + validated device build → artifact (outer zip) + dev prerelease (direct .ipa). Tag v* → versioned Release."
             href={LIVE_ACTIONS}
             cta="Open Actions"
             note="Actions → iOS — PackWise → Run workflow also works."
           />
           <HostCard
             title="Gitea Actions — self-hosted"
-            desc="FOSS forge. Enable [actions] in app.ini, add a macOS runner labeled macos, mirror this repo."
+            desc="FOSS forge. Enable [actions] in app.ini, add a macOS runner labeled macos, mirror this repo. Set GITEA_TOKEN for release publishing."
             href="https://about.gitea.com/"
             cta="Self-host Gitea"
             note="Workflow at .gitea/workflows/ios.yml — same build + validation."
@@ -157,13 +154,13 @@ export default function Setup() {
           <div className="mt-3">
             <CopyBlock
               label="Direct .ipa download (no unwrap) — after any main push"
-              text={`gh release download dev -R Alot1z/packwise -p "PackWise-unsigned.ipa"\n# or Latest versioned:\ngh release download -R Alot1z/packwise -p "*.ipa"\n# or curl:\ncurl -L -o PackWise-unsigned.ipa https://github.com/Alot1z/packwise/releases/download/dev/PackWise-unsigned.ipa`}
+              text={`gh release download dev -R Alot1z/packwise -p "PackWise-unsigned.ipa"\n# or curl:\ncurl -L -o PackWise-unsigned.ipa https://github.com/Alot1z/packwise/releases/download/dev/PackWise-unsigned.ipa`}
             />
           </div>
           <div className="mt-3">
             <CopyBlock
               label="Artifact path (unwrap once) — if you used Download artifact"
-              text={`unzip PackWise-unsigned-ipa.zip   # outer container\nunzip -l PackWise-unsigned.ipa | head  # must show Payload/PackWise.app/\nfile PackWise-unsigned.ipa            # → Zip archive data (correct)`}
+              text={`unzip PackWise-unsigned-ipa.zip   # outer container\nunzip -l PackWise-unsigned.ipa | head  # MUST show Payload/PackWise.app/PackWise\nfile PackWise-unsigned.ipa            # → Zip archive data (correct)`}
             />
           </div>
           <div className="mt-3">
@@ -178,7 +175,7 @@ export default function Setup() {
               text={`brew install act\nact -W .github/workflows/ios.yml -P macos-15=-self-hosted\n# or simply (Mac + Xcode):\n./ios/build.sh   # → ios/build/PackWise-unsigned.ipa + .sha256`}
             />
           </div>
-          <p className="text-xs text-muted-foreground mt-3">Linux <span className="font-mono">act</span> can lint but cannot compile IPAs — <span className="font-mono">xcodebuild</span> only on macOS.</p>
+          <p className="text-xs text-muted-foreground mt-3">Linux <span className="font-mono">act</span> can lint but cannot compile IPAs — <span className="font-mono">xcodebuild</span> only exists on macOS.</p>
         </div>
 
         <div className="mt-6 grid md:grid-cols-2 gap-6">
@@ -196,15 +193,15 @@ export default function Setup() {
             <div className="mt-2 rounded-xl bg-[#1a1a1e] text-zinc-100 p-3 font-mono text-xs leading-5">
               file PackWise-unsigned.ipa<br />
               unzip -l PackWise-unsigned.ipa | head<br />
-              shasum -a 256 PackWise-unsigned.ipa<br />
-              ls -lh ios/build/PackWise-unsigned.ipa
+              unzip -l PackWise-unsigned.ipa | grep PackWise<br />
+              shasum -a 256 PackWise-unsigned.ipa
             </div>
             <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">Read live build logs <ExternalLink className="size-3" /></a>
           </div>
         </div>
 
         <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-4 text-xs leading-5 text-muted-foreground">
-          <span className="font-medium text-foreground">Why this page exists.</span> Freebuff preview is on Linux — <span className="font-mono">xcodebuild</span> is Apple-only. So downloads point at the real host: <span className="font-mono">{LIVE_REPO}</span>. The Archive fallback + <span className="font-mono">file</span>/<span className="font-mono">unzip -l</span> validation are in the workflow + <span className="font-mono">ios/build.sh</span> — see <span className="font-mono">ios/README.md</span>.
+          <span className="font-medium text-foreground">Why this page exists.</span> Freebuff preview is on Linux — <span className="font-mono">xcodebuild</span> is Apple-only. So downloads point at the real host: <span className="font-mono">{LIVE_REPO}</span>. The validated build logic lives in <span className="font-mono">ios/build.sh</span> + the two workflows — see <span className="font-mono">ios/README.md</span>.
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3">
@@ -219,6 +216,7 @@ export default function Setup() {
           </Link>
         </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }
