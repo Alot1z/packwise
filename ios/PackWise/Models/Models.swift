@@ -44,6 +44,19 @@ final class Trip {
     }
     var missingCount: Int { items.filter { !$0.packed }.count }
     var essentialsMissing: Int { items.filter { $0.essential && !$0.packed }.count }
+    /// Human-readable progress, e.g. "3 of 8 packed · 38%"
+    var progressLabel: String { "\(items.filter(\.packed).count) of \(items.count) packed · \(Int(progress * 100))%" }
+    /// Days until departure, nil if no start date.
+    var daysUntilDeparture: Int? {
+        guard let s = startDate else { return nil }
+        let d = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: Calendar.current.startOfDay(for: s)).day
+        return d
+    }
+    /// Whether the trip is in the past.
+    var isPast: Bool {
+        guard let e = endDate else { return false }
+        return e < Calendar.current.startOfDay(for: Date())
+    }
 }
 
 enum TripStatus: String, Codable, CaseIterable, Identifiable {

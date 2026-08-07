@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.7 — Polish pass: every surface enhanced (2026-08-07)
+
+**Web:** `SiteNav` now has active-page highlighting, a mobile drawer with CTAs, skip-to-content link, and full keyboard/ARIA polish; `index.css` adds focus-visible rings, smooth scroll (respects reduced-motion), print styles, and card-lift; `index.html` gains full SEO/OG/Twitter/JSON-LD/noscript; `Landing` fetches the live release manifest to show the latest tag inline, adds progress semantics and `aria-hidden` throughout; `Features`/`Docs`/`Download` all get reduced-motion guards, focus rings, and semantic `<main id="main">`.
+
+**iOS app shell & views:** `ContentView` badge for trips needing attention + iPad `tabViewStyle(.automatic)`; `TripList` swipe-to-delete/duplicate, haptics, date validation; `Dashboard` stats pills + pull-to-refresh; `TripDetail` swipe actions on every row, delete confirmations, haptics, `contentTransition(.numericText())`; `Library`/`PhotoScanner`/`ItemDetail`/`GlobalSearch`/`TemplateLibrary`/`Settings`/`Reminders`/`NewTripSheet` — swipe actions, haptics, delete confirmations, empty-state polish, photo downscaling, date-in-past guard, and a11y hints throughout.
+
+**Services & models:** `RecommendationService` adds cold/rain/7-day/long-trip heuristics + dedupe; `VisionService` threshold 0.12 + richer label map; `NotificationService` adds `pendingCount` + `cancelAll` + past-date guard; `Trip` gains `progressLabel`, `daysUntilDeparture`, `isPast`.
+
 ## 1.0.6 — Reduced-motion + color-contrast audit (2026-08-07)
 
 **Reduced motion:** the single animated iOS control — the Onboarding "Continue" `withAnimation` step — now gates on `accessibilityReduceMotion` and jumps instantly when the user has *Reduce Motion* on. On the web, `Landing` now respects the user's `prefers-reduced-motion` via `useReducedMotion()` (hero fade/slide and `FeatureCard` lift are suppressed) and every `.pulse` spinner pauses; a global `prefers-reduced-motion: reduce` rule in `index.css` clamps any residual animations to `0.01ms` so third-party CSS cannot slip through.

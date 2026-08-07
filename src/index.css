@@ -120,21 +120,33 @@
 
 @layer base {
   * { @apply border-border outline-ring/50; }
+  html { scroll-behavior: smooth; scrollbar-gutter: stable; }
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
     letter-spacing: -0.011em;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
   h1,h2,h3,h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
   button:not([disabled]), [role="button"]:not([disabled]) { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  ::selection { background: oklch(0.62 0.115 38 / 0.18); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+@media print {
+  nav, footer { display: none !important; }
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.75em; word-break: break-all; }
+  body { background: white !important; color: black !important; }
 }
 
 /* Warm Athena texture */
@@ -151,4 +163,10 @@
 .athena-rule {
   height: 1px;
   background: linear-gradient(90deg, transparent, oklch(0.888 0.022 75), transparent);
+}
+
+/* Subtle card lift for non-reduced-motion */
+@media (prefers-reduced-motion: no-preference) {
+  .card-lift { transition: transform 180ms ease, box-shadow 180ms ease; }
+  .card-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 30px -12px oklch(0.3 0.05 42 / 0.18); }
 }

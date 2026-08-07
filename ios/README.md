@@ -35,6 +35,8 @@ xcodebuild build -project PackWise.xcodeproj -scheme PackWise \
 
 **Reduced Motion & Contrast (1.0.6):** Onboarding's `withAnimation` gates on `accessibilityReduceMotion`; all essentials warnings and favorite/essential stars use high-contrast browns/ambers (≥4.5:1) paired with icons so state is never color-only. Test in *Settings → Accessibility → Motion → Reduce Motion* and *Display & Text Size → Increase Contrast / Smart Invert*.
 
+**Polish (1.0.7):** Swipe-to-delete/duplicate on trips and items, swipe-to-toggle packed, haptics (respects the Settings toggle), delete confirmations, richer empty states, photo downscaling, pull-to-refresh, `ContentUnavailableView` everywhere, live progress semantics, and `Trip` helpers (`progressLabel`, `daysUntilDeparture`).
+
 ## Tests
 
 ```bash

@@ -17,6 +17,7 @@ struct TripDetailView: View {
     @State private var selectedIDs: Set<UUID> = []
     @State private var outfitName = ""
     @State private var outfitDay = ""
+    @State private var showDeleteConfirm = false
 
     enum Tab: String, CaseIterable { case items = "Packing List", outfits = "Outfits", export = "Export" }
     enum PackedFilter: String, CaseIterable { case all = "All", packed = "Packed", unpacked = "Unpacked" }
@@ -55,23 +56,38 @@ struct TripDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    ForEach(TripStatus.allCases) { s in Button(s.label) { trip.status = s; trip.updatedAt = Date(); try? context.save() } }
+                    ForEach(TripStatus.allCases) { s in
+                        Button(s.label) {
+                            trip.status = s; trip.updatedAt = Date(); try? context.save()
+                            #if canImport(UIKit)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            #endif
+                        }
+                    }
                     Divider()
                     Button("Duplicate trip", systemImage: "doc.on.doc") { duplicate() }
-                    Button("Delete trip", systemImage: "trash", role: .destructive) { deleteTrip() }
+                    Button("Delete trip", systemImage: "trash", role: .destructive) { showDeleteConfirm = true }
                 } label: { Label("Options", systemImage: "ellipsis.circle") }
             }
         }
         .searchable(text: $search, prompt: "Search items, categories, notes")
+        .confirmationDialog("Delete trip?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { deleteTrip() }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("This will delete the trip and all its items and outfits. This cannot be undone.") }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(trip.status.label).font(.caption2.bold()).padding(.horizontal, 8).padding(.vertical, 4).background(.secondary.opacity(0.18), in: Capsule())
+                    .accessibilityLabel("Status \(trip.status.label)")
                 if let p = trip.purpose { Text(p).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
                 Spacer()
-                Text("\(Int(trip.progress*100))%").font(.title3.bold().monospacedDigit())
+                Text("\(Int(trip.progress*100))%")
+                    .font(.title3.bold().monospacedDigit())
+                    .accessibilityLabel("\(Int(trip.progress * 100)) percent packed")
+                    .contentTransition(.numericText())
             }
             Label(trip.destination, systemImage: "mappin").font(.subheadline).foregroundStyle(.secondary)
             if let s = trip.startDate, let e = trip.endDate {
@@ -79,7 +95,11 @@ struct TripDetailView: View {
             }
             if let a = trip.activities, !a.isEmpty { Label(a, systemImage: "figure.hiking").font(.caption).foregroundStyle(.secondary) }
             if let c = trip.climateInfo, !c.isEmpty { Label(c, systemImage: "cloud.sun").font(.caption).foregroundStyle(.secondary) }
-            if trip.essentialsMissing > 0 { Label("\(trip.essentialsMissing) essentials still unpacked", systemImage: "exclamationmark.triangle.fill").font(.caption2.weight(.semibold)).foregroundStyle(Color(red: 0.72, green: 0.36, blue: 0.0)) }
+            if trip.essentialsMissing > 0 {
+                Label("\(trip.essentialsMissing) essentials still unpacked", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color(red: 0.72, green: 0.36, blue: 0.0))
+            }
 
             // Local recommendations
             let recs = RecommendationService.suggestions(for: trip)
@@ -90,6 +110,9 @@ struct TripDetailView: View {
                         Button {
                             let item = PackingItem(name: r.title, category: r.category, trip: trip)
                             context.insert(item); trip.updatedAt = Date(); try? context.save()
+                            #if canImport(UIKit)
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            #endif
                         } label: {
                             HStack { Text(r.title).font(.caption); Text(r.reason).font(.caption2).foregroundStyle(.secondary); Spacer(); Image(systemName: "plus.circle").accessibilityHidden(true) }
                         }
@@ -100,7 +123,9 @@ struct TripDetailView: View {
 
             ProgressView(value: trip.progress).tint(trip.status == .ready ? .green : .accentColor)
                 .accessibilityLabel("Packing progress")
+                .accessibilityValue("\(Int(trip.progress * 100)) percent")
             Text("\(trip.items.filter(\.packed).count) of \(trip.items.count) packed").font(.caption2).foregroundStyle(.secondary)
+                .accessibilityHidden(true)
         }
         .padding()
         .background(Color(.secondarySystemBackground))
@@ -118,6 +143,8 @@ struct TripDetailView: View {
             }
             Section("Add item") {
                 TextField("Item name", text: $newName)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.words)
                 Picker("Category", selection: $newCategory) { ForEach(builtInCategoryNames, id: \.self) { Text($0).tag($0) } }
                 Stepper("Quantity: \(newQty)", value: $newQty, in: 1...50)
                 TextField("Notes", text: $newNotes)
@@ -125,6 +152,9 @@ struct TripDetailView: View {
                 Button("Add") {
                     let item = PackingItem(name: newName.trimmingCharacters(in: .whitespaces), category: newCategory, quantity: newQty, essential: newEssential, notes: newNotes.isEmpty ? nil : newNotes, trip: trip)
                     context.insert(item); trip.updatedAt = Date(); try? context.save()
+                    #if canImport(UIKit)
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    #endif
                     newName = ""; newNotes = ""; newEssential = false; newQty = 1
                 }.disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
@@ -135,7 +165,23 @@ struct TripDetailView: View {
                     Section("\(cat) · \(grouped[cat]!.count)") {
                         ForEach(grouped[cat]!) { item in
                             NavigationLink(value: item) {
-                                ItemRowInline(item: item) { item.packed.toggle(); trip.updatedAt = Date(); try? context.save() }
+                                ItemRowInline(item: item) {
+                                    item.packed.toggle(); trip.updatedAt = Date(); try? context.save()
+                                    #if canImport(UIKit)
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    #endif
+                                }
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    context.delete(item); try? context.save()
+                                } label: { Label("Delete", systemImage: "trash") }
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    item.packed.toggle(); trip.updatedAt = Date(); try? context.save()
+                                } label: { Label(item.packed ? "Unpack" : "Pack", systemImage: item.packed ? "circle" : "checkmark.circle.fill") }
+                                .tint(item.packed ? .gray : .green)
                             }
                         }
                     }
@@ -150,6 +196,7 @@ struct TripDetailView: View {
         List {
             Section("Create outfit") {
                 TextField("Outfit name — e.g. Arrival", text: $outfitName)
+                    .autocorrectionDisabled()
                 TextField("Day — Monday or Day 2", text: $outfitDay)
                 if trip.items.isEmpty {
                     Text("Add items first, then compose outfits.").font(.caption).foregroundStyle(.secondary)
@@ -157,15 +204,22 @@ struct TripDetailView: View {
                     ForEach(trip.items.sorted(by: { $0.name < $1.name })) { item in
                         Button {
                             if selectedIDs.contains(item.id) { selectedIDs.remove(item.id) } else { selectedIDs.insert(item.id) }
+                            #if canImport(UIKit)
+                            UISelectionFeedbackGenerator().selectionChanged()
+                            #endif
                         } label: {
                             HStack { Text(item.name).foregroundStyle(.primary); Spacer(); if selectedIDs.contains(item.id) { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).accessibilityHidden(true) } }
                         }
                         .accessibilityAddTraits(selectedIDs.contains(item.id) ? .isSelected : [])
+                        .accessibilityLabel("\(item.name) — \(selectedIDs.contains(item.id) ? "selected" : "not selected")")
                     }
                 }
                 Button("Save outfit") {
                     let o = Outfit(name: outfitName.trimmingCharacters(in: .whitespaces), dayLabel: outfitDay.isEmpty ? nil : outfitDay, itemIDs: Array(selectedIDs), trip: trip)
                     context.insert(o); trip.updatedAt = Date(); try? context.save()
+                    #if canImport(UIKit)
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    #endif
                     outfitName = ""; outfitDay = ""; selectedIDs = []
                 }.disabled(outfitName.trimmingCharacters(in: .whitespaces).isEmpty || selectedIDs.isEmpty)
             }
@@ -180,6 +234,9 @@ struct TripDetailView: View {
                             Text(outfit.itemIDs.compactMap { id in trip.items.first(where: { $0.id == id })?.name }.joined(separator: " · ")).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                         }
                     }
+                    .swipeActions {
+                        Button(role: .destructive) { context.delete(outfit); try? context.save() } label: { Label("Delete", systemImage: "trash") }
+                    }
                 }
             }
         }
@@ -193,6 +250,12 @@ struct TripDetailView: View {
             Section {
                 ShareLink(item: exportURL(), preview: SharePreview("PackWise — \(trip.title)")) { Label("Share file", systemImage: "square.and.arrow.up") }
                 Button { UIPasteboard.general.string = exportString() } label: { Label("Copy JSON", systemImage: "doc.on.doc") }
+            }
+            Section("Quick stats") {
+                LabeledContent("Items", value: "\(trip.items.count)")
+                LabeledContent("Packed", value: "\(trip.items.filter(\.packed).count)")
+                LabeledContent("Essentials missing", value: "\(trip.essentialsMissing)")
+                LabeledContent("Outfits", value: "\(trip.outfits.count)")
             }
         }.listStyle(.insetGrouped)
     }
@@ -212,6 +275,9 @@ struct TripDetailView: View {
         context.insert(copy)
         for it in trip.items { context.insert(PackingItem(name: it.name, category: it.category, quantity: it.quantity, essential: it.essential, notes: it.notes, photoData: it.photoData, trip: copy)) }
         try? context.save()
+        #if canImport(UIKit)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #endif
     }
     private func deleteTrip() { context.delete(trip); try? context.save() }
 }
@@ -238,6 +304,7 @@ private struct ItemRowInline: View {
             Spacer()
             if item.essential { Image(systemName: "star.fill").foregroundStyle(Color(red: 0.68, green: 0.52, blue: 0.0)).font(.caption2).accessibilityLabel("Essential") }
         }.opacity(item.packed ? 0.6 : 1)
+        .contentShape(Rectangle())
     }
 }
 
@@ -250,9 +317,13 @@ private struct OutfitDetailView: View {
             TextField("Name", text: $outfit.name).onChange(of: outfit.name) { _, _ in try? context.save() }
             TextField("Day label", text: Binding(get: { outfit.dayLabel ?? "" }, set: { outfit.dayLabel = $0.isEmpty ? nil : $0 })).onChange(of: outfit.dayLabel ?? "") { _, _ in try? context.save() }
             Section("Items") {
-                ForEach(outfit.itemIDs, id: \.self) { id in
-                    if let it = trip.items.first(where: { $0.id == id }) { Label(it.name, systemImage: it.packed ? "checkmark.circle.fill" : "circle") }
-                    else { Text("Missing item").foregroundStyle(.secondary) }
+                if outfit.itemIDs.isEmpty {
+                    Text("No items in this outfit.").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    ForEach(outfit.itemIDs, id: \.self) { id in
+                        if let it = trip.items.first(where: { $0.id == id }) { Label(it.name, systemImage: it.packed ? "checkmark.circle.fill" : "circle") }
+                        else { Text("Missing item").foregroundStyle(.secondary) }
+                    }
                 }
             }
             Section("Note") { TextEditor(text: Binding(get: { outfit.note ?? "" }, set: { outfit.note = $0.isEmpty ? nil : $0 })).frame(minHeight: 60).accessibilityLabel("Note") }

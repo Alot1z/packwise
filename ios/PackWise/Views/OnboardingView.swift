@@ -19,8 +19,13 @@ struct OnboardingView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .frame(height: 420)
+            .animation(reduceMotion ? .none : .easeInOut(duration: 0.25), value: step)
 
+            // Progress dots are handled by TabView; the button below is the primary CTAs.
             Button {
+                #if canImport(UIKit)
+                if prefs.first?.hapticsEnabled == true { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+                #endif
                 if step < 2 {
                     if reduceMotion { step += 1 } else { withAnimation { step += 1 } }
                 } else { complete() }
@@ -31,12 +36,27 @@ struct OnboardingView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .padding()
+            .accessibilityLabel(step < 2 ? "Continue to next onboarding page" : "Finish onboarding and open PackWise")
+            .accessibilityHint("Page \(step + 1) of 3")
 
-            Button("Skip", action: complete)
+            Button("Skip", action: {
+                #if canImport(UIKit)
+                if prefs.first?.hapticsEnabled == true { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+                #endif
+                complete()
+            })
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.bottom)
+                .accessibilityLabel("Skip onboarding")
+
+            Text("Swipe or tap Continue · Private · Offline-first · No account")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 8)
+                .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .contain)
     }
 
     private func page(icon: String, title: String, subtitle: String, tag: Int) -> some View {
@@ -44,7 +64,10 @@ struct OnboardingView: View {
             Image(systemName: icon).font(.system(size: iconSize, weight: .light)).foregroundStyle(.primary).accessibilityHidden(true)
             Text(title).font(.title.bold())
             Text(subtitle).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.horizontal, 32)
-        }.tag(tag)
+        }
+        .tag(tag)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(subtitle)")
     }
 
     private func complete() {

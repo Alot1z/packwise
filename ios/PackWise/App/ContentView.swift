@@ -3,9 +3,16 @@ import SwiftData
 
 struct ContentView: View {
     @Query private var prefs: [UserPreference]
+    @Query(sort: \Trip.updatedAt, order: .reverse) private var trips: [Trip]
     @State private var selection: Tab = .dashboard
+    @Environment(\.horizontalSizeClass) private var hSize
 
-    enum Tab { case dashboard, trips, scanner, library, templates, search }
+    enum Tab: Hashable { case dashboard, trips, scanner, library, search, more }
+
+    /// Count trips with essentials still unpacked — shown as a badge on Trips tab.
+    private var tripsNeedingAttention: Int {
+        trips.filter { $0.essentialsMissing > 0 && $0.status != .archived }.count
+    }
 
     var body: some View {
         Group {
@@ -19,6 +26,7 @@ struct ContentView: View {
 
                     TripsRootView()
                         .tabItem { Label("Trips", systemImage: "suitcase") }
+                        .badge(tripsNeedingAttention > 0 ? tripsNeedingAttention : 0)
                         .tag(Tab.trips)
 
                     PhotoScannerView()
@@ -35,10 +43,15 @@ struct ContentView: View {
 
                     TemplatesRootView()
                         .tabItem { Label("More", systemImage: "ellipsis.circle") }
-                        .tag(Tab.templates)
+                        .tag(Tab.more)
                 }
+                // iPad: sidebar-adaptable tab bar
+                .tabViewStyle(.automatic)
+                .tint(Color(.tintColor))
+                .accessibilityLabel("Main navigation")
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: prefs.first?.hasCompletedOnboarding)
     }
 }
 
@@ -53,12 +66,21 @@ private struct TemplatesRootView: View {
             List {
                 Section("Plan") {
                     NavigationLink("Templates") { TemplateLibraryView() }
-                    NavigationLink("Outfits — open a trip to plan") { Text("Open any trip → Outfits tab to create day-by-day outfits.").foregroundStyle(.secondary) }
+                    NavigationLink("Outfits — open a trip to plan") {
+                        Text("Open any trip → Outfits tab to create day-by-day outfits.").foregroundStyle(.secondary)
+                    }
                 }
                 Section("System") {
                     NavigationLink("Reminders") { RemindersView() }
                     NavigationLink("Settings") { SettingsView() }
                 }
+                Section {
+                    Text("PackWise · On device · Offline-first · No account required")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                }
+                .listSectionSeparator(.hidden)
             }
             .listStyle(.insetGrouped)
             .navigationTitle("More")

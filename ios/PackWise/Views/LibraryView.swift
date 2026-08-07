@@ -31,7 +31,13 @@ struct LibraryView: View {
                     }.pickerStyle(.segmented)
                 }
                 if filtered.isEmpty {
-                    Section { Text("No items yet. Add personal items with photos and reuse them across trips.").font(.caption).foregroundStyle(.secondary) }
+                    Section {
+                        if library.isEmpty {
+                            ContentUnavailableView("Your library is empty", systemImage: "shippingbox", description: Text("Add personal items with photos and reuse them across trips. They live on device and work offline."))
+                        } else {
+                            ContentUnavailableView.search(text: search)
+                        }
+                    }
                 }
                 ForEach(filtered) { item in
                     NavigationLink(value: item) {
@@ -49,6 +55,18 @@ struct LibraryView: View {
                             if item.isFavorite { Image(systemName: "star.fill").foregroundStyle(Color(red: 0.68, green: 0.52, blue: 0.0)).font(.caption).accessibilityLabel("Favorite") }
                         }
                     }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) { context.delete(item); try? context.save() } label: { Label("Delete", systemImage: "trash") }
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            item.isFavorite.toggle(); try? context.save()
+                            #if canImport(UIKit)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            #endif
+                        } label: { Label(item.isFavorite ? "Unfavorite" : "Favorite", systemImage: item.isFavorite ? "star.slash" : "star.fill") }
+                        .tint(.orange)
+                    }
                 }
                 if !filtered.isEmpty {
                     Section("Reuse") {
@@ -63,7 +81,7 @@ struct LibraryView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Library")
             .searchable(text: $search, prompt: "Search library")
-            .toolbar { Button { showAdd = true } label: { Label("Add", systemImage: "plus") } }
+            .toolbar { Button { showAdd = true } label: { Label("Add", systemImage: "plus") }.accessibilityLabel("Add library item") }
             .sheet(isPresented: $showAdd) { AddPersonalItemSheet() }
             .navigationDestination(for: PersonalItem.self) { PersonalItemDetail(item: $0) }
         }
@@ -83,7 +101,7 @@ private struct AddPersonalItemSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Name", text: $name)
+                TextField("Name", text: $name).autocorrectionDisabled().textInputAutocapitalization(.words)
                 Picker("Category", selection: $category) { ForEach(builtInCategoryNames, id: \.self) { Text($0).tag($0) } }
                 TextField("Notes", text: $notes)
                 Toggle("Favorite", isOn: $fav)
@@ -97,7 +115,11 @@ private struct AddPersonalItemSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
                         let item = PersonalItem(name: name.trimmingCharacters(in: .whitespaces), category: category, notes: notes.isEmpty ? nil : notes, photoData: data, isFavorite: fav)
-                        context.insert(item); try? context.save(); dismiss()
+                        context.insert(item); try? context.save()
+                        #if canImport(UIKit)
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        #endif
+                        dismiss()
                     }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
@@ -112,12 +134,16 @@ private struct PersonalItemDetail: View {
     @Query(sort: \Trip.updatedAt, order: .reverse) private var trips: [Trip]
     @State private var targetTrip: UUID?
     @State private var picker: PhotosPickerItem?
+    @State private var showDeleteConfirm = false
 
     var body: some View {
         Form {
             Section("Photo") {
                 if let d = item.photoData, let ui = UIImage(data: d) { Image(uiImage: ui).resizable().scaledToFit().frame(maxHeight: 200).clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityLabel("Item photo") }
                 PhotosPicker(selection: $picker, matching: .images) { Label("Change photo", systemImage: "photo") }
+                if item.photoData != nil {
+                    Button("Remove photo", role: .destructive) { item.photoData = nil; try? context.save() }
+                }
             }
             Section {
                 TextField("Name", text: $item.name)
@@ -131,11 +157,21 @@ private struct PersonalItemDetail: View {
                     guard let id = targetTrip, let trip = trips.first(where: { $0.id == id }) else { return }
                     let copy = PackingItem(name: item.name, category: item.category, notes: item.notes, photoData: item.photoData, personalItemID: item.id, trip: trip)
                     context.insert(copy); trip.updatedAt = Date(); try? context.save()
+                    #if canImport(UIKit)
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    #endif
                 }.disabled(targetTrip == nil)
+            }
+            Section {
+                Button("Delete item", role: .destructive) { showDeleteConfirm = true }
             }
         }
         .navigationTitle("Library Item")
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("Delete this library item?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) { context.delete(item); try? context.save() }
+            Button("Cancel", role: .cancel) {}
+        }
         .onChange(of: picker) { _, v in Task { if let d = try? await v?.loadTransferable(type: Data.self) { item.photoData = d; try? context.save() } } }
         .onChange(of: item.name) { _, _ in try? context.save() }
     }

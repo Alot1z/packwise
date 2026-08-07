@@ -15,12 +15,20 @@ struct NewTripSheet: View {
     @State private var notes = ""
     @State private var category = "General"
 
+    private var isValid: Bool {
+        !title.trimmingCharacters(in: .whitespaces).isEmpty && !destination.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Trip") {
                     TextField("Title — for example, Kyoto in Spring", text: $title)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.words)
                     TextField("Destination", text: $destination)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.words)
                     Picker("Category", selection: $category) { ForEach(["General","Weekend","Work","Beach","Outdoor","International"], id: \.self) { Text($0).tag($0) } }
                     TextField("Purpose — business, leisure, family", text: $purpose)
                     TextField("Activities — hiking, meetings, dining", text: $activities)
@@ -32,9 +40,16 @@ struct NewTripSheet: View {
                     if includeDates {
                         DatePicker("Start", selection: $startDate, displayedComponents: .date)
                         DatePicker("End", selection: $endDate, displayedComponents: .date)
+                        if endDate < startDate {
+                            Label("End date is before start date.", systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption).foregroundStyle(Color(red: 0.72, green: 0.36, blue: 0.0))
+                        }
                     }
                 }
-                Section { Text("Stored locally. No account or connection required.").font(.caption).foregroundStyle(.secondary) }
+                Section {
+                    Label("Stored locally. No account or connection required. You can add templates after creating the trip.", systemImage: "lock.shield")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             .navigationTitle("New Trip")
             .navigationBarTitleDisplayMode(.inline)
@@ -46,15 +61,19 @@ struct NewTripSheet: View {
                             title: title.trimmingCharacters(in: .whitespaces),
                             destination: destination.trimmingCharacters(in: .whitespaces),
                             startDate: includeDates ? startDate : nil,
-                            endDate: includeDates ? endDate : nil,
+                            endDate: includeDates ? (endDate < startDate ? startDate : endDate) : nil,
                             purpose: purpose.isEmpty ? nil : purpose,
                             activities: activities.isEmpty ? nil : activities,
                             climateInfo: climateInfo.isEmpty ? nil : climateInfo,
                             notes: notes.isEmpty ? nil : notes,
                             tripCategory: category
                         )
-                        context.insert(trip); try? context.save(); dismiss()
-                    }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || destination.trimmingCharacters(in: .whitespaces).isEmpty)
+                        context.insert(trip); try? context.save()
+                        #if canImport(UIKit)
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        #endif
+                        dismiss()
+                    }.disabled(!isValid)
                 }
             }
         }

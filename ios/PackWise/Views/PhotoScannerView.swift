@@ -21,14 +21,33 @@ struct PhotoScannerView: View {
                     if let img = uiImage {
                         Image(uiImage: img).resizable().scaledToFit().frame(maxHeight: 260).clipShape(RoundedRectangle(cornerRadius: 12))
                             .accessibilityLabel("Imported photo")
-                        if vision.isProcessing { ProgressView("Analysing on device…") }
+                            .contextMenu {
+                                Button("Clear photo", role: .destructive) {
+                                    uiImage = nil; vision.reset(); selected = []
+                                }
+                            }
+                        if vision.isProcessing {
+                            HStack(spacing: 8) {
+                                ProgressView().tint(.accentColor)
+                                Text("Analysing on device…").font(.caption).foregroundStyle(.secondary)
+                            }
+                            .accessibilityLabel("Analysing image on device")
+                        }
                     }
                     Button("Analyse on device") {
                         guard let img = uiImage else { return }
                         Task { await vision.classify(image: img) }
-                    }.disabled(uiImage == nil || vision.isProcessing)
-                    if let e = vision.error { Label(e, systemImage: "exclamationmark.triangle.fill").font(.caption.weight(.medium)).foregroundStyle(Color(red: 0.74, green: 0.18, blue: 0.12)) }
-                    Text("Vision runs locally. No image leaves your device. Suggestions require your confirmation.").font(.caption).foregroundStyle(.secondary)
+                    }
+                    .disabled(uiImage == nil || vision.isProcessing)
+                    .accessibilityHint("Runs Vision classification locally. No image leaves your device.")
+
+                    if let e = vision.error {
+                        Label(e, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(Color(red: 0.74, green: 0.18, blue: 0.12))
+                    }
+                    Label("Vision runs locally. No image leaves your device. Suggestions require your confirmation.", systemImage: "lock.shield")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
 
                 if !vision.suggestions.isEmpty {
@@ -40,6 +59,9 @@ struct PhotoScannerView: View {
                         ForEach(vision.suggestions) { s in
                             Button {
                                 if selected.contains(s.id) { selected.remove(s.id) } else { selected.insert(s.id) }
+                                #if canImport(UIKit)
+                                UISelectionFeedbackGenerator().selectionChanged()
+                                #endif
                             } label: {
                                 HStack {
                                     VStack(alignment: .leading) {
@@ -51,6 +73,8 @@ struct PhotoScannerView: View {
                                 }
                             }
                             .accessibilityAddTraits(selected.contains(s.id) ? .isSelected : [])
+                            .accessibilityLabel("\(s.label), \(s.category), \(s.displayConfidence) — \(selected.contains(s.id) ? "selected" : "not selected")")
+                            .accessibilityHint("Double-tap to toggle selection")
                         }
                         Button("Add selected to trip") {
                             guard let tid = selectedTripID, let trip = trips.first(where: { $0.id == tid }) else { return }
@@ -60,13 +84,28 @@ struct PhotoScannerView: View {
                             }
                             trip.updatedAt = Date()
                             try? context.save()
+                            #if canImport(UIKit)
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            #endif
                             selected = []
                         }.disabled(selectedTripID == nil || selected.isEmpty)
+                    }
+                } else if uiImage != nil && !vision.isProcessing && vision.error == nil {
+                    Section {
+                        Text("Tap Analyse to get on-device suggestions, then confirm which to add.").font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Photo Scanner")
+            .toolbar {
+                if uiImage != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Clear") { uiImage = nil; vision.reset(); selected = [] }
+                            .font(.caption)
+                    }
+                }
+            }
             .onChange(of: pickerItem) { _, v in
                 Task {
                     if let data = try? await v?.loadTransferable(type: Data.self), let img = UIImage(data: data) {

@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Shield, HardDrive, Eye, Shirt, Library, Layers, Search, CalendarDays, Bell, Box, FileText, Download } from "lucide-react";
 import { SiteNav, SiteFooter, PageHeader, serif, LIVE_RELEASE_LATEST } from "@/components/site-shared";
 
@@ -51,35 +51,58 @@ const features = [
 ];
 
 export default function Features() {
+  const reduceMotion = useReducedMotion();
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteNav />
-      <PageHeader
-        kicker="Inside the IPA"
-        title="Every feature lives in the native app"
-        desc="None of this depends on this website or any server. The complete product is PackWise-unsigned.ipa — install it and every capability below is on your iPhone, offline."
-      />
+      <main id="main">
+        <PageHeader
+          kicker="Inside the IPA"
+          title="Every feature lives in the native app"
+          desc="None of this depends on this website or any server. The complete product is PackWise-unsigned.ipa — install it and every capability below is on your iPhone, offline."
+        />
 
-      <section className="max-w-[1180px] mx-auto px-6 pb-10">
-        <div className="grid md:grid-cols-2 gap-4">
-          {features.map((f) => (
-            <motion.div key={f.title} whileHover={{ y: -2 }} transition={{ duration: 0.2 }} className="rounded-2xl bg-card border border-border p-5 hover:shadow-[0_8px_30px_-12px_oklch(0.3_0.05_42/0.2)] transition-shadow">
-              <div className="size-9 rounded-xl bg-secondary grid place-items-center border border-border/50"><f.icon className="size-[18px]" /></div>
-              <div className="font-semibold mt-3.5 text-[15px]" style={serif}>{f.title}</div>
-              <div className="text-[13.5px] leading-[22px] text-muted-foreground mt-1.5">{f.desc}</div>
-            </motion.div>
-          ))}
-        </div>
+        <section className="max-w-[1180px] mx-auto px-6 pb-10">
+          <div className="grid md:grid-cols-2 gap-4">
+            {features.map((f) => (
+              <motion.div
+                key={f.title}
+                whileHover={reduceMotion ? undefined : { y: -2 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                className="rounded-2xl bg-card border border-border p-5 hover:shadow-[0_8px_30px_-12px_oklch(0.3_0.05_42/0.2)] transition-shadow"
+              >
+                <div className="size-9 rounded-xl bg-secondary grid place-items-center border border-border/50">
+                  <f.icon className="size-[18px]" aria-hidden />
+                </div>
+                <div className="font-semibold mt-3.5 text-[15px]" style={serif}>
+                  {f.title}
+                </div>
+                <div className="text-[13.5px] leading-[22px] text-muted-foreground mt-1.5">{f.desc}</div>
+              </motion.div>
+            ))}
+          </div>
 
-        <div className="mt-8 rounded-2xl border border-border bg-card p-5 flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Shield className="size-4" /> Private by design</div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground"><HardDrive className="size-4" /> SwiftData on device</div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Eye className="size-4" /> Vision on device</div>
-          <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
-            <Download className="size-4" /> Download IPA — Latest
-          </a>
-        </div>
-      </section>
+          <div className="mt-8 rounded-2xl border border-border bg-card p-5 flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Shield className="size-4" aria-hidden /> Private by design
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <HardDrive className="size-4" aria-hidden /> SwiftData on device
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Eye className="size-4" aria-hidden /> Vision on device
+            </div>
+            <a
+              href={LIVE_RELEASE_LATEST}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Download className="size-4" aria-hidden /> Download IPA — Latest
+            </a>
+          </div>
+        </section>
+      </main>
 
       <SiteFooter />
     </div>
