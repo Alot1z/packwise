@@ -65,6 +65,13 @@ jobs:
           ./build.sh 2>&1 | tee build/ci.log
           echo "BUILT_UNSIGNED_IPA=1" >> "$GITHUB_ENV"
 
+      # ── Final gate: the same verifier users run locally (scripts/verify-ipa.sh).
+      # Belt-and-suspenders on top of build.sh's internal publish gate — and
+      # keeps ONE public tool that explains any download, .ipa or artifact zip.
+      - name: Verify IPA (publish gate)
+        if: env.BUILT_UNSIGNED_IPA == '1'
+        run: ./scripts/verify-ipa.sh ios/build/PackWise-unsigned.ipa
+
       # ── Direct .ipa download (no outer zip) — versioned Release on tag v* ──
       - name: Publish to GitHub Release (on tag v*)
         if: startsWith(github.ref, 'refs/tags/v') && env.BUILT_UNSIGNED_IPA == '1'

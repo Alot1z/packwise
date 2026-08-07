@@ -20,7 +20,13 @@ gh release download dev -R Alot1z/packwise -p "PackWise-unsigned.ipa"
 gh release download -R Alot1z/packwise -p "*.ipa"   # latest versioned
 ```
 
-Verify any IPA:
+Verify any download (`.ipa`, artifact `.zip`, or folder — one command):
+
+```bash
+./scripts/verify-ipa.sh <downloaded-file>
+```
+
+Or manually:
 
 ```bash
 file PackWise-unsigned.ipa

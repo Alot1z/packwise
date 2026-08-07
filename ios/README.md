@@ -92,6 +92,9 @@ Whichever wins, it is **validated**: `Payload/PackWise.app/PackWise` must exist,
 6. **Publish gate** — the `.ipa` MUST pass `unzip -t`, contain `Payload/PackWise.app/PackWise` + `Info.plist`, and contain NO test/signing artifacts, or the build **fails loudly** — nothing broken is ever released. Diagnostics land in `build/diagnostics.txt` (uploaded by CI as `ios-build-diagnostics`).
 
 ```bash
+# One command — sideload-ready or exactly why not (.ipa, artifact .zip, or folder):
+../scripts/verify-ipa.sh ios/build/PackWise-unsigned.ipa
+
 file ios/build/PackWise-unsigned.ipa
 unzip -l ios/build/PackWise-unsigned.ipa | grep Payload
 shasum -a 256 ios/build/PackWise-unsigned.ipa
@@ -100,6 +103,7 @@ shasum -a 256 ios/build/PackWise-unsigned.ipa
 ## Troubleshooting
 
 - **Download was a .zip?** → Use the direct `.ipa` on Releases (`latest` or `dev`), or unzip the artifact zip.
+- **Not sure a download is valid?** → `./scripts/verify-ipa.sh <file>` — auto-unwraps GitHub artifact zips and tells you in one line whether it's sideload-ready (and why not, if it isn't).
 - **Install fails / Untrusted Developer** → Re-sign via AltStore/Sideloadly, or TrollStore where supported.
 - **Vision finds nothing** → Clearer, well-lit photo; on-device Vision is conservative.
 - **Build says "no IPA"** → Open the *Build unsigned IPA* step logs — diagnostics + `file` + `unzip -l` always print.

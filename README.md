@@ -44,7 +44,13 @@ They're one system, not copies — see [One docs system, three surfaces](#-one-d
 
 > From this update forward, **every push to `main` publishes a `dev` prerelease** (`releases/tag/dev`) with the direct `.ipa` — you never have to unwrap the artifact if you don't want to. Tags `v*` still create versioned Releases.
 
-Verify any IPA:
+Verify any download — one command (auto-unwraps artifact zips):
+
+```bash
+./scripts/verify-ipa.sh <downloaded-file>   # → "✓ sideload-ready" or exactly why not
+```
+
+…or manually:
 
 ```bash
 file PackWise-unsigned.ipa            # → Zip archive data (correct — .ipa IS a zip)
@@ -112,6 +118,7 @@ The pipeline **refuses to publish** anything that fails these checks — a broke
 ```bash
 # Inspect the current dev build right now:
 curl -L -o PackWise.ipa https://github.com/Alot1z/packwise/releases/download/dev/PackWise-unsigned.ipa
+./scripts/verify-ipa.sh PackWise.ipa                    # → sideload-ready verdict
 unzip -l PackWise.ipa | grep -E "Payload/PackWise.app/(PackWise|Info.plist)"   # both must appear
 shasum -a 256 PackWise.ipa   # compare with the .sha256 asset on the same release
 ```
@@ -252,7 +259,7 @@ ios/                  # Native iOS app — the product
   Resources/Assets.xcassets/AppIcon.appiconset/  # programmatic 1024px icon
   project.yml         # XcodeGen → PackWise.xcodeproj
   build.sh            # Self-healing IPA: build → archive → legacy + strict gate
-scripts/              # generate-appicon.py — the icon is code too
+scripts/              # generate-appicon.py (icon is code) + verify-ipa.sh (verify any download)
 wiki/                 # Wiki source — synced to Alot1z/packwise.wiki
 src/                  # Live docs site only (Vite + Tailwind) — not the app
 .github/workflows/    # ios.yml (build+release) + wiki.yml (docs sync)
@@ -287,7 +294,7 @@ bun install && bun run build   # → dist/ (deploy to Pages/Netlify/any static h
 
 ## 🛠 Troubleshooting
 
-- **Downloaded a `.zip`?** → That's the artifact container. The direct `.ipa` is on [Releases Latest](https://github.com/Alot1z/packwise/releases/latest) or [`dev`](https://github.com/Alot1z/packwise/releases/tag/dev). If you used the artifact, unzip it once.
+- **Downloaded a `.zip`?** → That's the artifact container. The direct `.ipa` is on [Releases Latest](https://github.com/Alot1z/packwise/releases/latest) or [`dev`](https://github.com/Alot1z/packwise/releases/tag/dev). If you used the artifact, unzip it once — or just run `./scripts/verify-ipa.sh <file>` and it auto-unwraps and tells you if it's sideload-ready.
 - **“Failed to map …/PackWise: Bad file descriptor”?** → You sideloaded a pre-fix build that had no executable. Download the latest [`dev`](https://github.com/Alot1z/packwise/releases/tag/dev) build — the executable is now validated before every publish.
 - **Install fails / Untrusted Developer** → Re-sign via AltStore/Sideloadly, or use TrollStore where supported; then *Settings → General → VPN & Device Management* → Trust.
 - **No IPA artifact?** → Open the *Build unsigned IPA* step logs or the `ios-build-diagnostics` artifact — diagnostics + `unzip -l` always print.
