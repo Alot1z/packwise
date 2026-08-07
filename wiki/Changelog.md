@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.5 — Dynamic Type audit (2026-08-07)
+
+**iOS:** full sweep for fixed-size fonts across every screen. The only offender was the onboarding hero icon (`font(.system(size: 44))`) — it now uses `@ScaledMetric(relativeTo: .largeTitle)`, so it grows with accessibility text sizes instead of staying tiny. Every other text element already rides scalable text styles (`.caption`/`.caption2`/`.subheadline`/`.headline`/`.title`/`.title3`), so all 16 screens reflow correctly from the smallest to the largest Dynamic Type setting. No `minimumScaleFactor` shrinking, no `.dynamicTypeSize` caps — text is allowed to wrap and grow.
+
+**Verification:** `grep` sweep confirms zero remaining `system(size:)`-style fixed fonts (the only `Font` calls are text styles + the scaled metric).
+
+## 1.0.4 — Accessibility & VoiceOver pass (2026-08-07)
+
+**iOS:** explicit VoiceOver labels across every interactive control — item toggles now announce **"Mark {name} as packed / unpacked"** (with a `Packed`/`Unpacked` value and hint, never the raw SF Symbol name), template **Add / Apply / Delete** buttons announce which template they act on, Vision suggestion buttons expose selection state (`.isSelected` trait) and suggestion "Add" buttons include the reason. Text editors, item/library/photo images, and packing `ProgressView`s are labeled or hidden-from-VoiceOver where decorative; trip rows combine their content into a single announcement. Onboarding icons are decorative.
+
+**Test:** new UI test `testItemToggleHasVoiceOverLabel` (in `PackWiseUITests`) creates a trip, adds an item, and asserts the toggle's explicit label exists — a VoiceOver regression guard. Non-blocking in CI like the rest of the suite.
+
 ## 1.0.3 — Algorithm-friendly release manifest + workflow inputs (2026-08-07)
 
 **New:** [`scripts/release-manifest.sh`](https://github.com/Alot1z/packwise/blob/main/scripts/release-manifest.sh) — emits [`PackWise-releases.json`](https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json) (schema `packwise.releases/v1`), attached as a release asset on every published build. Stable deterministic URLs (no GitHub API key required):

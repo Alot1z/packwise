@@ -29,6 +29,10 @@ xcodebuild build -project PackWise.xcodeproj -scheme PackWise \
 
 **Navigation (no dead screens):** Launch → Onboarding → **Dashboard** → **Trips** → **Trip Detail** → **Item Detail** → **Photo Scanner** → **Outfit Planner** → **Library** → **Search** → **Templates** → **Reminders** → **Settings**. Light/Dark, Dynamic Type, VoiceOver, iPhone + iPad.
 
+**Accessibility:** every interactive control carries an explicit VoiceOver label (item toggles say "Mark {name} as packed/unpacked", template buttons name their template, Vision suggestions expose selection state); decorative images are hidden from VoiceOver; packing `ProgressView`s are labeled; trip rows combine into a single announcement. Guarded by the `testItemToggleHasVoiceOverLabel` UI test.
+
+**Dynamic Type:** every text element uses a scalable text style (`.caption` … `.title3`) — no fixed-size fonts remain after the 1.0.5 audit. The onboarding hero icon scales via `@ScaledMetric(relativeTo: .largeTitle)`. Test in *Settings → Accessibility → Display & Text Size* at sizes up to accessibility maximums; rows and sheets reflow and wrap.
+
 ## Tests
 
 ```bash

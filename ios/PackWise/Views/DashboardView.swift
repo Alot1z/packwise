@@ -27,7 +27,9 @@ struct DashboardView: View {
                                         }
                                     }
                                     Spacer()
-                                    ProgressView(value: trip.progress).frame(width: 44)
+                                    ProgressView(value: trip.progress)
+                                        .frame(width: 44)
+                                        .accessibilityLabel("\(trip.title) progress")
                                     Text("\(Int(trip.progress*100))%").font(.caption2.monospaced()).foregroundStyle(.secondary)
                                 }
                             }
@@ -39,6 +41,7 @@ struct DashboardView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack { Text(trip.title).font(.caption.weight(.medium)); Spacer(); Text(trip.status.label).font(.caption2).foregroundStyle(.secondary) }
                                 ProgressView(value: trip.progress)
+                                    .accessibilityLabel("\(trip.title) progress")
                                 Text("\(trip.items.filter(\.packed).count)/\(trip.items.count) packed").font(.caption2).foregroundStyle(.secondary)
                             }
                         }

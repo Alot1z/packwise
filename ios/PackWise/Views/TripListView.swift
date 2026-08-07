@@ -65,8 +65,12 @@ private struct TripRow: View {
             Text(trip.title).font(.headline).lineLimit(1)
             Label(trip.destination, systemImage: "mappin").font(.caption).foregroundStyle(.secondary)
             if trip.essentialsMissing > 0 { Text("\(trip.essentialsMissing) essentials unpacked").font(.caption2).foregroundStyle(.orange) }
-            ProgressView(value: trip.progress).tint(trip.status == .ready ? .green : .accentColor)
+            ProgressView(value: trip.progress)
+                .tint(trip.status == .ready ? .green : .accentColor)
+                .accessibilityLabel("Packing progress")
             Text("\(trip.items.filter(\.packed).count) of \(trip.items.count) packed · \(Int(trip.progress*100))%").font(.caption2).foregroundStyle(.secondary)
-        }.padding(.vertical, 4)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 }
