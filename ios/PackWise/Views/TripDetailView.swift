@@ -79,7 +79,7 @@ struct TripDetailView: View {
             }
             if let a = trip.activities, !a.isEmpty { Label(a, systemImage: "figure.hiking").font(.caption).foregroundStyle(.secondary) }
             if let c = trip.climateInfo, !c.isEmpty { Label(c, systemImage: "cloud.sun").font(.caption).foregroundStyle(.secondary) }
-            if trip.essentialsMissing > 0 { Text("\(trip.essentialsMissing) essentials still unpacked").font(.caption2).foregroundStyle(.orange) }
+            if trip.essentialsMissing > 0 { Label("\(trip.essentialsMissing) essentials still unpacked", systemImage: "exclamationmark.triangle.fill").font(.caption2.weight(.semibold)).foregroundStyle(Color(red: 0.72, green: 0.36, blue: 0.0)) }
 
             // Local recommendations
             let recs = RecommendationService.suggestions(for: trip)
@@ -236,7 +236,7 @@ private struct ItemRowInline: View {
                 Text("×\(item.quantity) · \(item.category)").font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
-            if item.essential { Image(systemName: "star.fill").foregroundStyle(.yellow).font(.caption2) }
+            if item.essential { Image(systemName: "star.fill").foregroundStyle(Color(red: 0.68, green: 0.52, blue: 0.0)).font(.caption2).accessibilityLabel("Essential") }
         }.opacity(item.packed ? 0.6 : 1)
     }
 }

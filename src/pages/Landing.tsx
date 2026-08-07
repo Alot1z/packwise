@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Shield, HardDrive, Scan, Eye, Shirt, Library,
   Layers, Search, CalendarDays, Bell, Box, Cpu, Github,
@@ -11,10 +11,11 @@ import {
 } from "@/components/site-shared";
 
 function FeatureCard({ icon: Icon, title, desc }: { icon: typeof Scan; title: string; desc: string }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
-      whileHover={{ y: -2 }}
-      transition={{ duration: 0.2 }}
+      whileHover={reduceMotion ? undefined : { y: -2 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2 }}
       className="rounded-2xl bg-card border border-border p-5 hover:shadow-[0_8px_30px_-12px_oklch(0.3_0.05_42/0.2)] transition-shadow"
     >
       <div className="size-9 rounded-xl bg-secondary grid place-items-center border border-border/50"><Icon className="size-[18px]" /></div>
@@ -25,6 +26,7 @@ function FeatureCard({ icon: Icon, title, desc }: { icon: typeof Scan; title: st
 }
 
 export default function Landing() {
+  const reduceMotion = useReducedMotion();
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-[oklch(0.62_0.115_38/0.18)]">
       <SiteNav />
@@ -34,7 +36,7 @@ export default function Landing() {
         <div className="grid lg:grid-cols-[1.06fr_0.94fr] gap-8 items-start">
           <div>
             <div className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-[oklch(0.62_0.115_38)] animate-pulse" />
+              <span className={`size-1.5 rounded-full bg-[oklch(0.62_0.115_38)] ${reduceMotion ? "" : "animate-pulse"}`} />
               Native iOS — SwiftUI · SwiftData · Vision · On device
             </div>
             <h1 className="mt-3 text-[40px] sm:text-[54px] leading-[0.9] tracking-[-0.03em]" style={serif}>
@@ -75,10 +77,10 @@ export default function Landing() {
           </div>
 
           {/* IOS — NATIVE SWIFTUI card (3D hero art) */}
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: "easeOut" }} className="athena-paper rounded-[28px] p-5 sm:p-6 border border-white/60 shadow-[0_20px_60px_-24px_oklch(0.3_0.05_42/0.25)]">
+          <motion.div initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={reduceMotion ? {} : { opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.55, ease: "easeOut" }} className="athena-paper rounded-[28px] p-5 sm:p-6 border border-white/60 shadow-[0_20px_60px_-24px_oklch(0.3_0.05_42/0.25)]">
             <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className={`size-1.5 rounded-full bg-emerald-500 ${reduceMotion ? "" : "animate-pulse"}`} />
                 Built & verified · latest on main
               </span>
               <span>iOS 17+ · iPad</span>

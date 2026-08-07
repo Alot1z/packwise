@@ -3,6 +3,7 @@ import SwiftData
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var prefs: [UserPreference]
     @State private var step = 0
     /// Scales with Dynamic Type (relative to .largeTitle) so the onboarding
@@ -20,8 +21,9 @@ struct OnboardingView: View {
             .frame(height: 420)
 
             Button {
-                if step < 2 { withAnimation { step += 1 } }
-                else { complete() }
+                if step < 2 {
+                    if reduceMotion { step += 1 } else { withAnimation { step += 1 } }
+                } else { complete() }
             } label: {
                 Text(step < 2 ? "Continue" : "Open PackWise")
                     .frame(maxWidth: .infinity)

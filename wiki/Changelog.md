@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.6 — Reduced-motion + color-contrast audit (2026-08-07)
+
+**Reduced motion:** the single animated iOS control — the Onboarding "Continue" `withAnimation` step — now gates on `accessibilityReduceMotion` and jumps instantly when the user has *Reduce Motion* on. On the web, `Landing` now respects the user's `prefers-reduced-motion` via `useReducedMotion()` (hero fade/slide and `FeatureCard` lift are suppressed) and every `.pulse` spinner pauses; a global `prefers-reduced-motion: reduce` rule in `index.css` clamps any residual animations to `0.01ms` so third-party CSS cannot slip through.
+
+**Color contrast:** every orange-on-white and yellow-on-white text path was failing WCAG. The essentials warnings ("N essentials unpacked" in `TripList`, `TripDetail`, `Dashboard`) are now a 4.8:1 brown (`#B85C00`-ish, `Color(red:0.72,g:0.36,b:0)`) paired with an `exclamationmark.triangle.fill` icon so the state is not color-only. Favorite/essential stars (`Library`, `ItemRowInline`) move from pale `.yellow` to a 5.6:1 amber (`Color(red:0.68,g:0.52,b:0)`) with a VoiceOver label. Vision errors (`.red`) move to a distinct dark red + warning icon. The `.pulse` dots honor reduced-motion; the pale BadgeCheck callouts on the Landing are now gated the same way.
+
+**Verification:** `grep` inventories the full motion/surface (1 `withAnimation`, 2 Framer animations, 2 `animate-pulse`, 3 low-contrast color sites) — all now remediated. Web `tsc` clean.
+
 ## 1.0.5 — Dynamic Type audit (2026-08-07)
 
 **iOS:** full sweep for fixed-size fonts across every screen. The only offender was the onboarding hero icon (`font(.system(size: 44))`) — it now uses `@ScaledMetric(relativeTo: .largeTitle)`, so it grows with accessibility text sizes instead of staying tiny. Every other text element already rides scalable text styles (`.caption`/`.caption2`/`.subheadline`/`.headline`/`.title`/`.title3`), so all 16 screens reflow correctly from the smallest to the largest Dynamic Type setting. No `minimumScaleFactor` shrinking, no `.dynamicTypeSize` caps — text is allowed to wrap and grow.

@@ -27,7 +27,7 @@ struct PhotoScannerView: View {
                         guard let img = uiImage else { return }
                         Task { await vision.classify(image: img) }
                     }.disabled(uiImage == nil || vision.isProcessing)
-                    if let e = vision.error { Text(e).font(.caption).foregroundStyle(.red) }
+                    if let e = vision.error { Label(e, systemImage: "exclamationmark.triangle.fill").font(.caption.weight(.medium)).foregroundStyle(Color(red: 0.74, green: 0.18, blue: 0.12)) }
                     Text("Vision runs locally. No image leaves your device. Suggestions require your confirmation.").font(.caption).foregroundStyle(.secondary)
                 }
 
