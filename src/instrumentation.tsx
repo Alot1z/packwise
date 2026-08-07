@@ -36,12 +36,9 @@ async function reportErrorToVly(errorData: {
   lineno?: number;
   colno?: number;
 }) {
-  if (!import.meta.env.VITE_VLY_APP_ID) {
-    return;
-  }
-
+  if (!import.meta.env.VITE_VLY_APP_ID) return;
   try {
-    await fetch(import.meta.env.VITE_VLY_MONITORING_URL, {
+    await fetch(import.meta.env.VITE_VLY_MONITORING_URL as string, {
       method: "POST",
       body: JSON.stringify({
         ...errorData,
@@ -49,9 +46,15 @@ async function reportErrorToVly(errorData: {
         projectSemanticIdentifier: import.meta.env.VITE_VLY_APP_ID,
       }),
     });
-  } catch (error) {
-    console.error("Failed to report error to Vly:", error);
+  } catch {
+    // never throw from reporting
   }
+}
+
+function isChunkLoadError(msg: string) {
+  return /Failed to fetch dynamically imported module|Importing a module script failed|MIME type|ChunkLoadError|Loading chunk/i.test(
+    msg,
+  );
 }
 
 function ErrorDialog({
@@ -61,6 +64,7 @@ function ErrorDialog({
   error: GenericError;
   setError: (error: GenericError | null) => void;
 }) {
+  const isChunk = isChunkLoadError(error.error + " " + error.stack);
   return (
     <Dialog
       defaultOpen={true}
@@ -68,162 +72,111 @@ function ErrorDialog({
         setError(null);
       }}
     >
-      <DialogContent className="bg-red-700 text-white max-w-4xl">
+      <DialogContent className={isChunk ? "bg-card text-foreground max-w-[520px]" : "bg-red-700 text-white max-w-4xl"}>
         <DialogHeader>
-          <DialogTitle>Runtime Error</DialogTitle>
+          <DialogTitle>{isChunk ? "PackWise is updating" : "Runtime Error"}</DialogTitle>
         </DialogHeader>
-        A runtime error occurred. Open the vly editor to automatically debug the
-        error.
+        {isChunk ? (
+          <div className="text-sm leading-6 text-muted-foreground">
+            A new version was just deployed and your browser cached an old chunk. Hard-refresh with
+            <span className="font-mono text-foreground"> Ctrl+Shift+R</span> (or add <span className="font-mono">?v=1</span> to the URL).
+            The preview is rebuilding — reload in a few seconds.
+          </div>
+        ) : (
+          <div className="text-sm opacity-90">A runtime error occurred. Open the editor to debug.</div>
+        )}
         <div className="mt-4">
           <Collapsible>
             <CollapsibleTrigger>
-              <div className="flex items-center font-bold cursor-pointer">
-                See error details <ChevronDown />
+              <div className="flex items-center font-bold cursor-pointer text-sm">
+                See error details <ChevronDown className="ml-1 size-4" />
               </div>
             </CollapsibleTrigger>
-            <CollapsibleContent className="max-w-[460px]">
-              <div className="mt-2 p-3 bg-neutral-800 rounded text-white text-sm overflow-x-auto max-h-60 max-w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <pre className="whitespace-pre">{error.stack}</pre>
+            <CollapsibleContent className="max-w-[520px]">
+              <div className="mt-2 p-3 bg-neutral-900 rounded text-white text-sm overflow-x-auto max-h-60 max-w-full">
+                <pre className="whitespace-pre-wrap break-words text-xs leading-5">{error.stack || error.error}</pre>
               </div>
             </CollapsibleContent>
           </Collapsible>
         </div>
         <DialogFooter>
-          <a
-            href={`https://freebuff.com/project/${import.meta.env.VITE_VLY_APP_ID}`}
-            target="_blank"
-          >
-            <Button>
-              <ExternalLink /> Open editor
-            </Button>
-          </a>
+          {isChunk ? (
+            <Button onClick={() => window.location.reload()}>Reload</Button>
+          ) : (
+            <a href={`https://freebuff.com/project/${import.meta.env.VITE_VLY_APP_ID}`} target="_blank" rel="noreferrer">
+              <Button>
+                <ExternalLink className="mr-2 size-4" /> Open editor
+              </Button>
+            </a>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-type ErrorBoundaryState = {
-  hasError: boolean;
-  error: GenericError | null;
-};
+type ErrorBoundaryState = { hasError: boolean; error: GenericError | null };
 
-class ErrorBoundary extends React.Component<
-  {
-    children: React.ReactNode;
-  },
-  ErrorBoundaryState
-> {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
-
   static getDerivedStateFromError() {
-    // Update state so the next render will show the fallback UI.
     return { hasError: true };
   }
-
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // logErrorToMyService(
-    //   error,
-    //   // Example "componentStack":
-    //   //   in ComponentThatThrows (created by App)
-    //   //   in ErrorBoundary (created by App)
-    //   //   in div (created by App)
-    //   //   in App
-    //   info.componentStack,
-    //   // Warning: `captureOwnerStack` is not available in production.
-    //   React.captureOwnerStack(),
-    // );
-    reportErrorToVly({
-      error: error.message,
-      stackTrace: error.stack,
-    });
+    reportErrorToVly({ error: error.message, stackTrace: error.stack });
     this.setState({
       hasError: true,
-      error: {
-        error: error.message,
-        stack: info.componentStack ?? error.stack ?? "",
-      },
+      error: { error: error.message, stack: info.componentStack ?? error.stack ?? "" },
     });
   }
-
   render() {
-    if (this.state.hasError) {
-      // You can render any custom fallback UI
-      return (
-        <ErrorDialog
-          error={{
-            error: "An error occurred",
-            stack: "",
-          }}
-          setError={() => {}}
-        />
-      );
-    }
-
+    if (this.state.hasError) return <ErrorDialog error={this.state.error ?? { error: "An error occurred", stack: "" }} setError={() => {}} />;
     return this.props.children;
   }
 }
 
-export function InstrumentationProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function InstrumentationProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<GenericError | null>(null);
-
   useEffect(() => {
     const handleError = async (event: ErrorEvent) => {
-      try {
-        console.log(event);
+      // Don't block the UI with chunk errors — main.tsx AppErrorBoundary handles them nicer
+      if (isChunkLoadError(event.message)) {
         event.preventDefault();
-        setError({
+        return;
+      }
+      setError({
+        error: event.message,
+        stack: (event.error as Error | undefined)?.stack || "",
+        filename: event.filename || "",
+        lineno: event.lineno,
+        colno: event.colno,
+      });
+      if (import.meta.env.VITE_VLY_APP_ID) {
+        await reportErrorToVly({
           error: event.message,
-          stack: event.error?.stack || "",
-          filename: event.filename || "",
+          stackTrace: (event.error as Error | undefined)?.stack,
+          filename: event.filename,
           lineno: event.lineno,
           colno: event.colno,
         });
-
-        if (import.meta.env.VITE_VLY_APP_ID) {
-          await reportErrorToVly({
-            error: event.message,
-            stackTrace: event.error?.stack,
-            filename: event.filename,
-            lineno: event.lineno,
-            colno: event.colno,
-          });
-        }
-      } catch (error) {
-        console.error("Error in handleError:", error);
       }
     };
-
     const handleRejection = async (event: PromiseRejectionEvent) => {
-      try {
-        console.error(event);
-
-        if (import.meta.env.VITE_VLY_APP_ID) {
-          await reportErrorToVly({
-            error: event.reason.message,
-            stackTrace: event.reason.stack,
-          });
-        }
-
-        setError({
-          error: event.reason.message,
-          stack: event.reason.stack,
-        });
-      } catch (error) {
-        console.error("Error in handleRejection:", error);
+      const msg = (event.reason as Error | undefined)?.message ?? String(event.reason ?? "");
+      if (isChunkLoadError(msg)) {
+        event.preventDefault?.();
+        return;
+      }
+      setError({ error: msg, stack: (event.reason as Error | undefined)?.stack ?? "" });
+      if (import.meta.env.VITE_VLY_APP_ID) {
+        await reportErrorToVly({ error: msg, stackTrace: (event.reason as Error | undefined)?.stack });
       }
     };
-
     window.addEventListener("error", handleError);
     window.addEventListener("unhandledrejection", handleRejection);
-
     return () => {
       window.removeEventListener("error", handleError);
       window.removeEventListener("unhandledrejection", handleRejection);

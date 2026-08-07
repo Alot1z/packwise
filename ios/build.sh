@@ -58,9 +58,17 @@ rm -rf build/Payload build/PackWise-unsigned.ipa
 mkdir -p build/Payload
 cp -R "$APP" build/Payload/
 find build/Payload -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
-(cd build && zip -r PackWise-unsigned.ipa Payload >/dev/null)
+(cd build && zip -r -y PackWise-unsigned.ipa Payload >/dev/null)
+echo "--- IPA validation ---"
+ls -lh build/PackWise-unsigned.ipa
+file build/PackWise-unsigned.ipa || true
+unzip -l build/PackWise-unsigned.ipa | head -n 24
+if ! unzip -l build/PackWise-unsigned.ipa | grep -q "Payload/PackWise.app/"; then
+  echo "❌ IPA missing Payload/PackWise.app/ — not installable" >&2
+  exit 1
+fi
 shasum -a 256 build/PackWise-unsigned.ipa > build/PackWise-unsigned.ipa.sha256
 echo "✓ Unsigned IPA: ios/build/PackWise-unsigned.ipa"
 cat build/PackWise-unsigned.ipa.sha256
-unzip -l build/PackWise-unsigned.ipa | head -n 20
-echo "  Sideload with AltStore / Sideloadly / TrollStore (re-sign on device)."
+echo "  → This is the file to sideload. No extra zipping needed."
+echo "  Sideload: AltStore / Sideloadly / TrollStore (re-sign on device)."

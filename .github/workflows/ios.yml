@@ -7,6 +7,9 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-and-test:
     runs-on: macos-15
@@ -27,7 +30,7 @@ jobs:
         working-directory: ios
         run: xcodegen generate && ls -lh PackWise.xcodeproj
 
-      - name: Run tests (simulator, no signing)
+      - name: Run tests (simulator, no signing — non-blocking)
         id: tests
         continue-on-error: true
         working-directory: ios
@@ -51,11 +54,11 @@ jobs:
               -configuration Debug \
               CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee build/tests.log | tail -n 120
             TEST_EXIT=${PIPESTATUS[0]}
-            if [ "$TEST_EXIT" = "0" ]; then echo "TESTS_PASSED=1" >> $GITHUB_ENV; else echo "TESTS_PASSED=0" >> $GITHUB_ENV; echo "Tests exited $TEST_EXIT — continuing to archive"; cat build/tests.log | tail -n 200; fi
+            if [ "$TEST_EXIT" = "0" ]; then echo "TESTS_PASSED=1" >> $GITHUB_ENV; else echo "TESTS_PASSED=0" >> $GITHUB_ENV; echo "Tests exited $TEST_EXIT — continuing to archive"; fi
           fi
-          # never fail the job here — archive will run anyway
           exit 0
 
+      # ── 1 real build phase → 1 true Payload/PackWise.app → 1 PackWise-unsigned.ipa ──
       - name: Archive — unsigned IPA (with build fallback)
         if: always()
         working-directory: ios
@@ -82,7 +85,7 @@ jobs:
             echo "✓ Found app in xcarchive: $APP"
           else
             echo "⚠️ Archive did not produce .app — falling back to xcodebuild build (DerivedData)"
-            cat build/archive.log | tail -n 120 || true
+            cat build/archive.log 2>&1 | tail -n 120 || true
             xcodebuild build \
               -project PackWise.xcodeproj \
               -scheme PackWise \
@@ -96,33 +99,45 @@ jobs:
 
           if [ -z "$APP" ] || [ ! -d "$APP" ]; then
             echo "❌ No PackWise.app found. Diagnostics:"
-            find build -type d | head -n 60 || true
+            find build -type d 2>&1 | head -n 60 || true
             ls -R build 2>&1 | head -n 120 || true
             exit 1
           fi
 
+          # True IPA: Payload/App.app zipped + renamed to .ipa (Apple spec)
           rm -rf build/Payload build/PackWise-unsigned.ipa
           mkdir -p build/Payload
           cp -R "$APP" build/Payload/
           find build/Payload -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
-          (cd build && zip -r PackWise-unsigned.ipa Payload >/dev/null)
+          (cd build && zip -r -y PackWise-unsigned.ipa Payload >/dev/null)
           echo "BUILT_UNSIGNED_IPA=1" >> $GITHUB_ENV
+          echo "--- IPA validation ---"
           ls -lh build/PackWise-unsigned.ipa
-          unzip -l build/PackWise-unsigned.ipa | head -n 20
+          file build/PackWise-unsigned.ipa || true
+          unzip -l build/PackWise-unsigned.ipa | head -n 24
+          # must contain Payload/PackWise.app/ — refuse to publish otherwise
+          if ! unzip -l build/PackWise-unsigned.ipa | grep -q "Payload/PackWise.app/"; then
+            echo "❌ IPA missing Payload/PackWise.app/ — not installable"; exit 1
+          fi
           shasum -a 256 build/PackWise-unsigned.ipa | tee build/PackWise-unsigned.ipa.sha256
+          # also publish the inner structure for the Summary
+          du -sh build/Payload/PackWise.app || true
 
-      - name: Upload unsigned IPA
+      - name: Upload unsigned IPA (for debugging)
         if: always() && env.BUILT_UNSIGNED_IPA == '1'
         uses: actions/upload-artifact@v4
         with:
           name: PackWise-unsigned-ipa
+          # NOTE: GitHub wraps this in an outer artifact .zip for Download. The inner file IS the .ipa.
+          # Direct .ipa lives on Releases — see steps below.
           path: |
             ios/build/PackWise-unsigned.ipa
             ios/build/PackWise-unsigned.ipa.sha256
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish to GitHub Release (on tag)
+      # ── Direct .ipa download (no outer zip) — tag Release ──
+      - name: Publish to GitHub Release (on tag v*)
         if: startsWith(github.ref, 'refs/tags/v') && env.BUILT_UNSIGNED_IPA == '1'
         uses: softprops/action-gh-release@v2
         with:
@@ -131,6 +146,20 @@ jobs:
             ios/build/PackWise-unsigned.ipa.sha256
           generate_release_notes: true
 
+      # ── Direct .ipa download (no outer zip) — auto dev prerelease on main ──
+      # So every push to main has a 1-click PackWise-unsigned.ipa — no unwrapping the artifact zip.
+      - name: Publish dev prerelease (on main — so Releases/latest always has a .ipa)
+        if: github.ref == 'refs/heads/main' && env.BUILT_UNSIGNED_IPA == '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev
+          name: dev — latest main build
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            ios/build/PackWise-unsigned.ipa
+            ios/build/PackWise-unsigned.ipa.sha256
+
       - name: Summary
         if: always()
         run: |
@@ -138,16 +167,18 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${TESTS_PASSED:-0}" = "1" ]; then echo "✅ Tests passed" >> $GITHUB_STEP_SUMMARY; else echo "⚠️ Tests did not pass (see log) — IPA still built (non-blocking)" >> $GITHUB_STEP_SUMMARY; fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "$BUILT_UNSIGNED_IPA" = "1" ]; then
-            echo "✅ **Unsigned IPA produced** — \`PackWise-unsigned.ipa\` (zip of \`Payload/PackWise.app\`)" >> $GITHUB_STEP_SUMMARY
+          if [ "${BUILT_UNSIGNED_IPA:-0}" = "1" ]; then
+            echo "✅ **Unsigned IPA produced — \`PackWise-unsigned.ipa\`** (zip of \`Payload/PackWise.app\`)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Install with **AltStore / Sideloadly / TrollStore** (re-sign on device/PC)." >> $GITHUB_STEP_SUMMARY
+            echo "**Download (direct .ipa, no unwrap):** Releases → **[Latest](https://github.com/${{ github.repository }}/releases/latest)** or **[dev](https://github.com/${{ github.repository }}/releases/tag/dev)** (artifact is inside a zip — unwrap to get the .ipa)." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📦 Artifact: **PackWise-unsigned-ipa** (14 days) · Tag push → GitHub Release" >> $GITHUB_STEP_SUMMARY
+            echo "Install with **AltStore / Sideloadly / TrollStore** (re-sign on device/PC). Verify: \`unzip -l PackWise-unsigned.ipa | head\` · \`shasum -a 256 PackWise-unsigned.ipa\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📦 Artifact: **PackWise-unsigned-ipa** (14 days) · Tag \`v*\` → full Release · Every main push → \`dev\` prerelease" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **No IPA produced** — check Archive logs above." >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "TestFlight / App Store are **not** claimed — that requires Apple signing and App Store Connect processing (see ios/README.md)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Logs: [Live run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) · [Wiki](https://github.com/$GITHUB_REPOSITORY/wiki)" >> $GITHUB_STEP_SUMMARY
+          echo "Logs: [Live run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) · [Wiki](https://github.com/$GITHUB_REPOSITORY/wiki) · [Verify](https://github.com/${{ github.repository }}/actions)" >> $GITHUB_STEP_SUMMARY

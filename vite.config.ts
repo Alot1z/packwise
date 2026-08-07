@@ -13,75 +13,36 @@ export default defineConfig({
     },
   },
   build: {
-    // Enable source maps for better debugging (disable in production if needed)
     sourcemap: false,
-    // Optimize chunk splitting
     rollupOptions: {
       output: {
-        // Manual chunk splitting for better caching and lazy loading
+        // Docs pages (Landing/Setup) are eager in src/main.tsx so "/" never needs a lazy chunk.
+        // Keep vendor splitting minimal to avoid stale-hash 404s on the preview CDN.
         manualChunks: {
-          // Vendor chunks for large libraries
-          'react-vendor': ['react', 'react-dom', 'react-router'],
-          'convex-vendor': ['convex'],
-          // Large UI library chunks
-          'radix-ui': [
-            '@radix-ui/react-accordion',
-            '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-avatar',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-collapsible',
-            '@radix-ui/react-context-menu',
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-hover-card',
-            '@radix-ui/react-label',
-            '@radix-ui/react-menubar',
-            '@radix-ui/react-navigation-menu',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-progress',
-            '@radix-ui/react-radio-group',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-select',
-            '@radix-ui/react-separator',
-            '@radix-ui/react-slider',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toggle',
-            '@radix-ui/react-toggle-group',
-            '@radix-ui/react-tooltip',
+          "react-vendor": ["react", "react-dom", "react-router"],
+          "convex-vendor": ["convex", "@convex-dev/auth/react"],
+          "radix": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-tooltip",
           ],
-          // Heavy optional libraries - separate chunks for better lazy loading
-          'framer-motion': ['framer-motion'],
-          'charts': ['recharts'],
-          'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          motion: ["framer-motion"],
         },
-        // Optimize chunk size
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
+        chunkFileNames: "assets/[name]-[hash].js",
+        entryFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash].[ext]",
       },
     },
-    // Increase chunk size warning limit for better chunking
     chunkSizeWarningLimit: 1000,
-    // Target modern browsers for better optimization
-    target: 'esnext',
-    // Minify options - using esbuild (faster than terser)
-    minify: 'esbuild',
+    target: "esnext",
+    minify: "esbuild",
   },
-  // Optimize dependencies
   optimizeDeps: {
-    include: [
-      'react',
-      'react-dom',
-      'react-router',
-      '@convex-dev/auth/react',
-    ],
+    include: ["react", "react-dom", "react-router", "@convex-dev/auth/react"],
   },
-  // Performance hints
+  // Freebuff requires HMR disabled
   server: {
-    // Keep HMR on, but disable full-screen error overlay
-    hmr: {
-      overlay: false,
-    },
+    hmr: false,
   },
 });
