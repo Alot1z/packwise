@@ -1,6 +1,10 @@
+/* @import order matters: charset/layer first, then outside @import rules,
+   then framework rules. The Google Fonts link lives here so it is loaded
+   straight by the browser — never cached as a built artifact that could
+   be served stale from a CDN. */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 

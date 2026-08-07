@@ -77,7 +77,10 @@ export default function Landing() {
           {/* IOS — NATIVE SWIFTUI card (3D hero art) */}
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: "easeOut" }} className="athena-paper rounded-[28px] p-5 sm:p-6 border border-white/60 shadow-[0_20px_60px_-24px_oklch(0.3_0.05_42/0.25)]">
             <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-              <span>iOS — Native SwiftUI</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Built & verified · latest on main
+              </span>
               <span>iOS 17+ · iPad</span>
             </div>
             <img src="/assets/packwise-hero.svg" alt="PackWise — isometric suitcase with packing layers" className="mt-3 w-full rounded-[18px] border border-white/60 shadow-sm" loading="eager" />
@@ -114,7 +117,9 @@ export default function Landing() {
               <a href={LIVE_RELEASE_LATEST} target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full bg-primary text-primary-foreground">Download IPA <ExternalLink className="size-3" /></a>
               <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-border bg-white">Build logs <Terminal className="size-3" /></a>
             </div>
-            <div className="mt-2 text-[11px] text-center text-muted-foreground font-mono">Art is code — <span className="underline underline-offset-4">assets/packwise-hero.svg</span></div>
+            <div className="mt-2 text-[11px] text-center text-muted-foreground font-mono">
+              Art is code — <span className="underline underline-offset-4">assets/packwise-hero.svg</span> · Inspected by build, not assumed
+            </div>
           </motion.div>
         </div>
       </section>
