@@ -28,11 +28,18 @@ EXEC_NAME=PackWise
 OUT_IPA="$BUILD/PackWise-unsigned.ipa"
 BUILD_LOG="$BUILD/build.log"
 DIAG="$BUILD/diagnostics.txt"
-# Unsigned device builds: disable every signing hook and force Manual style so
-# Xcode 16 never demands a development team for an artifact we ship unsigned
-# (sideloaders re-sign locally).
-NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" CODE_SIGN_STYLE=Manual)
-NO_SIGN_STR="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=\"\" DEVELOPMENT_TEAM=\"\" CODE_SIGN_STYLE=Manual"
+
+# Unsigned device builds: disable every signing hook so Xcode never demands a
+# development team or certificate for an artifact we ship unsigned (sideloaders
+# re-sign locally).
+#
+# 2026-08-08 fix: the previous string form word-split into LITERAL quote chars
+# being passed to xcodebuild (`CODE_SIGN_IDENTITY=""`), and an explicit
+# `DEVELOPMENT_TEAM=` (even empty) makes Xcode 15/16 try to resolve a team —
+# an immediate "requires a development team" failure at the very start of the
+# build (observed on CI: run 31246529945 failed at this step ~7s in). Use the
+# ARRAY form and omit empty-value assignments entirely.
+NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual)
 
 mkdir -p "$BUILD"
 : > "$DIAG"
@@ -136,7 +143,7 @@ if [ -z "$APP" ]; then
       -destination "generic/platform=iOS" \
       -derivedDataPath "$BUILD/DerivedData" \
       ONLY_ACTIVE_ARCH=NO ARCHS="arm64" ENABLE_TESTABILITY=NO \
-      $NO_SIGN_STR -skipPackagePluginValidation -skipMacroValidation; then
+      "${NO_SIGN[@]}" -skipPackagePluginValidation -skipMacroValidation; then
     APP=$(validate_app "$BUILD/DerivedData/Build/Products/Release-iphoneos/$APP_NAME.app" || true)
     [ -n "$APP" ] && BUILT_BY="A"
   else
@@ -152,7 +159,7 @@ if [ -z "$APP" ]; then
       -destination "generic/platform=iOS" \
       -archivePath "$BUILD/PackWise.xcarchive" \
       ONLY_ACTIVE_ARCH=NO ARCHS="arm64" ENABLE_TESTABILITY=NO \
-      $NO_SIGN_STR -skipPackagePluginValidation -skipMacroValidation; then
+      "${NO_SIGN[@]}" -skipPackagePluginValidation -skipMacroValidation; then
     APP=$(validate_app "$BUILD/PackWise.xcarchive/Products/Applications/$APP_NAME.app" || true)
     [ -n "$APP" ] && BUILT_BY="B"
   else
@@ -167,7 +174,7 @@ if [ -z "$APP" ]; then
       -configuration Release -sdk iphoneos \
       -derivedDataPath "$BUILD/DerivedData-C" \
       ONLY_ACTIVE_ARCH=NO ARCHS="arm64" ENABLE_TESTABILITY=NO \
-      $NO_SIGN_STR -skipPackagePluginValidation -skipMacroValidation; then
+      "${NO_SIGN[@]}" -skipPackagePluginValidation -skipMacroValidation; then
     APP=$(validate_app "$BUILD/DerivedData-C/Build/Products/Release-iphoneos/$APP_NAME.app" || true)
     [ -n "$APP" ] && BUILT_BY="C"
   else

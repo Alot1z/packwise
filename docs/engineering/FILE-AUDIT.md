@@ -17,15 +17,15 @@
 | `.github/workflows/ios.yml` | 245 | ✅ | **FIXED/EXTENDED** | tests step aborted under `bash -e -o pipefail` (exit 65/70, TESTS_PASSED never recorded); summary could print contradictory "IPA still built / No IPA produced"; brew tap hygiene; action majors stale | js-yaml parse OK · tsc N/A |
 | `.gitea/workflows/ios.yml` | 175 | ✅ | **FIXED/EXTENDED** | same tests-step bug; same brew/action updates | js-yaml parse OK |
 | `.github/workflows/wiki.yml` | 62 | ✅ | **REWRITTEN** | failing at push step; `checkout@v4` (Node 20); no wiki-repo enablement; push error handling weak | js-yaml parse OK |
-| `ios/build.sh` | 215 | ✅ | **EXTENDED** | unclosed-quote in NO_SIGN_STR (shell-level bug, found by `bash -n`); missing DEVELOPMENT_TEAM/CODE_SIGN_STYLE for unsigned device builds; sparse diagnostics | `bash -n` OK · value-expansion verified |
+| `ios/build.sh` | 220 | ✅ | **EXTENDED (session 5)** | second R2 root cause: NO_SIGN_STR word-split passed literal quotes (`CODE_SIGN_IDENTITY=""`) and explicit `DEVELOPMENT_TEAM=` triggers Xcode "requires a development team"; now a bash array `"${NO_SIGN[@]}"` with empty-value assignments removed | `bash -n` OK · token expansion verified (no quote leakage) |
 | `scripts/verify-ipa.sh` | 150 | ✅ | **EXTENDED** | binary Info.plist piped through command substitution (NUL stripped → CFBundleExecutable detection defeated + noisy warning) | NUL warning gone · 4/4 fixtures · real-IPA rejection confirmed |
 | `scripts/release-manifest.sh` | 150 | ✅ | KEEP | none | smoke OK |
 | `ios/project.yml` | 90 | ✅ | KEEP | none | reviewed |
 | `src/components/site-shared.tsx` | 360 | ✅ | **EXTENDED** | nav/footer CTAs pointed at 404 `releases/latest` while no verified build existed; added live `useManifest` | `tsc` 0 |
 | `src/pages/Landing.tsx` | 810 | ✅ | **EXTENDED** | hero CTA + badges claimed verified availability with no manifest | `tsc` 0 |
 | `src/pages/Download.tsx` | 330 | ✅ | **EXTENDED** | static "verified" claim; download buttons implied availability of a broken/stale artifact | `tsc` 0 |
-| `src/pages/Changelog.tsx` | 150 | ✅ | KEEP | synced earlier | `tsc` 0 |
-| `wiki/Changelog.md` | 110 | ✅ | **EDITED** | 1.0.9 added | reviewed |
+| `src/pages/Changelog.tsx` | 160 | ✅ | **EDITED (session 5)** | 1.0.10 entry added (R2 signing-arg fix + web polish) | `tsc` 0 · parity 11/11 |
+| `wiki/Changelog.md` | 130 | ✅ | **EDITED (session 5)** | 1.0.10 added (R2 signing-arg fix + web polish) | parity 11/11 with web |
 | `public/manifest.webmanifest` | 26 | ✅ | **REBRANDED (session 4)** | was FreeBuff template — generic "freebuff.com application" name + icon `/logo.png` (file did not exist); now PackWise-branded with real `/logo.svg` icon + travel categories | reviewed + grep verified |
 | `src/convex/auth/emailOtp.ts` | 27 | ✅ | **EDITED (session 4)** | OTP email `appName` fallback said "a freebuff.com application"; now "PackWise" | `convex dev --once` OK · `tsc` 0 |
 
@@ -121,6 +121,15 @@ verified in at least one session.
 **Session 4 verify sweep:** `tsc` 0 · `bash -n` 4/4 (verify-ipa, release-manifest,
 rewrite-history, build.sh) · `js-yaml` 3/3 (ios.yml, wiki.yml, gitea ios.yml) ·
 changelog parity 10/10 (web ↔ wiki) · `convex dev --once` OK.
+
+**Session 5 (live CI evidence + R2 second fix):** GitHub API evidence pulled:
+wiki.yml runs green (R3 closed), latest ios.yml run (31246529945) fails at the
+device-build step ~7s in; raw-file diff proves the 1.0.9 signing fix shipped
+but was insufficient. `ios/build.sh` signing args converted to a bash array
+(NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual))
+with empty-value assignments removed — token expansion verified, no quote
+leakage, `bash -n` clean. 1.0.10 changelog entry synced web↔wiki (11/11).
+`tsc` 0 after web edits.
 
 ## Rules
 

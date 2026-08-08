@@ -2,8 +2,8 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 4 — full verify sweep green; changelog parity confirmed; PWA manifest rebranded;
-> ContentView reduced-motion gate; auth email branded "PackWise"; tsc + convex codegen clean).
+> (session 5 — live CI evidence pulled from GitHub API; R2 second root cause found + fixed
+> in `ios/build.sh`; R1/R3/R4 re-verified closed; 1.0.10 changelog synced web↔wiki; tsc clean).
 
 ## 1. Project map
 
@@ -48,13 +48,14 @@ Rules enforced (from the product specification):
 | 7 · README restructure (§21) | **DONE** — added Screenshots placeholder, Contributing guide, and honest Project Status table. |
 | 8 · Changelog sync across surfaces | **DONE** — `src/pages/Changelog.tsx` now mirrors `wiki/Changelog.md` (all 10 versions 1.0.0→1.0.9); README unchanged as it points to wiki; Landing/Download use live manifest only. `tsc` clean. |
 | 9 · Verify sweep + web-brand polish (session 4) | **DONE** — full re-verify: `tsc` 0, `bash -n` 4/4, `js-yaml` 3/3, changelog parity 10/10, Convex codegen OK. Fixed 3 leftover web-brand/UX defects: PWA manifest rebranded (was FreeBuff template w/ broken `/logo.png` icon → PackWise w/ real `/logo.svg`); `ContentView` onboarding transition now reduced-motion gated; auth OTP email fallback app name → "PackWise". |
+| 10 · Live CI evidence + R2 second fix (session 5) | **DONE** — pulled fresh evidence from GitHub API: wiki.yml now green (R3 confirmed closed), ios.yml still failing at device-build step. Confirmed 1.0.9 fix shipped but insufficient; found + fixed the literal-quote/`DEVELOPMENT_TEAM=` signing-arg bug in `ios/build.sh` (array form). 1.0.10 changelog entry synced web↔wiki. Re-verified R1/R3/R4 closed via js-yaml + bash -n. |
 
 ## 3. Release-blocking items
 
 | # | Item | Status | Evidence |
 |---|---|---|---|
 | R1 | `.github/workflows/ios.yml` rejected by GitHub: *Invalid workflow file, YAML syntax error* (line 148) | **FIXED 2026-08-08** | Root cause: the manifest-validation snippet inside a `run: \|` literal block was indented at **column 0** (block indent is 10 spaces), which ended the literal block mid-file. Fixed by aligning the block. `js-yaml` (the parser GitHub Actions uses) parses both workflows cleanly; `bash -n` clean; the fixed python step runs end-to-end. |
-| R2 | `Failed to map …/PackWise: Bad file descriptor` at sideload | **ROOT CAUSE CONFIRMED for the published artifact — CI fix pending next run** | Downloaded the public `dev` release IPA (5,004,581 bytes, sha256 `7b80…` recorded in run log) and ran the hardened verifier: **rejected** — bundle contains `PlugIns/PackWiseTests.xctest` + XCTest frameworks and **no main executable**. That is the literal cause of EBADF. Timeline (from GitHub API): old pipeline published this broken artifact at 15:23 (run 31192390306); the hardened pipeline replaced it and every device build since fails at the **"Build unsigned IPA" step** (run 31245277557). `ios/build.sh` signing overrides added this session — unverified until the next macOS run. |
+| R2 | `Failed to map …/PackWise: Bad file descriptor` at sideload | **TWO ROOT CAUSES: (1) published artifact confirmed broken; (2) signing-arg bug confirmed & fixed — next macOS run closes it** | (1) Downloaded the public `dev` release IPA (5,004,581 bytes, sha256 `7b80…`): **rejected** by the hardened verifier — bundle contains `PlugIns/PackWiseTests.xctest` + XCTest frameworks and **no main executable**. (2) The 1.0.9 signing overrides **shipped** (GitHub `main` == local `ios/build.sh`, verified by raw-file diff) but push run [31246529945](https://github.com/Alot1z/packwise/actions/runs/31246529945) still failed at the "Build unsigned IPA" step **~7s after tests passed** — an immediate `xcodebuild` config error. Root cause: `NO_SIGN_STR` word-split passed **literal quote characters** to xcodebuild (`CODE_SIGN_IDENTITY=""`), and an explicit `DEVELOPMENT_TEAM=` — even empty — triggers Xcode 15/16's "requires a development team" resolution. **Fixed 2026-08-08 (session 5):** `ios/build.sh` now uses a proper bash array (`"${NO_SIGN[@]}"`) with empty-value assignments removed; token expansion verified (no quote leakage); `bash -n` clean. `dev` release still hosts the old broken artifact (publish gate correctly blocking). |
 | R3 | Wiki sync workflow failing (run 31245277577, conclusion: failure at push step) | **FIXED 2026-08-08** | `.github/workflows/wiki.yml` rewritten: `checkout@v5`, wiki-repo enablement via API, robust push with accurate failure reporting. `js-yaml` parse OK. |
 | R4 | Contradictory CI summary: "Tests did not pass (non-blocking) — IPA still built" + "No IPA produced" | **FIXED 2026-08-08** | Root cause: tests step aborted under `bash -e -o pipefail` before `TESTS_PASSED` was recorded, so the summary ran with stale/unset state. Step now records results before any early exit; summary renders one truthful status. |
 
@@ -162,14 +163,25 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-08, session 4)
+## 10. Machine-readable snapshot (2026-08-08, session 5)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-08-s4",
-  "phase": 9,
-  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 10:10 / convex codegen ok)",
+  "session": "2026-08-08-s5",
+  "phase": 10,
+  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 11:11 / convex codegen ok)",
+  "live_ci_evidence": {
+    "wiki_sync": "success (31247537915, 31246529943) — R3 closed",
+    "ios_run_latest": "failure at device-build step (31246529945, ~7s in — immediate xcodebuild config error)",
+    "dev_release_asset": "PackWise-unsigned.ipa 5,004,581 bytes (old broken artifact still hosted)",
+    "fix_shipped": "main == local build.sh (raw-file diff)"
+  },
+  "r2_second_fix": {
+    "root_cause": "NO_SIGN_STR word-split passed literal quotes; explicit DEVELOPMENT_TEAM= triggers team resolution",
+    "fix": "bash array NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual) via \"${NO_SIGN[@]}\"",
+    "verification": "token expansion clean, bash -n clean, next macOS run is the check"
+  },
   "web_brand_polish": [
     { "item": "public/manifest.webmanifest", "status": "rebranded", "note": "was FreeBuff template + broken /logo.png; now PackWise + real /logo.svg" },
     { "item": "ios/PackWise/App/ContentView.swift", "status": "fixed", "note": "onboarding transition now gated on accessibilityReduceMotion" },

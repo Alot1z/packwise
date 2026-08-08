@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.10 — R2 signing-arg fix + web brand polish (2026-08-08)
+
+**R2 ("Bad file descriptor" / device build) — second root cause fixed:**
+
+- The 1.0.9 signing overrides **shipped** (verified: GitHub `main` == local `ios/build.sh`), yet the next push run ([31246529945](https://github.com/Alot1z/packwise/actions/runs/31246529945)) still failed at the "Build unsigned IPA" step **~7 seconds** after tests passed — an immediate `xcodebuild` configuration error, not a compile error.
+- Root cause: the `NO_SIGN_STR` string variable word-split into **literal quote characters** being passed to `xcodebuild` (`CODE_SIGN_IDENTITY=""` / `DEVELOPMENT_TEAM=""` — quote removal does not happen on variable expansion), and an explicit `DEVELOPMENT_TEAM=` assignment — even empty — makes Xcode 15/16 try to resolve a team, failing with "requires a development team" before compilation starts.
+- Fix: `ios/build.sh` now uses a proper bash **array** (`NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual)`) expanded as `"${NO_SIGN[@]}"` with the empty-value assignments removed entirely. Verified: each argument expands as a clean token, no quote leakage; `bash -n` clean. Next macOS run is the verification.
+- Evidence recorded: the `dev` release still hosts the old broken IPA (5,004,581 bytes — the exact verified-broken artifact); the publish gate correctly prevented any replacement so far.
+
+**Web & app polish (session 4):**
+
+- `public/manifest.webmanifest` rebranded — was still the platform template ("freebuff.com application", icon `/logo.png` which does not exist); now PackWise-branded with the real `/logo.svg` icon, correct theme colors, travel categories, and scope.
+- `ContentView` onboarding transition is now reduced-motion gated (`.animation(reduceMotion ? nil : .easeInOut(...))` via `@Environment(\.accessibilityReduceMotion)`) — users with Reduce Motion on get an instant swap.
+- Auth OTP email `appName` fallback now "PackWise" instead of "a freebuff.com application".
+
+**Verification:** `tsc` exit 0 · `bash -n` 4/4 scripts · `js-yaml` 3/3 workflows · `convex dev --once` clean · changelog parity 10/10 surfaces (web ↔ wiki).
+
 ## 1.0.9 — CI root-cause repair & binary verification (2026-08-08)
 
 **Build / Infrastructure:**
