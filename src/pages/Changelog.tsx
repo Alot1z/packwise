@@ -3,6 +3,18 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.10",
+    date: "R2 signing-arg fix + web polish",
+    icon: Wrench,
+    items: [
+      'R2 second root cause fixed: the 1.0.9 signing overrides shipped (main == local) but the next CI run still failed at the device-build step ~7s in — an immediate xcodebuild config error, not a compile error.',
+      'Cause: NO_SIGN_STR word-split passed literal quote characters to xcodebuild (CODE_SIGN_IDENTITY=""), and an explicit DEVELOPMENT_TEAM= — even empty — makes Xcode 15/16 try to resolve a team ("requires a development team").',
+      'Fix: ios/build.sh now uses a proper bash array (NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual)) expanded as "${NO_SIGN[@]}" with empty-value assignments removed. Verified token expansion, no quote leakage; next macOS run is the check.',
+      'PWA manifest rebranded — was the platform template ("freebuff.com application", icon /logo.png which didn\'t exist); now PackWise with the real /logo.svg icon.',
+      'ContentView onboarding transition reduced-motion gated; auth OTP email appName fallback now "PackWise".',
+    ],
+  },
+  {
     tag: "1.0.9",
     date: "CI repair & binary verification",
     icon: Wrench,
