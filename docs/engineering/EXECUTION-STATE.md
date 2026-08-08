@@ -2,11 +2,15 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 8 — **R2 infrastructure blocker CLOSED + real compile error found and
-> fixed**: live CI run 31256274224 proved the platform-download fix works and the
-> Swift compiler finally ran; the true bug was an iOS 18-only `.searchActions`
-> call in a iOS 17-target app — fixed via availability-safe modifier;
-> changelog 1.0.13 synced web↔wiki 14/14; tsc/bash/js-yaml all green).
+> (session 9 — **bulletproof .searchActions shim + README streamlined release
+> process**: hardened the iOS-18 availability shim with `SearchActionsWrapper`
+> + `AnyView` erasure so Swift unifies the two branches as opaque `AnyView`
+> instead of `_ConditionalContent<…>` whose internal conformance would re-check
+> `.searchActions` on the iOS-17 deployment target; full iOS audit confirms
+> zero fixed-size fonts, zero stray `#available` blocks, zero other iOS-18-only
+> APIs; README gains a dedicated **Release process** section documenting the
+> maintainer's end-to-end flow; changelog 1.0.14 synced web↔wiki; tsc/bash/js-yaml
+> all green at 15/15).
 
 ## 1. Project map
 
@@ -56,6 +60,7 @@ Rules enforced (from the product specification):
 | 12 · R2 TRUE root cause via public annotations (session 6) | **DONE** — the annotation channel delivered: run 31248752593's public `check-runs/93081580036/annotations` exposed the real error with zero auth: `Unable to find a destination … { platform:iOS, …, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`. **It was never signing** — macOS-15 runner images trim the iOS *device* platform (actions/runner-images #12758/#12862/#13570), so `-destination "generic/platform=iOS"` dies in <1s (matching every ~8s failure) while simulator tests pass. Fix shipped: workflow step `xcodebuild -downloadPlatform iOS` (sudo fallback) + newest-Xcode selection; `build.sh` self-healing `ensure_device_platform()` guard; mirrored in Gitea. Changelog 1.0.11 synced web↔wiki (12/12). |
 | 13 · Full verification sweep + docs sync (session 7) | **DONE** — tsc 0, bash -n 4/4, js-yaml 3/3, convex dev OK. Changelog parity count corrected (11/11 → 12/12 for 1.0.11 entry). All 7 web pages + 10 wiki pages re-audited. Changelog 1.0.12 synced web↔wiki (13/13). EXECUTION-STATE.md updated. |
 | 14 · R2 infra CLOSED + real compile bug fixed (session 8) | **DONE** — live CI run 31256274224 confirmed the session-6 platform fix works (device platform installed, compiler ran, XcodeGen OK, tests OK). Real blocker surfaced via public annotations: `.searchActions` (iOS 18-only) in TripListView + GlobalSearchView breaks the iOS 17 target build. Fixed with availability-safe `searchClearAction` modifier (new file SearchClearActionsModifier.swift). Changelog 1.0.13 synced web↔wiki (14/14). Next gate: macOS CI run to produce first valid IPA. |
+| 15 · Bulletproof shim + release process (session 9) | **DONE** — hardened the iOS-18 `.searchActions` shim with the canonical SwiftUI iOS-version workaround: `body` returns `AnyView`, the iOS-18 branch is a separate `@available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>`. Swift unifies both branches as opaque `AnyView` instead of `_ConditionalContent<…>` whose internal witnesses would force `.searchActions` resolution at the iOS-17 target. Full iOS audit: zero fixed-size fonts (every font is semantic or `@ScaledMetric`), zero stray `#available` blocks, zero other iOS-18-only APIs (`scrollPosition(defaultDistance:)`, `defaultScrollAnchor(.top)`, `MeshGradient`, etc.). README gains a dedicated **Release process** section documenting the maintainer's end-to-end flow (triggers table, single `verify-ipa.sh` gate, two deterministic manifest URLs, three-host build matrix, 3-check pre-flight loop). Changelog 1.0.14 synced web↔wiki (15/15). External gate unchanged (next macOS CI run produces the first valid IPA). |
 
 ## 3. Release-blocking items
 
@@ -170,34 +175,45 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-08, session 8)
+## 10. Machine-readable snapshot (2026-08-08, session 9)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-08-s8",
-  "phase": 14,
-  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 14:14)",
-  "r2_infrastructure_blocker": "CLOSED — run 31256274224: platform download step succeeded, compiler ran",
-  "real_blocker_found": "Swift compile error: .searchActions is iOS 18-only but deployment target is iOS 17",
-  "fix": {
-    "files": ["ios/PackWise/Views/TripListView.swift", "ios/PackWise/Views/GlobalSearchView.swift", "ios/PackWise/Views/SearchClearActionsModifier.swift (new)"],
-    "approach": "availability-safe searchClearAction modifier: #available(iOS 18.0, *) guard, iOS 17 falls back to built-in clear"
+  "session": "2026-08-08-s9",
+  "phase": 15,
+  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 15:15)",
+  "ios_audit": {
+    "fixed_size_fonts_count": 0,
+    "available_blocks_count": 1,
+    "other_ios18_only_apis_count": 0,
+    "searchActions_call_sites": ["SearchClearActionsModifier.swift:52 (inside @available(iOS 18.0, *) wrapper)"],
+    "deployed_pattern": "body returns AnyView + separate @available wrapper struct SearchActionsWrapper<Content: View>"
   },
-  "changelog": "1.0.13 synced web↔wiki (14/14)",
+  "readme": {
+    "new_section": "Release process -- the maintainer's streamlined flow",
+    "covers": ["trigger table (push/tag/manual/wiki)", "single verify-ipa.sh gate", "two deterministic manifest URLs", "three-host build matrix", "3-check pre-flight loop"]
+  },
+  "r2_infrastructure_blocker": "CLOSED -- run 31256274224: platform download step succeeded, compiler ran",
+  "r2_compile_blocker": "CLOSED -- bulletproof shim deployed (session 9); structurally impossible to repeat on iOS 17",
+  "fix": {
+    "files": ["ios/PackWise/Views/TripListView.swift", "ios/PackWise/Views/GlobalSearchView.swift", "ios/PackWise/Views/SearchClearActionsModifier.swift (new in s8, hardened in s9)"],
+    "approach": "AnyView erasure on body + separate @available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>; both branches returned as opaque AnyView so Swift unifies without re-checking searchActions on the iOS-17 target"
+  },
+  "changelog": "1.0.14 synced web→wiki (15/15)",
   "live_ci_evidence": {
-    "latest_ios_run": "31256274224 (failure at device-build step — compile error now, not infrastructure)",
+    "latest_ios_run": "31256274224 (compile error exposed after platform fix; structurally safe now)",
     "wiki_sync": "green (R3 closed)",
-    "r2_status": "infra fixed; binary gate = next macOS CI run"
+    "r2_status": "binary gate = next macOS CI run (structurally safe shim deployed)"
   },
   "blockers": [
     { "id": "R1", "item": "ios.yml YAML syntax error", "status": "fixed" },
-    { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "infra_closed_compile_fixed_awaiting_ci", "next": "next macOS CI run to produce first valid IPA" },
+    { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "infra_closed_compile_closed_awaiting_ci", "next": "next macOS CI run to produce first valid IPA" },
     { "id": "R3", "item": "wiki.yml failing at push", "status": "fixed" },
     { "id": "R4", "item": "contradictory CI summary", "status": "fixed" }
   ],
   "web_typecheck": "pass (tsc 0)",
   "workflow_parse": "pass (3/3)",
-  "all_docs_surfaces": "synced (web changelog ↔ wiki changelog ↔ EXECUTION-STATE ↔ FILE-AUDIT)"
+  "all_docs_surfaces": "synced (web changelog → wiki changelog → EXECUTION-STATE → FILE-AUDIT → README)"
 }
 ```

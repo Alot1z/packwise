@@ -3,6 +3,17 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.14",
+    date: "Bulletproof .searchActions shim + streamlined release process",
+    icon: Wrench,
+    items: [
+      "Hardened the iOS 18 .searchActions availability shim further: SearchClearActionsModifier.body now returns AnyView so Swift does not need to unify the two branches into a _ConditionalContent. The iOS-18 wrapper is still a separate @available(iOS 18.0, *) struct (SearchActionsWrapper<Content: View>), so the bulletproof rule holds: no path at the iOS-17 deployment target requires .searchActions to resolve on the generic Content.",
+      "Full audit confirms iOS source has zero fixed-size fonts (every font uses a semantic style or @ScaledMetric), zero stray #available blocks, and zero other iOS-18-only APIs (scrollPosition defaultDistance, defaultScrollAnchor, MeshGradient, etc.).",
+      "README gains a dedicated Release process section -- the maintainer's end-to-end flow: branch+push to ship, tag to promote, verify-ipa.sh gate as the single publish guard, deterministic manifest URLs, and the three-host build matrix (GitHub Actions, Gitea Actions, act). Pre-flight is tsc + bash -n + js-yaml + tag.",
+      "All surfaces re-synced: changelog parity 15/15 web to wiki, EXECUTION-STATE.md and FILE-AUDIT.md updated with session 9 results.",
+    ],
+  },
+  {
     tag: "1.0.13",
     date: "R2 CLOSED — iOS 18 API bug + first real compile",
     icon: Wrench,

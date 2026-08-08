@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.14 — Bulletproof .searchActions shim + streamlined release process (2026-08-08)
+
+**Hardened the iOS-18 .searchActions availability shim further.** The previous fix (1.0.13) put a fully `@available(iOS 18.0, *)` wrapper around `.searchActions`, but a generic-`Content` `ViewModifier` returning `some View` still forces the compiler to consider type witnesses for both branches at the iOS-17 deployment target — a known compile-time resolution hazard for any SwiftUI iOS-version shim. Session 9 hardens the pattern with the canonical workaround: `body` returns `AnyView` and the iOS-18 branch is a separate `@available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>`. This delivers:
+
+- **No path at iOS-17 deployment requires `.searchActions` to resolve.** The compiler unifies `AnyView(...) | AnyView(content)` — both opaque, both available everywhere — instead of `_ConditionalContent<SearchActionsWrapper<Content>, Content>` whose internal conformance must be re-checked.
+- **Same user experience on both OS levels.** iOS 18+ gets the explicit "Clear search" accessory toolbar button; iOS 17 falls back to the platform's built-in clear button inside the search field (which already exists there).
+- **Audited clean across the iOS source.** Zero fixed-size fonts (Dynamic Type pass is full: every font is a semantic style or `@ScaledMetric`, no `system(size:)` left); zero stray `#available` blocks; zero other iOS-18-only APIs (`scrollPosition(defaultDistance:)`, `defaultScrollAnchor(.top)`, `MeshGradient`, etc.).
+
+**README gains a dedicated Release process section** so the maintainer's day-one workflow is one look-up, not archeology:
+
+- **Triggers → publishes** table: push to `main` → artifact + `dev` prerelease (direct `.ipa`); `v*` tag → versioned GitHub Release; manual *Run workflow* → with `xcode_version`, `skip_tests`, `release_channel` inputs; push to `wiki/` → `wiki.yml` syncs to `Alot1z/packwise/wiki`.
+- **One gate: `scripts/verify-ipa.sh`.** Zip integrity → `Payload/PackWise.app` exists → arm64 device Mach-O (`LC_BUILD_VERSION platform 2`, never 7=simulator) → no `*.xctest` and no XCTest/XCUIAutomation/Testing frameworks → main executable is non-empty. If the gate fails, no artifact, no release, no `dev` — even though something may have built.
+- **Two deterministic manifest URLs, no GitHub API key: `releases/latest/download/PackWise-releases.json` and `releases/download/dev/PackWise-releases.json`.** Each entry carries `verified_by_build`, `sha256`, `size_bytes`, `changelog_url`, `release_notes_url` — the `verified_by_build: true` field is set by CI only and the site reads it live.
+- **Three equal hosts:** GitHub Actions (hosted), Gitea Actions (self-hosted, mirror YAML in `.gitea/workflows/ios.yml`), and `act` locally on macOS-15 (`brew install act && act -W .github/workflows/ios.yml -P macos-15=-self-hosted`). All three share the same `ios/build.sh` cascade and same gating script.
+- **Pre-flight 3-check loop** (≤ 15 s) before tagging: `bun tsc -b --noEmit`; `bash -n` on the gate scripts; `npx js-yaml .github/workflows/ios.yml`; then `git tag vX.Y.Z -m "PackWise X.Y.Z" && git push origin vX.Y.Z`.
+
+**Verification and sync:**
+
+- `tsc` exit 0 · `bash -n` 4/4 scripts · `js-yaml` 3/3 workflows · changelog parity **15/15** web ↔ wiki.
+- iOS source: 22 Swift files tracked (21 previously + `SearchClearActionsModifier.swift`), all compile-safe on iOS 17.
+- `EXECUTION-STATE.md` phase 15 (bulletproof shim + release process), `FILE-AUDIT.md` updated with session 9 (1 new file, 1 fix-hardened, README refreshed).
+- **External gate unchanged:** the next macOS CI run still produces the first valid device arm64 IPA. The compile hazard is now structurally impossible to repeat.
+
 ## 1.0.13 — R2 CLOSED: the iOS 18 API bug that no run could reach (2026-08-08)
 
 **The infrastructure fix worked — this time the compiler really ran.**
