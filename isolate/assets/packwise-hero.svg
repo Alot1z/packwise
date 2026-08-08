@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-label="PackWise — isometric suitcase with packing layers">
+  <defs>
+    <!-- Warm Athena palette -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdf6ec"/>
+      <stop offset="55%" stop-color="#f3e6d1"/>
+      <stop offset="100%" stop-color="#e7d7c0"/>
+    </linearGradient>
+    <linearGradient id="caseTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8b5a2b"/>
+      <stop offset="100%" stop-color="#5a3720"/>
+    </linearGradient>
+    <linearGradient id="caseSide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b4426"/>
+      <stop offset="100%" stop-color="#3f2516"/>
+    </linearGradient>
+    <linearGradient id="caseFront" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9a6a3a"/>
+      <stop offset="100%" stop-color="#6e4425"/>
+    </linearGradient>
+    <linearGradient id="layerClothing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f1ece6"/>
+      <stop offset="100%" stop-color="#d8cfc4"/>
+    </linearGradient>
+    <linearGradient id="layerVision" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fffbeb"/>
+      <stop offset="100%" stop-color="#fde68a"/>
+    </linearGradient>
+    <linearGradient id="layerOutfit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef2ff"/>
+      <stop offset="100%" stop-color="#c7d2fe"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="55%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#3d2416" flood-opacity="0.18"/>
+    </filter>
+    <filter id="innerLight">
+      <feGaussianBlur stdDeviation="1"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="520" rx="28" fill="url(#bg)"/>
+  <circle cx="920" cy="110" r="220" fill="url(#glow)"/>
+  <!-- Subtle grain dots -->
+  <g opacity="0.06" fill="#3d2416">
+    <circle cx="120" cy="80" r="1.2"/><circle cx="260" cy="120" r="1"/><circle cx="340" cy="60" r="1.4"/><circle cx="480" cy="90" r="1"/>
+    <circle cx="620" cy="70" r="1.2"/><circle cx="780" cy="50" r="1"/><circle cx="860" cy="140" r="1.2"/><circle cx="1020" cy="90" r="1"/>
+    <circle cx="180" cy="400" r="1"/><circle cx="300" cy="460" r="1.2"/><circle cx="900" cy="420" r="1"/><circle cx="1050" cy="380" r="1.2"/>
+  </g>
+
+  <!-- Title block (left) -->
+  <g font-family="Instrument Serif, Georgia, serif">
+    <text x="54" y="88" font-size="13" letter-spacing="4.5" fill="#8c735c">PACKWISE · ON DEVICE · PRIVATE</text>
+    <text x="54" y="142" font-size="56" font-weight="600" fill="#1e140f" letter-spacing="-1.5">PackWise</text>
+    <text x="54" y="176" font-size="26" fill="#5a4436" font-style="italic" font-weight="400">Your trips, on device.</text>
+    <text x="54" y="212" font-family="DM Sans, system-ui, sans-serif" font-size="14.5" fill="#6b5a4d">Premium packing · Vision on device · Offline</text>
+  </g>
+  <!-- Badges -->
+  <g font-family="IBM Plex Mono, monospace" font-size="10.5">
+    <rect x="54" y="238" width="108" height="26" rx="13" fill="#1e140f"/>
+    <text x="68" y="255" fill="#fff" letter-spacing="0.3">⬢ iOS 17+ · iPad</text>
+    <rect x="172" y="238" width="96" height="26" rx="13" fill="white" stroke="#c9b9a6"/>
+    <text x="184" y="255" fill="#5a4436">SwiftData</text>
+    <rect x="278" y="238" width="86" height="26" rx="13" fill="white" stroke="#c9b9a6"/>
+    <text x="290" y="255" fill="#5a4436">Vision</text>
+  </g>
+
+  <!-- Isometric suitcase (center-right) — programmatic 3D -->
+  <g filter="url(#softShadow)" transform="translate(520,16)">
+    <!-- Shadow ellipse -->
+    <ellipse cx="260" cy="430" rx="210" ry="34" fill="#3d2416" opacity="0.14"/>
+    <!-- Case bottom / body -->
+    <!-- Front face -->
+    <path d="M 60 180 L 380 180 L 450 240 L 130 240 Z" fill="url(#caseFront)" stroke="#3f2516" stroke-width="1.2" stroke-linejoin="round"/>
+    <!-- Side face -->
+    <path d="M 380 180 L 450 240 L 450 380 L 380 320 Z" fill="url(#caseSide)" stroke="#3f2516" stroke-width="1.1" stroke-linejoin="round"/>
+    <!-- Front lower -->
+    <path d="M 60 180 L 130 240 L 130 380 L 60 320 Z" fill="#7a4f2a" stroke="#3f2516" stroke-width="1.1"/>
+    <!-- Bottom -->
+    <path d="M 60 320 L 130 380 L 450 380 L 380 320 Z" fill="#2f1b12" opacity="0.95"/>
+    <!-- Top face (open lid hint) -->
+    <path d="M 60 180 L 380 180 L 340 120 L 20 120 Z" fill="url(#caseTop)" stroke="#3f2516" stroke-width="1.2" stroke-linejoin="round" opacity="0.98"/>
+    <!-- Leather strap -->
+    <path d="M 190 120 L 230 120 L 270 180 L 200 180 Z" fill="#3f2516" opacity="0.95"/>
+    <rect x="198" y="148" width="44" height="10" rx="2" fill="#c9a86a" opacity="0.9"/>
+    <!-- Handle -->
+    <path d="M 200 120 C 200 96, 280 96, 280 120" fill="none" stroke="#1e140f" stroke-width="7" stroke-linecap="round" opacity="0.95"/>
+    <path d="M 200 120 C 200 96, 280 96, 280 120" fill="none" stroke="#c9a86a" stroke-width="1.4" stroke-linecap="round" opacity="0.6"/>
+    <!-- Hinges -->
+    <rect x="100" y="172" width="18" height="8" rx="2" fill="#c9a86a"/>
+    <rect x="300" y="172" width="18" height="8" rx="2" fill="#c9a86a"/>
+
+    <!-- Packing layers — floating 3D cards inside case -->
+    <!-- Layer 1 — Clothing (bottom) -->
+    <g transform="translate(0,0)">
+      <path d="M 92 214 L 318 214 L 388 264 L 162 264 Z" fill="url(#layerClothing)" stroke="white" stroke-width="1.1" opacity="0.98"/>
+      <path d="M 318 214 L 388 264 L 388 282 L 318 232 Z" fill="#c8bdb0" stroke="white" stroke-width="0.8"/>
+      <path d="M 92 214 L 162 264 L 162 282 L 92 232 Z" fill="#b8aa9a" stroke="white" stroke-width="0.8"/>
+      <g font-family="IBM Plex Mono, monospace" font-size="9" fill="#5a4436">
+        <text x="108" y="234">▭ Linen shirt ×2</text>
+        <text x="108" y="248" opacity="0.7">▭ Sneakers · Toiletry kit</text>
+      </g>
+      <g transform="translate(272,222)">
+        <rect width="34" height="14" rx="7" fill="#1e140f"/>
+        <text x="7" y="10" font-family="IBM Plex Mono, monospace" font-size="8" fill="white">62%</text>
+      </g>
+    </g>
+    <!-- Layer 2 — Vision (middle) — slight offset for depth -->
+    <g transform="translate(6,-32)">
+      <path d="M 98 214 L 324 214 L 394 264 L 168 264 Z" fill="url(#layerVision)" stroke="white" stroke-width="1.1" opacity="0.98"/>
+      <path d="M 324 214 L 394 264 L 394 282 L 324 232 Z" fill="#f3d27a" opacity="0.9" stroke="white" stroke-width="0.8"/>
+      <path d="M 98 214 L 168 264 L 168 282 L 98 232 Z" fill="#e6c47a" opacity="0.9" stroke="white" stroke-width="0.8"/>
+      <g font-family="DM Sans, sans-serif" font-size="10" fill="#5a3720">
+        <text x="112" y="233" font-weight="700">◉ Vision — on device</text>
+        <text x="112" y="248" font-size="9" fill="#7a5a2a">Confirm before add · No cloud</text>
+      </g>
+      <g transform="translate(268,222)">
+        <rect width="52" height="14" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+        <text x="7" y="10" font-family="IBM Plex Mono, monospace" font-size="7.5" fill="#92400e">● LIVE</text>
+      </g>
+    </g>
+    <!-- Layer 3 — Outfit (top) -->
+    <g transform="translate(12,-64)">
+      <path d="M 104 214 L 330 214 L 400 264 L 174 264 Z" fill="url(#layerOutfit)" stroke="white" stroke-width="1.1" opacity="0.98"/>
+      <path d="M 330 214 L 400 264 L 400 282 L 330 232 Z" fill="#a5b4fc" opacity="0.85" stroke="white" stroke-width="0.8"/>
+      <path d="M 104 214 L 174 264 L 174 282 L 104 232 Z" fill="#93a0e6" opacity="0.85" stroke="white" stroke-width="0.8"/>
+      <g font-family="DM Sans, sans-serif" font-size="10" fill="#1e1b4b">
+        <text x="118" y="233" font-weight="700">✦ Outfit · Day 2</text>
+        <text x="118" y="248" font-size="9" fill="#4f46e5">Shirt + trousers + sneakers</text>
+      </g>
+      <g transform="translate(276,222)">
+        <rect width="44" height="14" rx="7" fill="#1e1b4b"/>
+        <text x="8" y="10" font-family="IBM Plex Mono, monospace" font-size="7.5" fill="white">Day 2</text>
+      </g>
+    </g>
+
+    <!-- Floating spec chips -->
+    <g font-family="IBM Plex Mono, monospace" font-size="8">
+      <rect x="420" y="98" width="92" height="18" rx="9" fill="white" stroke="#e7d7c0"/>
+      <text x="430" y="110" fill="#5a4436">SWIFTUI · MVVM</text>
+      <rect x="420" y="122" width="78" height="18" rx="9" fill="white" stroke="#e7d7c0"/>
+      <text x="430" y="134" fill="#5a4436">OFFLINE</text>
+    </g>
+  </g>
+
+  <!-- Bottom link bar inside image -->
+  <g font-family="IBM Plex Mono, monospace" font-size="10">
+    <text x="54" y="472" fill="#8c735c">WIKI → github.com/Alot1z/packwise/wiki · LIVE SITE → freebuff preview · RELEASES → /releases/latest</text>
+  </g>
+  <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="#6b5a4d">
+    <text x="54" y="492" opacity="0.7">IPA is the product. This image is code — assets/packwise-hero.svg — not a screenshot.</text>
+  </g>
+</svg>
