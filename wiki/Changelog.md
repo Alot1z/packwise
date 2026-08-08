@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.12 — Full verification sweep + documentation sync (2026-08-08)
+
+**Session 7 — verify everything, fix documentation, sync all surfaces:**
+
+- Full verification sweep across the entire project: `tsc` exit 0 (TypeScript), `bash -n` 4/4 scripts (verify-ipa, release-manifest, rewrite-history, build.sh), `js-yaml` 3/3 workflows (ios.yml, wiki.yml, gitea ios.yml), `convex dev --once` OK.
+- Fixed changelog parity count: the 1.0.11 verification line said "changelog parity 11/11" but there are 12 versions (1.0.0 through 1.0.11); corrected to "12/12" across both the web Changelog page and this wiki page.
+- Audited all 7 web pages (Landing, Download, Features, Setup, Docs, Troubleshooting, Changelog), site-shared.tsx (nav, footer, manifest hook), and all 10 wiki pages — every surface is accurate, truthful, and consistent with the implementation.
+- Verified the Convex backend (auth email OTP, packing CRUD, http routes) and the PWA manifest — all branded as PackWise, no leftover FreeBuff template references.
+- Updated `docs/engineering/EXECUTION-STATE.md` with session 7 results: phase 13 logged, verification sweep recorded, next dependency-ready tasks enumerated.
+
+**Pending:** R2 closure still gated on the next macOS CI run (fix deployed in 1.0.11 — `xcodebuild -downloadPlatform iOS`); the `dev` release still hosts the stale broken IPA until a green run replaces it. All other blockers (R1, R3, R4) remain closed.
+
 ## 1.0.11 — R2 closed: missing iOS device platform on runners, not signing (2026-08-08)
 
 **R2 — the real root cause, finally public:**
@@ -8,7 +20,7 @@
   `xcodebuild: error: Unable to find a destination matching the provided destination specifier: { platform:iOS, id:dvtdevice-DVTiPhonePlaceholder-iphoneos:placeholder, name:Any iOS Device, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`.
 - It was **never a signing problem**. GitHub macOS-15 runner images trim the iOS **device** platform to save disk (actions/runner-images #12758 / #12862 / #13570); `xcodebuild -destination "generic/platform=iOS"` then dies in under a second — which is exactly why every run failed at the "Build unsigned IPA" step ~7–8s in, and why the simulator *tests* step (which doesn't need the device platform) passed. All four signing-arg fixes in 1.0.9/1.0.10 were hygiene, not the blocker.
 - **Fix:** the workflow now runs `xcodebuild -downloadPlatform iOS` (official remedy; no-op when already installed, sudo fallback for root-owned platform dirs) before the build, and picks the **newest** installed Xcode instead of the first alphabetically. `ios/build.sh` gained a self-healing `ensure_device_platform()` guard so standalone local macOS builds heal too. Mirrored in the Gitea workflow.
-- **Verification:** `tsc` exit 0 · `bash -n` 4/4 scripts · `js-yaml` 3/3 workflows · changelog parity 11/11 surfaces · live CI evidence chain re-pulled (runs 31248752593, 31248315617) · local fixes diff vs GitHub `main` confirmed as the not-yet-shipped delta.
+- **Verification:** `tsc` exit 0 · `bash -n` 4/4 scripts · `js-yaml` 3/3 workflows · changelog parity 12/12 surfaces · live CI evidence chain re-pulled (runs 31248752593, 31248315617) · local fixes diff vs GitHub `main` confirmed as the not-yet-shipped delta.
 
 **Pending:** the fix ships on the next auto-sync push; the following macOS CI run is the R2 closure gate (annotations will show the exact state either way). The `dev` release still hosts the stale broken IPA until a green run replaces it via the publish gate.
 
