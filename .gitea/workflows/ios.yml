@@ -16,10 +16,22 @@ jobs:
 
       - name: Select Xcode
         run: |
-          for d in /Applications/Xcode_*.app /Applications/Xcode.app; do
-            if [ -d "$d" ]; then sudo xcode-select -s "$d/Contents/Developer"; break; fi
-          done
+          # Pick the NEWEST installed Xcode (alphabetical glob would grab an old
+          # one, e.g. Xcode_15.x, whose iOS platform may not match project.yml).
+          XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$XCODE" ] && [ -d /Applications/Xcode.app ]; then XCODE=/Applications/Xcode.app; fi
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE/Contents/Developer"; fi
           xcodebuild -version
+
+      # macOS-15 runner images trim the iOS DEVICE platform; xcodebuild then
+      # fails instantly with "iOS 18.0 is not installed". Install on demand
+      # (no-op if already present; sudo fallback for root-owned platform dir).
+      - name: Install iOS device platform (on demand)
+        run: |
+          echo "→ xcodebuild -downloadPlatform iOS (no-op if already installed)"
+          xcodebuild -downloadPlatform iOS 2>&1 | tail -n 8 || \
+            { echo "→ retrying with sudo"; sudo xcodebuild -downloadPlatform iOS 2>&1 | tail -n 8; }
+          xcodebuild -showsdks | grep -i iphoneos || echo "  (none listed — see output above)"
 
       - name: Install XcodeGen
         run: |

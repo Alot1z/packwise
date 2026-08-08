@@ -2,10 +2,11 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 5b — live CI evidence: array fix shipped but run 31248315617 still failed; third
-> root cause: `CODE_SIGN_STYLE=Manual` demands a team; build.sh now matches the passing
-> tests-step flags + adds 4th strategy + public `::error::` annotations; changelog 1.0.10
-> updated; tsc clean).
+> (session 6 — R2 root cause FINALLY public via annotations: the iOS **device platform is
+> not installed on the macOS-15 runner** ("iOS 18.0 is not installed"), NOT a signing
+> issue. Fix: `xcodebuild -downloadPlatform iOS` in workflow + self-healing guard in
+> build.sh; newest-Xcode selection; mirrored in Gitea; changelog 1.0.11 synced web↔wiki;
+> tsc clean).
 
 ## 1. Project map
 
@@ -52,13 +53,14 @@ Rules enforced (from the product specification):
 | 9 · Verify sweep + web-brand polish (session 4) | **DONE** — full re-verify: `tsc` 0, `bash -n` 4/4, `js-yaml` 3/3, changelog parity 10/10, Convex codegen OK. Fixed 3 leftover web-brand/UX defects: PWA manifest rebranded (was FreeBuff template w/ broken `/logo.png` icon → PackWise w/ real `/logo.svg`); `ContentView` onboarding transition now reduced-motion gated; auth OTP email fallback app name → "PackWise". |
 | 10 · Live CI evidence + R2 second fix (session 5) | **DONE** — pulled fresh evidence from GitHub API: wiki.yml now green (R3 confirmed closed), ios.yml still failing at device-build step. Confirmed 1.0.9 fix shipped but insufficient; found + fixed the literal-quote/`DEVELOPMENT_TEAM=` signing-arg bug in `ios/build.sh` (array form). 1.0.10 changelog entry synced web↔wiki. Re-verified R1/R3/R4 closed via js-yaml + bash -n. |
 | 11 · R2 third root cause + public annotations (session 5b) | **DONE** — live CI confirmed array fix shipped (raw diff) but run 31248315617 still failed in ~8s. Compared passing tests step vs failing build step: the difference is `CODE_SIGN_STYLE=Manual`. build.sh now matches the passing tests flags exactly (`CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=`), adds strategy D, and emits public `::error::` annotations on failure (logs/artifacts need auth; annotations don't). Changelog 1.0.10 updated web↔wiki. |
+| 12 · R2 TRUE root cause via public annotations (session 6) | **DONE** — the annotation channel delivered: run 31248752593's public `check-runs/93081580036/annotations` exposed the real error with zero auth: `Unable to find a destination … { platform:iOS, …, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`. **It was never signing** — macOS-15 runner images trim the iOS *device* platform (actions/runner-images #12758/#12862/#13570), so `-destination "generic/platform=iOS"` dies in <1s (matching every ~8s failure) while simulator tests pass. Fix shipped: workflow step `xcodebuild -downloadPlatform iOS` (sudo fallback) + newest-Xcode selection; `build.sh` self-healing `ensure_device_platform()` guard; mirrored in Gitea. Changelog 1.0.11 synced web↔wiki (12/12). |
 
 ## 3. Release-blocking items
 
 | # | Item | Status | Evidence |
 |---|---|---|---|
 | R1 | `.github/workflows/ios.yml` rejected by GitHub: *Invalid workflow file, YAML syntax error* (line 148) | **FIXED 2026-08-08** | Root cause: the manifest-validation snippet inside a `run: \|` literal block was indented at **column 0** (block indent is 10 spaces), which ended the literal block mid-file. Fixed by aligning the block. `js-yaml` (the parser GitHub Actions uses) parses both workflows cleanly; `bash -n` clean; the fixed python step runs end-to-end. |
-| R2 | `Failed to map …/PackWise: Bad file descriptor` at sideload | **THREE ROOT CAUSES: (1) published artifact confirmed broken; (2)+(3) signing-arg bugs fixed — next macOS run closes it (now with public annotations for instant diagnosis)** | (1) Downloaded the public `dev` release IPA (5,004,581 bytes): **rejected** by the hardened verifier — test bundles, **no main executable**. (2) The 1.0.9 signing overrides **shipped** (raw-file diff proves `main` == local) but runs [31246529945](https://github.com/Alot1z/packwise/actions/runs/31246529945) + [31248315617](https://github.com/Alot1z/packwise/actions/runs/31248315617) still failed at the "Build unsigned IPA" step **~7–8s after tests** — immediate `xcodebuild` config error. Root causes: `NO_SIGN_STR` word-split passed **literal quotes** (`CODE_SIGN_IDENTITY=""`); explicit `DEVELOPMENT_TEAM=` triggers team resolution; and **`CODE_SIGN_STYLE=Manual` itself demands a resolvable team even with signing disabled** (the passing tests step uses the project's Automatic style + `CODE_SIGN_IDENTITY=""` only). **Fixed (session 5b):** `NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=)` — exactly the proven-passing tests-step flags — plus a 4th minimal strategy (D). Token expansion verified; `bash -n` clean. **Public diagnostics:** CI logs/artifacts need auth (403/401) but check-run **annotations are public**; `build.sh` now emits `::error::` lines so the next run's `check-runs/{id}/annotations` exposes the real error with zero auth. |
+| R2 | `Failed to map …/PackWise: Bad file descriptor` at sideload | **ROOT CAUSE FINALLY PUBLIC (session 6): missing iOS device platform on the macOS-15 runner — fix shipped (`xcodebuild -downloadPlatform iOS`); next macOS CI run is the closure gate** | (1) Published artifact confirmed broken: downloaded `dev` IPA (5,004,581 bytes) **rejected** by hardened verifier — test bundles, **no main executable**. (2) Signing-arg fixes (1.0.9/1.0.10) **shipped** (raw-file diff proves `main` == local) but runs [31246529945](https://github.com/Alot1z/packwise/actions/runs/31246529945), [31248315617](https://github.com/Alot1z/packwise/actions/runs/31248315617), [31248752593](https://github.com/Alot1z/packwise/actions/runs/31248752593) all failed at "Build unsigned IPA" **~7–8s after tests** — too fast for a compile; the annotations channel (session 5b) then exposed the real error on run 31248752593: `Unable to find a destination matching the provided destination specifier: { platform:iOS, …, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`. **TRUE ROOT CAUSE: the GitHub macOS-15 runner image trims the iOS device platform** (actions/runner-images #12758/#12862/#13570); `-destination "generic/platform=iOS"` fails in <1s while simulator tests (which don't need the device platform) pass. Signing flags were hygiene, never the blocker. **Fix (session 6):** workflow step `xcodebuild -downloadPlatform iOS` (official remedy; sudo fallback) + select **newest** Xcode; `ios/build.sh` self-healing `ensure_device_platform()` guard for standalone local builds; mirrored in Gitea. `js-yaml` 3/3, `bash -n` 4/4, tsc 0, changelog 12/12. |
 | R3 | Wiki sync workflow failing (run 31245277577, conclusion: failure at push step) | **FIXED 2026-08-08** | `.github/workflows/wiki.yml` rewritten: `checkout@v5`, wiki-repo enablement via API, robust push with accurate failure reporting. `js-yaml` parse OK. |
 | R4 | Contradictory CI summary: "Tests did not pass (non-blocking) — IPA still built" + "No IPA produced" | **FIXED 2026-08-08** | Root cause: tests step aborted under `bash -e -o pipefail` before `TESTS_PASSED` was recorded, so the summary ran with stale/unset state. Step now records results before any early exit; summary renders one truthful status. |
 
@@ -166,30 +168,33 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-08, session 5b)
+## 10. Machine-readable snapshot (2026-08-08, session 6)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-08-s5b",
-  "phase": 11,
-  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 11:11 / convex codegen ok)",
+  "session": "2026-08-08-s6",
+  "phase": 12,
+  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 12:12)",
   "live_ci_evidence": {
-    "wiki_sync": "success (31247537915, 31246529943) — R3 closed",
-    "ios_run_latest": "failure at device-build step (31246529945, ~7s in — immediate xcodebuild config error)",
-    "dev_release_asset": "PackWise-unsigned.ipa 5,004,581 bytes (old broken artifact still hosted)",
-    "fix_shipped": "main == local build.sh (raw-file diff)"
+    "wiki_sync": "success (31248752589, 31248315624) — R3 closed",
+    "ios_run_latest": "failure at device-build step (31248752593, ~8s in)",
+    "annotations_public": "check-runs/93081580036/annotations exposed REAL error with zero auth",
+    "real_error": "Unable to find a destination matching the provided destination specifier: { platform:iOS, id:dvtdevice-DVTiPhonePlaceholder-iphoneos:placeholder, name:Any iOS Device, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }",
+    "dev_release_asset": "PackWise-unsigned.ipa 5,004,581 bytes (stale broken artifact — publish gate blocks replacement until green run)",
+    "local_vs_main": "ios.yml/build.sh DIFFER from main — session-6 fix is the not-yet-shipped delta (next auto-sync pushes it)"
   },
-  "r2_second_fix": {
-    "root_cause": "NO_SIGN_STR word-split passed literal quotes; explicit DEVELOPMENT_TEAM= triggers team resolution",
-    "fix": "bash array NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual) via \"${NO_SIGN[@]}\"",
-    "verification": "shipped but insufficient — run 31248315617 still failed in ~8s"
-  },
-  "r2_third_fix": {
-    "root_cause": "CODE_SIGN_STYLE=Manual demands a resolvable team even with CODE_SIGNING_ALLOWED=NO; passing tests step uses Automatic + CODE_SIGN_IDENTITY only",
-    "fix": "NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=) + strategy D (minimal, mirrors tests) + public ::error:: annotations",
-    "verification": "token expansion clean (3 args, no quotes, no style), bash -n clean, next macOS run is the check",
-    "public_diagnostics": "check-runs/{id}/annotations needs no auth — build.sh emits ::error:: lines on failure"
+  "r2_true_root_cause": {
+    "conclusion": "NOT a signing problem — macOS-15 runner images trim the iOS DEVICE platform",
+    "evidence": "public annotations from run 31248752593 (no auth): 'iOS 18.0 is not installed. To use with Xcode, first download and install the platform'",
+    "github_issues": ["actions/runner-images #12758", "#12862", "#13570"],
+    "why_8s": "destination resolution fails in <1s per strategy; simulator tests don't need the device platform so they pass",
+    "fix": [
+      "workflow: xcodebuild -downloadPlatform iOS step (sudo fallback) + newest-Xcode selection",
+      "ios/build.sh: ensure_device_platform() self-healing guard (also standalone-local)",
+      "gitea workflow: same platform step mirrored"
+    ],
+    "verification": "bash -n clean, js-yaml 3/3, tsc 0, changelog 12/12; closure gate = next macOS CI run"
   },
   "web_brand_polish": [
     { "item": "public/manifest.webmanifest", "status": "rebranded", "note": "was FreeBuff template + broken /logo.png; now PackWise + real /logo.svg" },
@@ -198,8 +203,8 @@ Rules enforced (from the product specification):
   ],
   "blockers": [
     { "id": "R1", "item": "ios.yml YAML syntax error", "status": "fixed", "verified_by": "js-yaml parse" },
-    { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "published_artifact_confirmed_broken", "evidence": "dev ipa downloaded + verifier rejected: no main executable; test bundles shipped", "next_step": "verify next CI build with scripts/verify-ipa.sh" },
-    { "id": "R3", "item": "wiki.yml failing at push", "status": "fixed", "verified_by": "js-yaml parse + rewrite" },
+    { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "fix_shipped_missing_device_platform", "evidence": "public annotations: 'iOS 18.0 is not installed'; broken dev artifact still gated", "next_step": "next macOS CI run after auto-sync push — verify fresh IPA with scripts/verify-ipa.sh" },
+    { "id": "R3", "item": "wiki.yml failing at push", "status": "fixed", "verified_by": "js-yaml parse + rewrite + green runs" },
     { "id": "R4", "item": "contradictory CI summary", "status": "fixed", "verified_by": "workflow rewrite" }
   ],
   "web_typecheck": "pass (tsc 0)",
