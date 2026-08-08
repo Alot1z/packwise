@@ -2,7 +2,7 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 3 — Phase 2 file audit complete; README restructured per §21; isolate/ cleaned; tsc clean).
+> (session 3 — Phase 2 file audit complete; README restructured per §21; changelog surfaces synced; isolate/ cleaned; tsc clean).
 
 ## 1. Project map
 
@@ -45,6 +45,7 @@ Rules enforced (from the product specification):
 | 5 · Docs & website truthfulness | **DONE** — manifest-driven CTAs/hero; all wiki pages rechecked against implementation (accurate); full site IA already in place (Setup/Download/Docs/Features/Troubleshooting all documented). |
 | 6 · Final QA gate | **BLOCKED (external)** — requires a real macOS build + sideload check (no local toolchain in sandbox). Next GitHub Actions run is the verification for R2. |
 | 7 · README restructure (§21) | **DONE** — added Screenshots placeholder, Contributing guide, and honest Project Status table. |
+| 8 · Changelog sync across surfaces | **DONE** — `src/pages/Changelog.tsx` now mirrors `wiki/Changelog.md` (all 10 versions 1.0.0→1.0.9); README unchanged as it points to wiki; Landing/Download use live manifest only. `tsc` clean. |
 
 ## 3. Release-blocking items
 
@@ -154,10 +155,9 @@ Rules enforced (from the product specification):
    published `dev` `.ipa` (must print `sideload-ready`); then close R2 with full evidence.
 3. **Phase 3 — CI / IPA validation**: once R2 is closed, verify the whole pipeline
    end-to-end (push → build → verify → publish).
-4. **README restructure** per spec §21 (add screenshots/contributing; keep honest status).
-5. **Phase 4 — Polish & release readiness**: any remaining UX bugs, documentation gaps,
+4. **Phase 4 — Polish & release readiness**: any remaining UX bugs, documentation gaps,
    or build-system improvements identified during final review.
-6. Update this file and FILE-AUDIT.md after every milestone.
+5. Update this file and FILE-AUDIT.md after every milestone.
 
 ## 10. Machine-readable snapshot (2026-08-08, session 3)
 
