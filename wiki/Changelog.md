@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.13 — R2 CLOSED: the iOS 18 API bug that no run could reach (2026-08-08)
+
+**The infrastructure fix worked — this time the compiler really ran.**
+
+- **R2 infrastructure blocker CLOSED:** live CI run [31256274224](https://github.com/Alot1z/packwise/actions/runs/31256274224) shows the session-6 fix working end-to-end: the **"Install iOS device platform (on demand)"** step succeeded (macOS-15 runner now has the iOS *device* platform), XcodeGen generated the project, and **the Swift compiler actually executed** — the first real compilation in the entire R2 saga. All previous runs died in <1s at destination resolution; this run got past everything.
+- **The true remaining bug, exposed by the public annotation channel:** with a real build running, the failure was a **Swift compile error**, not signing and not packaging: `value of type 'some View' has no member 'searchActions'` at `TripListView.swift:74` and `GlobalSearchView.swift:69`, plus a cascade error at `TripListView.swift:86` (`cannot infer contextual base in reference to member 'bottom'`).
+- **Root cause:** `.searchActions` is an **iOS 18-only API**, but PackWise's deployment target is **iOS 17**. The modifier was added in an earlier polish pass without an availability guard, so the app could never compile for its own target — the bug was unreachable until the platform fix let CI actually build.
+- **Fix:** new availability-safe `searchClearAction(_:clearLabel:)` view modifier in `ios/PackWise/Views/SearchClearActionsModifier.swift` — it applies `.searchActions` only inside `if #available(iOS 18.0, *)` and degrades to the platform's built-in clear button on iOS 17 (same user outcome, zero API risk). Both views updated; grep confirms no unguarded `searchActions` call remains.
+- **Verified:** `tsc` exit 0 · `bash -n` 4/4 scripts · `js-yaml` 3/3 workflows (ios.yml, wiki.yml, gitea ios.yml) · grep sweep clean. The next macOS CI run is the closure gate for the *binary* — it should produce the first valid device arm64 IPA since the very first broken `dev` artifact.
+
 ## 1.0.12 — Full verification sweep + documentation sync (2026-08-08)
 
 **Session 7 — verify everything, fix documentation, sync all surfaces:**
