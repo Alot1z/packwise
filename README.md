@@ -292,6 +292,69 @@ bun install && bun run build   # → dist/ (deploy to Pages/Netlify/any static h
 
 ---
 
+## 📸 Screenshots — placeholder frames, not real captures
+
+> **No real device captures exist yet.** The build pipeline is validated byte-for-byte
+> (see [Verified build status](#-verified-build-status--inspected-not-assumed)), but
+> the IPA hasn't been side-loaded onto a real iPhone for screenshots. When we have
+> them, they replace these placeholders.
+
+These frames illustrate the intended UI. Every screen listed exists in `ios/PackWise/Views/`.
+
+```
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  Dashboard   │  │  Trip List   │  │ Trip Detail  │  │   Scanner    │
+│ [upcoming]   │  │ [trips]      │  │ [items]      │  │ [Vision]     │
+│ [progress]   │  │ [+ new]      │  │ [progress]   │  │ [confirm]    │
+└──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+```
+
+To add real screenshots: capture on iPhone at each screen → save as
+`ios/screenshots/1-dashboard.png` through `12-settings.png` → the README and
+live site will pick them up automatically.
+
+---
+
+## 👥 Contributing
+
+PackWise is open source (MIT) and welcomes contributions. The most impactful areas right now:
+
+| Area | What's needed |
+|---|---|
+| **Real-device testing** | Sideload the IPA onto an iPhone, run through every screen, report bugs |
+| **Screenshots** | Capture real iPhone screenshots (see above) |
+| **iOS features** | See [issues labeled `enhancement`](https://github.com/Alot1z/packwise/issues) |
+| **Documentation** | Wiki improvements, build-tool docs, translations |
+| **CI pipeline** | GitHub Actions improvements, new host targets, faster builds |
+
+**Before contributing:**
+1. Check [open issues](https://github.com/Alot1z/packwise/issues) and [the Wiki](https://github.com/Alot1z/packwise/wiki)
+2. For code: fork → branch → test → PR against `main`
+3. Keep the privacy model: no cloud dependencies, no mandatory accounts, no tracking
+4. The iOS app is the product — the website is only documentation
+5. Run `bun tsc -b --noEmit` for web changes, `xcodebuild test` for iOS changes
+
+---
+
+## 🚦 Project status — honest, per the evidence
+
+| What | Status | Evidence |
+|---|---|---|
+| iOS source code | **Complete** — 19 Swift files, 2,252 lines | Reviewed line-by-line; 2 bugs fixed (Vision orientation, trip delete confirmation) |
+| Web documentation site | **Complete** — 7 pages + Convex auth | `tsc` clean, manifest-driven download CTAs, accurate status |
+| Wiki (9 pages) | **Complete** — synced from `wiki/` on every push | All pages re-read and verified against implementation |
+| CI workflows | **Fixed** — YAML, tests, wiki, summary all repaired | `js-yaml` parse clean; `bash -n` clean on all scripts |
+| IPA build pipeline | **Fixed, unverified** — three-strategy self-healing `build.sh` with strict publish gate | Signing overrides added; next GitHub Actions run is the verification |
+| Real-device IPA | **Not yet verified** — previous `dev` IPA confirmed broken (no executable) | Root cause identified; fix deployed; pending macOS runner test |
+| TestFlight / App Store | **Not available** — requires Apple Developer membership + App Store Connect | Not claimed anywhere in this repository |
+| Accessibility | **Audited** — VoiceOver, Dynamic Type, Reduced Motion, Color Contrast | All 4 passes complete across iOS + web |
+
+> **The next step** is a real macOS build on GitHub Actions with the fixed `build.sh`.
+> Once that produces a device arm64 IPA that passes `scripts/verify-ipa.sh`, we have
+> the full evidence chain: source → build → validate → publish → sideload.
+
+---
+
 ## 🤖 Algorithm-friendly — find the newest build without scraping
 
 Every published release ships a **machine-readable manifest** as an asset so any script, tool, or AI can fetch ONE URL and find:
