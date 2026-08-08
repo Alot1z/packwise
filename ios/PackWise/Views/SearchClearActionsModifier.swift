@@ -27,9 +27,8 @@ extension View {
 
 @available(iOS 18.0, *)
 private extension View {
-    @available(iOS 18.0, *)
     func _compatSearchClear(search: Binding<String>, clearLabel: String) -> some View {
-        searchActions {
+        self.searchActions {
             if !search.wrappedValue.isEmpty {
                 Button(clearLabel) { search.wrappedValue = "" }
             }
