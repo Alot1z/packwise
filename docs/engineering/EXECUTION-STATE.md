@@ -2,7 +2,8 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 3 — Phase 2 file audit complete; README restructured per §21; changelog surfaces synced; isolate/ cleaned; tsc clean).
+> (session 4 — full verify sweep green; changelog parity confirmed; PWA manifest rebranded;
+> ContentView reduced-motion gate; auth email branded "PackWise"; tsc + convex codegen clean).
 
 ## 1. Project map
 
@@ -46,6 +47,7 @@ Rules enforced (from the product specification):
 | 6 · Final QA gate | **BLOCKED (external)** — requires a real macOS build + sideload check (no local toolchain in sandbox). Next GitHub Actions run is the verification for R2. |
 | 7 · README restructure (§21) | **DONE** — added Screenshots placeholder, Contributing guide, and honest Project Status table. |
 | 8 · Changelog sync across surfaces | **DONE** — `src/pages/Changelog.tsx` now mirrors `wiki/Changelog.md` (all 10 versions 1.0.0→1.0.9); README unchanged as it points to wiki; Landing/Download use live manifest only. `tsc` clean. |
+| 9 · Verify sweep + web-brand polish (session 4) | **DONE** — full re-verify: `tsc` 0, `bash -n` 4/4, `js-yaml` 3/3, changelog parity 10/10, Convex codegen OK. Fixed 3 leftover web-brand/UX defects: PWA manifest rebranded (was FreeBuff template w/ broken `/logo.png` icon → PackWise w/ real `/logo.svg`); `ContentView` onboarding transition now reduced-motion gated; auth OTP email fallback app name → "PackWise". |
 
 ## 3. Release-blocking items
 
@@ -114,7 +116,8 @@ Rules enforced (from the product specification):
 
 | Area | Status |
 |---|---|
-| Web typecheck | PASS — `bun tsc -b --noEmit` EXIT 0 (after site-shared/Landing/Download/Changelog edits) |
+| Web typecheck | PASS — `bun tsc -b --noEmit` EXIT 0 (session 4 re-verify after manifest/auth edits) |
+| Convex codegen | PASS — `bun convex dev --once` (3.09s, functions ready) after `emailOtp.ts` edit |
 | Web production build | PASS in an earlier session (`vite build`, 2411 modules); re-verify after web edits |
 | iOS build | **UNVERIFIED this session** (no toolchain) — next CI run is the check |
 | Workflow YAML | PASS — js-yaml parses `.github/workflows/ios.yml` + `.gitea/workflows/ios.yml` + `.github/workflows/wiki.yml` |
@@ -159,16 +162,19 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-08, session 3)
+## 10. Machine-readable snapshot (2026-08-08, session 4)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-08-s3",
-  "phase": 2,
-  "phase_2_file_audit": "complete",
-  "total_files_audited": 44,
-  "defects_found_this_session": 0,
+  "session": "2026-08-08-s4",
+  "phase": 9,
+  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 10:10 / convex codegen ok)",
+  "web_brand_polish": [
+    { "item": "public/manifest.webmanifest", "status": "rebranded", "note": "was FreeBuff template + broken /logo.png; now PackWise + real /logo.svg" },
+    { "item": "ios/PackWise/App/ContentView.swift", "status": "fixed", "note": "onboarding transition now gated on accessibilityReduceMotion" },
+    { "item": "src/convex/auth/emailOtp.ts", "status": "fixed", "note": "OTP email appName fallback now \"PackWise\"" }
+  ],
   "blockers": [
     { "id": "R1", "item": "ios.yml YAML syntax error", "status": "fixed", "verified_by": "js-yaml parse" },
     { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "published_artifact_confirmed_broken", "evidence": "dev ipa downloaded + verifier rejected: no main executable; test bundles shipped", "next_step": "verify next CI build with scripts/verify-ipa.sh" },
