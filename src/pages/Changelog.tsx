@@ -3,6 +3,18 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.7",
+    date: "Interaction polish",
+    icon: Wrench,
+    items: [
+      "Swipe actions with haptics and confirmations across trips, items, library, templates, and reminders.",
+      "Attention badge on the Trips tab; iPad-adaptive tab bar; pull-to-refresh on the Dashboard.",
+      "Smarter on-device recommendations (cold / rain / long-trip heuristics, dedupe) and a richer Vision label map.",
+      "Trip progress helpers (progressLabel, daysUntilDeparture, isPast) and notification cancel-all.",
+      "Reduced-motion gating on iOS and web; WCAG contrast fixes on warnings and star states.",
+    ],
+  },
+  {
     tag: "Sideload fix",
     date: "Pipeline",
     icon: Wrench,

@@ -212,14 +212,17 @@ export default function Landing() {
               />
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-white border border-border p-3">
-                  <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">Dashboard</div>
+                  <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
+                    <span>Dashboard</span>
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-medium text-amber-700">Concept preview</span>
+                  </div>
                   <div className="text-sm font-medium mt-1" style={serif}>
                     Upcoming · Progress · Missing
                   </div>
-                  <div className="mt-3 h-1.5 rounded-full bg-black/10 overflow-hidden" role="progressbar" aria-valuenow={62} aria-valuemin={0} aria-valuemax={100} aria-label="Packing progress 62%">
+                  <div className="mt-3 h-1.5 rounded-full bg-black/10 overflow-hidden" role="progressbar" aria-valuenow={62} aria-valuemin={0} aria-valuemax={100} aria-label="Concept preview — illustrative packing progress">
                     <div className="h-full w-[62%] bg-[oklch(0.62_0.115_38)]" />
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-1">Kyoto · 62% packed</div>
+                  <div className="text-[11px] text-muted-foreground mt-1">Illustrative mockup — not real user data</div>
                 </div>
                 <div className="rounded-2xl bg-primary text-primary-foreground p-3">
                   <div className="text-[11px] font-mono uppercase tracking-widest opacity-70">Vision Scanner</div>
@@ -458,7 +461,7 @@ export default function Landing() {
 
         {/* ── PREVIEW ── */}
         <section className="max-w-[1180px] mx-auto px-6 pb-10">
-          <SectionTitle kicker="Preview" title="Screenshots (from the native app)" desc="Real captures go under ios/screenshots/ — shown as placeholders here." />
+          <SectionTitle kicker="Preview" title="App preview — placeholder frames" desc="These are placeholder frames, not real captures. Real screenshots land in ios/screenshots/ and will replace them when added." />
           <div className="mt-6 grid sm:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
               <div
@@ -471,7 +474,7 @@ export default function Landing() {
                 <div className="text-sm font-medium mt-3" style={serif}>
                   Screen {i}
                 </div>
-                <div className="text-xs text-muted-foreground">Place PNG at ios/screenshots/{i}.png</div>
+                <div className="text-xs text-muted-foreground">Placeholder — real capture goes to ios/screenshots/{i}.png</div>
               </div>
             ))}
           </div>

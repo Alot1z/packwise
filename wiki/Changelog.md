@@ -1,6 +1,20 @@
 # Changelog
 
-## 1.0.7 — Polish pass: every surface enhanced (2026-08-07)
+## 1.0.8 — Release-pipeline hardening & site truthfulness (2026-08-08)
+
+**Build / Infrastructure:**
+
+- Fixed the GitHub Actions workflow that GitHub rejected as an invalid workflow file (YAML syntax error at line 148): the release-manifest validation snippet inside the `run:` block was indented at column 0, which ended the literal block mid-file. Re-indented; both `.github/workflows/ios.yml` and `.gitea/workflows/ios.yml` now parse cleanly with the YAML parser GitHub Actions itself uses, and the validation step runs end-to-end.
+- `scripts/verify-ipa.sh` now diagnoses the "Failed to map …/PackWise: Bad file descriptor" class of failure precisely: it detects a symlinked or empty main-executable entry inside the zip from zip metadata alone (no host tools needed) and probes the Mach-O header itself (magic, fat slices, CPU type/subtype) so any machine — including Linux — can classify an artifact as device arm64, simulator, or not-a-binary. Verified against four synthetic artifacts: symlink → rejected with the exact cause; empty → rejected; arm64 → sideload-ready; x86_64 → rejected.
+- Hardened the workflow's manifest-validation step to tolerate a `dev: null` pointer (e.g. the first tag-only release) instead of crashing the build.
+- New `docs/engineering/EXECUTION-STATE.md` (session state, blocker log, next tasks) and `docs/engineering/FILE-AUDIT.md` (per-file audit manifest) so every session resumes from evidence, not memory.
+
+**Website:**
+
+- Removed fictional app data from the landing page: the hero dashboard mock is now explicitly labeled "Concept preview — illustrative mockup, not real user data", and the screenshot grid is labeled as placeholder frames rather than real captures.
+- Site changelog synced with 1.0.7.
+
+## 1.0.7 — Interaction polish & hardening (2026-08-07)
 
 **Web:** `SiteNav` now has active-page highlighting, a mobile drawer with CTAs, skip-to-content link, and full keyboard/ARIA polish; `index.css` adds focus-visible rings, smooth scroll (respects reduced-motion), print styles, and card-lift; `index.html` gains full SEO/OG/Twitter/JSON-LD/noscript; `Landing` fetches the live release manifest to show the latest tag inline, adds progress semantics and `aria-hidden` throughout; `Features`/`Docs`/`Download` all get reduced-motion guards, focus rings, and semantic `<main id="main">`.
 
