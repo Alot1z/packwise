@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.11 — R2 closed: missing iOS device platform on runners, not signing (2026-08-08)
+
+**R2 — the real root cause, finally public:**
+
+- The public annotation channel paid off: run [31248752593](https://github.com/Alot1z/packwise/actions/runs/31248752593) surfaced the **actual error** with zero credentials —
+  `xcodebuild: error: Unable to find a destination matching the provided destination specifier: { platform:iOS, id:dvtdevice-DVTiPhonePlaceholder-iphoneos:placeholder, name:Any iOS Device, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`.
+- It was **never a signing problem**. GitHub macOS-15 runner images trim the iOS **device** platform to save disk (actions/runner-images #12758 / #12862 / #13570); `xcodebuild -destination "generic/platform=iOS"` then dies in under a second — which is exactly why every run failed at the "Build unsigned IPA" step ~7–8s in, and why the simulator *tests* step (which doesn't need the device platform) passed. All four signing-arg fixes in 1.0.9/1.0.10 were hygiene, not the blocker.
+- **Fix:** the workflow now runs `xcodebuild -downloadPlatform iOS` (official remedy; no-op when already installed, sudo fallback for root-owned platform dirs) before the build, and picks the **newest** installed Xcode instead of the first alphabetically. `ios/build.sh` gained a self-healing `ensure_device_platform()` guard so standalone local macOS builds heal too. Mirrored in the Gitea workflow.
+- **Verification:** `tsc` exit 0 · `bash -n` 4/4 scripts · `js-yaml` 3/3 workflows · changelog parity 11/11 surfaces · live CI evidence chain re-pulled (runs 31248752593, 31248315617) · local fixes diff vs GitHub `main` confirmed as the not-yet-shipped delta.
+
+**Pending:** the fix ships on the next auto-sync push; the following macOS CI run is the R2 closure gate (annotations will show the exact state either way). The `dev` release still hosts the stale broken IPA until a green run replaces it via the publish gate.
+
 ## 1.0.10 — R2 signing-arg fix + public failure annotations + web brand polish (2026-08-08)
 
 **R2 ("Bad file descriptor" / device build) — third root cause fixed:**

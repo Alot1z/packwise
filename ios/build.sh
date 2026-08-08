@@ -35,6 +35,23 @@ OUT_IPA="$BUILD/PackWise-unsigned.ipa"
 BUILD_LOG="$BUILD/build.log"
 DIAG="$BUILD/diagnostics.txt"
 
+# 2026-08-08 (session 6): macOS-15 runner images trim the iOS DEVICE platform
+# (actions/runner-images #12758/#12862/#13570). `xcodebuild -destination
+# "generic/platform=iOS"` then fails in <1s with:
+#   Unable to find a destination ... error:iOS 18.0 is not installed
+# The official fix is `xcodebuild -downloadPlatform iOS` (no-op if present).
+# The workflow runs that step before us; this guard also self-heals when
+# build.sh is invoked standalone (e.g. local macOS dev).
+ensure_device_platform() {
+  if ! xcodebuild -showsdks 2>/dev/null | grep -qi 'iphoneos'; then
+    echo "→ iOS device SDK not visible — running xcodebuild -downloadPlatform iOS"
+    if ! xcodebuild -downloadPlatform iOS 2>&1 | tail -n 5; then
+      echo "→ retrying with sudo (platform dir is root-owned on runners)"
+      sudo xcodebuild -downloadPlatform iOS 2>&1 | tail -n 5 || true
+    fi
+  fi
+}
+
 # Unsigned device builds: disable every signing hook so Xcode never demands a
 # development team or certificate for an artifact we ship unsigned (sideloaders
 # re-sign locally).
@@ -56,6 +73,9 @@ say()  { printf '%s\n' "$*"; }
 note() { printf '%s\n' "$*" | tee -a "$DIAG"; }
 
 diag_tail() { tail -n 140 "$BUILD_LOG" >> "$DIAG" || true; }
+
+# Ensure the iOS device platform is present (see header) before any strategy.
+ensure_device_platform
 
 # Emit the real error lines as GitHub Actions annotations (public, no auth).
 emit_annotations() {
