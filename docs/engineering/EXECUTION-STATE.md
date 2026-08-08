@@ -2,7 +2,7 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 3 — Phase 2 file audit complete; isolate/ cleaned; tsc clean).
+> (session 3 — Phase 2 file audit complete; README restructured per §21; isolate/ cleaned; tsc clean).
 
 ## 1. Project map
 
@@ -40,10 +40,11 @@ Rules enforced (from the product specification):
 | 0 · Discovery / repository audit | COMPLETE (repeated across sessions) |
 | 1 · Repository baseline | COMPLETE |
 | 2 · File-by-file audit | **COMPLETE** — all 44 files read across 3 sessions: 19 iOS + 7 web pages + 7 infrastructure + 10 wiki + 4 scripts + workflow/config (earlier). Zero defects beyond the 2 iOS fixes from session 2. Isolate/ deleted. See FILE-AUDIT.md. |
-| 3 · CI repair | **DONE for YAML error (R1)** + this session: tests-step pipefail bug fixed, brew tap hygiene, action majors bumped, wiki workflow rewritten, truthful summary. Next check = real GitHub run. |
+| 3 · CI repair | **DONE** — R1 (YAML syntax), R3 (wiki sync), R4 (contradictory summary) all fixed. R2 (IPA EBADF) root cause confirmed, fix deployed, pending macOS CI run. |
 | 4 · IPA pipeline investigation | **ADVANCED — published `dev` IPA verified broken (no main executable)**; current CI blocker pinned to the device-build step in `ios/build.sh`; signing overrides added — unverified until next macOS run |
 | 5 · Docs & website truthfulness | **DONE** — manifest-driven CTAs/hero; all wiki pages rechecked against implementation (accurate); full site IA already in place (Setup/Download/Docs/Features/Troubleshooting all documented). |
 | 6 · Final QA gate | **BLOCKED (external)** — requires a real macOS build + sideload check (no local toolchain in sandbox). Next GitHub Actions run is the verification for R2. |
+| 7 · README restructure (§21) | **DONE** — added Screenshots placeholder, Contributing guide, and honest Project Status table. |
 
 ## 3. Release-blocking items
 
