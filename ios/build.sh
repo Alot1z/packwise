@@ -12,12 +12,18 @@
 #   A. xcodebuild build  -sdk iphoneos  (device arm64, isolated DerivedData)
 #   B. xcodebuild archive               (classic product path)
 #   C. xcodebuild build  without -destination (legacy product layout)
+#   D. xcodebuild build  minimal flags  (mirrors the CI tests step that works)
 # Every candidate is validated: the executable must exist, be non-empty,
 # be arm64 Mach-O, and carry the iOS device platform (LC_BUILD_VERSION 2,
 # never 7 = simulator). Test bundles are stripped, then the FINAL .ipa must
 # pass a strict publish gate or the script fails loudly — nothing broken
 # is ever released. Full diagnostics go to build/diagnostics.txt (uploaded
 # by CI even on failure, so any future failure is publicly readable).
+#
+# CI notes (2026-08-08): the GitHub Actions *logs* and *artifacts* require
+# sign-in (403/401), but check-run ANNOTATIONS are public. So on failure this
+# script also emits `::error::` workflow-command lines with the real error
+# text — they surface in the public annotations API without any credentials.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -33,13 +39,15 @@ DIAG="$BUILD/diagnostics.txt"
 # development team or certificate for an artifact we ship unsigned (sideloaders
 # re-sign locally).
 #
-# 2026-08-08 fix: the previous string form word-split into LITERAL quote chars
-# being passed to xcodebuild (`CODE_SIGN_IDENTITY=""`), and an explicit
-# `DEVELOPMENT_TEAM=` (even empty) makes Xcode 15/16 try to resolve a team —
-# an immediate "requires a development team" failure at the very start of the
-# build (observed on CI: run 31246529945 failed at this step ~7s in). Use the
-# ARRAY form and omit empty-value assignments entirely.
-NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual)
+# 2026-08-08 (session 5): the string form word-split into LITERAL quote chars
+# (`CODE_SIGN_IDENTITY=""`) and an explicit `DEVELOPMENT_TEAM=` — even empty —
+# made Xcode 15/16 try to resolve a team, failing instantly with "requires a
+# development team". This session (5b): dropped `CODE_SIGN_STYLE=Manual` too —
+# the CI *tests* step (which passes) uses exactly
+# `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""` and
+# no style override; forcing Manual style on Xcode 16 can itself trigger team
+# resolution even with signing disabled. Matching the proven-passing flags.
+NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=)
 
 mkdir -p "$BUILD"
 : > "$DIAG"
@@ -48,6 +56,16 @@ say()  { printf '%s\n' "$*"; }
 note() { printf '%s\n' "$*" | tee -a "$DIAG"; }
 
 diag_tail() { tail -n 140 "$BUILD_LOG" >> "$DIAG" || true; }
+
+# Emit the real error lines as GitHub Actions annotations (public, no auth).
+emit_annotations() {
+  if [ -f "$BUILD_LOG" ]; then
+    grep -nE "error:|fatal error|FAILED|requires a development team|Signing|CodeSign|Unable to find|does not exist|no such module|error: " "$BUILD_LOG" \
+      | tail -n 8 | while IFS= read -r line; do
+        printf '::error file=ios/build.sh,line=0::%s\n' "$(echo "$line" | cut -c1-300)" || true
+      done || true
+  fi
+}
 
 die() {
   note ""
@@ -63,6 +81,7 @@ die() {
   note "--- DerivedData products (depth 6) ---"
   find "$BUILD" -maxdepth 6 -type d 2>/dev/null | head -n 60 >> "$DIAG" || true
   note "══════════════════════════════════════════════════════"
+  emit_annotations
   echo "❌ $*" >&2
   exit 1
 }
@@ -74,7 +93,7 @@ fi
 note "→ 0/7 Generating Xcode project"
 xcodegen generate >/dev/null
 
-rm -rf "$BUILD/DerivedData" "$BUILD/DerivedData-C" "$BUILD/Payload" "$OUT_IPA" "$BUILD/PackWise.xcarchive"
+rm -rf "$BUILD/DerivedData" "$BUILD/DerivedData-C" "$BUILD/DerivedData-D" "$BUILD/Payload" "$OUT_IPA" "$BUILD/PackWise.xcarchive"
 : > "$BUILD_LOG"
 
 # ── strategy helpers ────────────────────────────────────────────────────────
@@ -91,6 +110,7 @@ run_build() {
     echo "   ── error lines (last 12) ──" >> "$DIAG"
     grep -nE "error:|fatal error|FAILED|does not exist|requires a development team|Signing|CodeSign" "$BUILD_LOG" \
       | tail -n 12 >> "$DIAG" 2>/dev/null || true
+    emit_annotations
   fi
   return "$rc"
 }
@@ -182,9 +202,23 @@ if [ -z "$APP" ]; then
   fi
 fi
 
+# D — minimal flags (mirrors the CI tests step that passes on the same runner)
+if [ -z "$APP" ]; then
+  if run_build "D · xcodebuild build (minimal — mirrors passing tests step)" \
+      build -project PackWise.xcodeproj -scheme PackWise \
+      -configuration Release -sdk iphoneos \
+      -derivedDataPath "$BUILD/DerivedData-D" \
+      "${NO_SIGN[@]}"; then
+    APP=$(validate_app "$BUILD/DerivedData-D/Build/Products/Release-iphoneos/$APP_NAME.app" || true)
+    [ -n "$APP" ] && BUILT_BY="D"
+  else
+    note "   ⚠ strategy D exited non-zero — continuing"
+  fi
+fi
+
 if [ -z "$APP" ]; then
   LAST_APP="$BUILD/DerivedData/Build/Products/Release-iphoneos/$APP_NAME.app"
-  die "no usable PackWise.app produced (all 3 strategies). See diagnostics above."
+  die "no usable PackWise.app produced (all 4 strategies). See diagnostics above."
 fi
 note "✓ app bundle produced by strategy $BUILT_BY: $APP"
 
