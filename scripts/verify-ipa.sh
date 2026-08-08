@@ -101,10 +101,18 @@ EXEC_PATH="$APP_DIR/$EXEC_NAME"
 unzip -Z1 "$IPA" 2>/dev/null | grep -q "^${EXEC_PATH}$" || \
   fail "main executable missing: $EXEC_PATH — this is the 'Failed to map …/PackWise: Bad file descriptor' failure. Use the latest build."
 
+# The executable entry must be a regular file. Sideloaders mmap the binary;
+# a symlink inside the .app cannot be mapped and fails with exactly
+# "Failed to map …/PackWise: Bad file descriptor" (EBADF). Detect it from
+# the zip's own metadata (Unix attrs) — no host tools required.
+if unzip -Z -v "$IPA" "$EXEC_PATH" 2>/dev/null | grep -q 'lrwxrwxrwx'; then
+  fail "main executable is a symlink inside the zip (Unix attrs lrwxrwxrwx) — sideloaders cannot map it ('Failed to map …/PackWise: Bad file descriptor'). This build is broken; use the latest CI build."
+fi
+
 # Extract just the executable for binary inspection.
 unzip -oq "$IPA" "$EXEC_PATH" -d "$TMP" || fail "could not extract $EXEC_PATH"
 EXEC_FILE="$TMP/$EXEC_PATH"
-[ -s "$EXEC_FILE" ] || fail "$EXEC_PATH exists but is empty — broken build."
+[ -s "$EXEC_FILE" ] || fail "$EXEC_PATH exists in the zip but is empty or unreadable — sideloaders cannot map it ('Failed to map …/PackWise: Bad file descriptor'). This build is broken; use the latest CI build."
 
 if command -v file >/dev/null 2>&1; then
   KIND=$(file "$EXEC_FILE")
@@ -118,6 +126,57 @@ if command -v otool >/dev/null 2>&1; then
   PLAT=$(otool -l "$EXEC_FILE" 2>/dev/null | grep -A5 "LC_BUILD_VERSION" | grep -m1 "platform" | awk '{print $2}' || true)
   [ "$PLAT" = "2" ] && pass "platform: iOS device (LC_BUILD_VERSION=2)"
   [ "$PLAT" = "7" ] && fail "platform: simulator — cannot sideload. Use the CI build."
+fi
+
+# ── 4b · Dependency-free Mach-O probe — inspects the binary itself, so the
+#        “Bad file descriptor” question (is it a real device executable?) is
+#        answered even on machines without `file`/`otool` (e.g. Linux). ──
+if command -v python3 >/dev/null 2>&1; then
+  PROBE=$(unzip -p "$IPA" "$EXEC_PATH" 2>/dev/null | python3 -c '
+import sys, struct
+d = sys.stdin.buffer.read()
+if len(d) < 12:
+    print("NOTMACHO:too-small")
+    sys.exit(0)
+m = d[:4]
+def cpu(t, st):
+    if t == 0x0100000C: return "arm64e" if st == 2 else "arm64"
+    if t == 0x01000007: return "x86_64"
+    if t == 0x00000007: return "i386"
+    if t == 0x0000000C: return "arm"
+    return "cpu-%x" % t
+# On disk, magic is byte-order-dependent: 0xfeedfacf little-endian = cf fa ed fe.
+if m in (b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca"):
+    e = "<" if m == b"\xbe\xba\xfe\xca" else ">"   # fat headers are big-endian
+    n = struct.unpack(e + "I", d[4:8])[0]
+    s, off = [], 8
+    for _ in range(n):
+        if off + 20 > len(d): break
+        t, st = struct.unpack(e + "II", d[off:off+8]); off += 20
+        s.append(cpu(t, st))
+    print("FAT[" + ",".join(s) + "]")
+elif m in (b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf"):
+    e = "<" if m == b"\xcf\xfa\xed\xfe" else ">"   # 0xfeedfacf LE on disk for arm64/x86_64
+    t, st = struct.unpack(e + "II", d[4:12])
+    print(cpu(t, st))
+elif m in (b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xce"):
+    print("NOTMACHO:32-bit-legacy")
+else:
+    print("NOTMACHO:unknown-magic")
+')
+  case "$PROBE" in
+    arm64|arm64e) pass "executable: Mach-O $PROBE (device)" ;;
+    x86_64|i386|arm) fail "executable is a $PROBE binary (simulator/legacy) — cannot sideload on a device. Use the CI build." ;;
+    FAT*)
+      if printf '%s' "$PROBE" | grep -qE 'x86_64|i386'; then
+        fail "fat binary contains a simulator slice: ${PROBE#FAT} — cannot sideload on a device. Use the CI build."
+      else
+        pass "executable: fat Mach-O ${PROBE#FAT}"
+      fi ;;
+    NOTMACHO:*)
+      fail "executable is not a valid Mach-O binary (${PROBE#NOTMACHO:}) — sideloaders cannot map it ('Failed to map …/PackWise: Bad file descriptor'). Use the latest CI build." ;;
+    *) warn "unexpected Mach-O probe: '$PROBE'" ;;
+  esac
 fi
 pass "executable present: $EXEC_PATH"
 

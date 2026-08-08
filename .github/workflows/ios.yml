@@ -145,12 +145,12 @@ jobs:
 
           # Validate the produced JSON before publishing.
           python3 -c "
-import json, sys
-m = json.load(open('_artifacts/PackWise-releases.json'))
-assert m['schema'] == 'packwise.releases/v1', 'schema mismatch'
-assert m['repository'] == '${GITHUB_REPOSITORY}', 'repo mismatch'
-print('manifest validated: latest=', m.get('latest',{}).get('tag'), 'dev=', m.get('dev',{}).get('tag'), 'count=', len(m['releases']))
-"
+          import json, sys
+          m = json.load(open('_artifacts/PackWise-releases.json'))
+          assert m['schema'] == 'packwise.releases/v1', 'schema mismatch'
+          assert m['repository'] == '${GITHUB_REPOSITORY}', 'repo mismatch'
+          print('manifest validated: latest=', (m.get('latest') or {}).get('tag'), 'dev=', (m.get('dev') or {}).get('tag'), 'count=', len(m['releases']))
+          "
 
       # ── Direct .ipa download (no outer zip) — versioned Release on tag v* ──
       - name: Publish to GitHub Release (on tag v*)
