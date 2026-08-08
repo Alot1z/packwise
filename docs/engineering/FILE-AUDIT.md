@@ -48,7 +48,7 @@
 | `ios/PackWise/Views/OnboardingView.swift` | 79 | ✅ | KEEP | reduced-motion + ScaledMetric + a11y | read |
 | `ios/PackWise/Views/TemplateLibraryView.swift` | 96 | ✅ | KEEP | delete confirmation present | read |
 | `ios/PackWise/Views/GlobalSearchView.swift` | 79 | ✅ | **FIXED (session 8)** | **`.searchActions` (iOS 18-only) replaced with availability-safe `searchClearAction($q)`** — same compile blocker as TripListView | read + edit + grep |
-| `ios/PackWise/Views/SearchClearActionsModifier.swift` | 36 | ✅ | **NEW (session 8)** | availability-safe `searchActions` wrapper: applies only on iOS 18+, falls back to built-in clear on iOS 17 | written + grep + `#available` verified |
+| `ios/PackWise/Views/SearchClearActionsModifier.swift` | 65 | ✅ | **NEW + HARDENED (session 8 → session 9)** | session-8: availability-safe `searchActions` wrapper inside `if #available(iOS 18.0, *)`. Session-9 hardening: `body` now returns `AnyView` so Swift unifies both branches as opaque `AnyView` instead of `_ConditionalContent<…>` whose internal witnesses would re-check `.searchActions` on the iOS-17 deployment target. iOS-18 branch moved to a separate `@available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>` — bulletproof, structurally impossible to repeat on iOS 17 | written + grep + `#available` + `AnyView` verified |
 | `ios/PackWise/Views/SettingsView.swift` | 70 | ✅ | KEEP | honest privacy/network statements | read |
 | `ios/PackWise/Views/NewTripSheet.swift` | 81 | ✅ | KEEP | date validation + local storage label | read |
 | `ios/PackWise/Views/RemindersView.swift` | 95 | ✅ | KEEP | local notifications, authorization flow | read |
@@ -67,6 +67,12 @@
 | `src/pages/Dashboard.tsx` | 56 | ✅ | KEEP | none | read + tsc 0 |
 | `src/pages/Auth.tsx` | 150 | ✅ | KEEP | none | read + tsc 0 |
 | `src/pages/NotFound.tsx` | 20 | ✅ | KEEP | none | read + tsc 0 |
+
+## Repository entry-points (session 9 addendum)
+
+| Path | Lines | Status | Action | Issues | Validation |
+|---|---|---|---|---|---|
+| `README.md` | 320 | ✅ | **EXTENDED (session 9)** | added dedicated **Release process** section -- the maintainer's end-to-end flow (triggers table, single `verify-ipa.sh` gate, two deterministic manifest URLs, three-host build matrix, 3-check pre-flight loop). Placed before FAQ so it sits with install/developer context. | read + grep verified |
 
 ## Infrastructure & config — full read & audit (session 3)
 
@@ -178,6 +184,26 @@ Fix: new `ios/PackWise/Views/SearchClearActionsModifier.swift` with
 `if #available(iOS 18.0, *)`, falls back to the platform's built-in clear
 on iOS 17. Both views updated. Changelog 1.0.13 synced web↔wiki (14/14).
 `tsc` 0 · `bash -n` 4/4 · `js-yaml` 3/3 · grep sweep clean.
+
+**Session 9 (bulletproof shim + streamlined release process):** hardened
+the iOS-18 `.searchActions` availability shim with the canonical SwiftUI
+iOS-version workaround: `body` returns `AnyView`, and the iOS-18 branch is
+moved into a separate `@available(iOS 18.0, *) struct SearchActionsWrapper
+<Content: View>`. Swift now unifies both branches as opaque `AnyView`
+instead of `_ConditionalContent<…>` whose internal witnesses would force
+`.searchActions` resolution on the generic `Content` at the iOS-17 target
+— **structurally impossible to repeat**. Full iOS audit: zero fixed-size
+fonts (every font is a semantic style or `@ScaledMetric`), zero stray
+`#available` blocks, zero other iOS-18-only APIs (`scrollPosition(default
+Distance:)`, `defaultScrollAnchor(.top)`, `MeshGradient`, etc.). README
+gains a dedicated **Release process** section documenting the maintainer's
+end-to-end flow (triggers table, single `verify-ipa.sh` gate, two
+deterministic manifest URLs, three-host build matrix, 3-check pre-flight
+loop), placed before FAQ so it sits with install/developer context. Changelog
+1.0.14 synced web↔wiki (15/15). `tsc` 0 · `bash -n` 4/4 · `js-yaml` 3/3.
+**External binary gate unchanged:** the next macOS CI run still produces
+the first valid device arm64 IPA — but the compile hazard is now
+structurally safe.
 
 ## Rules
 

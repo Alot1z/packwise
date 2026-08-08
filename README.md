@@ -274,6 +274,44 @@ bun install && bun run build   # → dist/ (deploy to Pages/Netlify/any static h
 
 ---
 
+## 🚀 Release process — the maintainer's streamlined flow
+
+This is the actual workflow you run as the owner. Every push and every tag is bound to a single source of truth (the code on `main`) and gated by `.github/workflows/ios.yml` — there is no separate script you need to remember to call, and no manual publish step.
+
+| Trigger | What CI runs | What gets published | Why |
+|---|---|---|---|
+| **push to `main`** | tests (non-blocking) → device-build → archive → legacy-build cascade → `verify-ipa.sh` strict gate → manifest | `ios-build-diagnostics` artifact **+** `PackWise-unsigned.ipa` artifact **+** `dev` prerelease (the **direct `.ipa`**, no unwrapping by users) | Every green push gives operators and sideloaders a fresh, verifiable build with zero latency between merge and artifact |
+| **`v*` tag** | same build + gate | versioned **GitHub Release** with `PackWise-unsigned.ipa`, `PackWise-releases.json`, and auto-generated notes | `v`-tags stay upstream of the dev stream so the dev release is always `>=` last tagged |
+| **manual *Run workflow*** on the Actions tab (inputs: `xcode_version`, `skip_tests`, `release_channel`) | same cascade with operator-chosen overrides | artifact + `dev` by default; `auto` selects `dev` if no prior versioned release exists, otherwise the next-tag release | Ad-hoc re-builds without merge noise — useful for retrying after a flake or testing a new Xcode runner |
+| **push to `wiki/`** (`main` only, mirrored to `wiki.yml`) | `checkout@v5` → rsync-style sync to the wiki repo | new pages / edits reachable at `Alot1z/packwise/wiki` | Wiki and source stay one click apart |
+
+**The simplify-the-rules:**
+
+1. **Branch + commit → push.** No manual script, no local packaging, no "tag and then push another thing" dance. The workflow is the only thing that publishes.
+2. **Versioned releases ride on tags, dev rides on every push.** Anything on `main` produces a `dev` artifact + prerelease; you only create a tag (`git tag vX.Y.Z && git push origin vX.Y.Z`) once you decide that build is stable. The tag release is the same IPA as the matching `dev` build (same commit SHA, same artifact bytes).
+3. **The publish gate is the verifier — `scripts/verify-ipa.sh`.** It checks: zip integrity → `Payload/PackWise.app` exists → arm64 device Mach-O (`LC_BUILD_VERSION platform 2`, not 7=simulator) → no `*.xctest` / no XCTest frameworks → main executable is non-empty. **If the gate fails, no artifact, no release, no `dev` release** — even though the job may have built something. The summary explicitly says "no IPA published" so the public API never advertises a broken build.
+4. **Manifest is regenerated and re-attached on every publish.** `scripts/release-manifest.sh` reads the prior dev manifest, appends the new entry, marks `is_latest: true`, and writes `PackWise-releases.json`. The same `verified_by_build: true` field is set by CI only — local uploads can opt out with `--no-verified`. Two stable URLs, no GitHub API key required:
+   - `releases/latest/download/PackWise-releases.json` — newest stable or, if unborn, newest dev
+   - `releases/download/dev/PackWise-releases.json` — newest dev
+5. **Status fields the site reads.** `useManifest()` on the web surfaces pulls `latest.tag`, `latest.sha256`, `latest.published_at`, `latest.verified_by_build`. When a release is missing or `verified_by_build === false`, the site shows **Status unavailable** instead of a fictional "verified".
+6. **Troubleshooting is first-class.** Every failure path is wired: missing iOS device platform → `xcodebuild -downloadPlatform iOS` with sudo fallback (`ios.yml` + `ios/build.sh`); signing-arg mismatch → bare-array tokens matching the proven-passing tests step; public failure annotations emitted as `::error::` lines so anyone using `actions/check-runs/{id}/annotations` (no auth) can read why a run failed.
+7. **The matrix is reproducible.** Same pipeline runs three ways: GitHub Actions (hosted), Gitea Actions (self-hosted, mirror YAML), and `act` locally on macOS-15 (`brew install act && act -W .github/workflows/ios.yml -P macos-15=-self-hosted`). A green run on any one of them is a green run on the others because they share the same `ios/build.sh` cascade and same gating script.
+
+**Pre-flight before tagging a release (3 checks, ≤ 15 seconds):**
+
+```bash
+bun tsc -b --noEmit                                       # typecheck the docs/web
+bash -n scripts/verify-ipa.sh scripts/release-manifest.sh # syntax-check the gate scripts
+npx js-yaml .github/workflows/ios.yml > /dev/null        # validate the workflow
+git tag vX.Y.Z -m "PackWise X.Y.Z" && git push origin vX.Y.Z   # cut the tag
+```
+
+That's the entire release process end-to-end — push to ship, tag to promote. The next macOS CI run on the new tag will produce the versioned Release and the wiki will note the change automatically.
+
+→ [Wiki → Build & Release](https://github.com/Alot1z/packwise/wiki/Build-and-Release) · live logs: [`Actions`](https://github.com/Alot1z/packwise/actions) · live manifest: [`PackWise-releases.json`](https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json)
+
+---
+
 ## ❓ FAQ
 
 **Do I need an Apple Developer account?** No. The unsigned IPA is built for you by CI, and your sideload tool signs it with your own Apple ID at install time.
