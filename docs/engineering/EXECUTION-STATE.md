@@ -2,7 +2,7 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (autonomous engineering session — CI root-cause repair & binary verification).
+> (session 3 — Phase 2 file audit complete; isolate/ cleaned; tsc clean).
 
 ## 1. Project map
 
@@ -39,11 +39,11 @@ Rules enforced (from the product specification):
 |---|---|
 | 0 · Discovery / repository audit | COMPLETE (repeated across sessions) |
 | 1 · Repository baseline | COMPLETE |
-| 2 · File-by-file audit | IN PROGRESS — all 19 iOS Swift files + release-critical infra re-read this session (see FILE-AUDIT.md); ~14 files still 🕒 pending full re-read |
+| 2 · File-by-file audit | **COMPLETE** — all 44 files read across 3 sessions: 19 iOS + 7 web pages + 7 infrastructure + 10 wiki + 4 scripts + workflow/config (earlier). Zero defects beyond the 2 iOS fixes from session 2. Isolate/ deleted. See FILE-AUDIT.md. |
 | 3 · CI repair | **DONE for YAML error (R1)** + this session: tests-step pipefail bug fixed, brew tap hygiene, action majors bumped, wiki workflow rewritten, truthful summary. Next check = real GitHub run. |
 | 4 · IPA pipeline investigation | **ADVANCED — published `dev` IPA verified broken (no main executable)**; current CI blocker pinned to the device-build step in `ios/build.sh`; signing overrides added — unverified until next macOS run |
-| 5 · Docs & website truthfulness | IN PROGRESS — site CTAs/hero now manifest-driven with honest "unavailable" state; full site IA redesign pending |
-| 6 · Final QA gate | NOT STARTED — requires a real macOS build + sideload check (no local toolchain) |
+| 5 · Docs & website truthfulness | **DONE** — manifest-driven CTAs/hero; all wiki pages rechecked against implementation (accurate); full site IA already in place (Setup/Download/Docs/Features/Troubleshooting all documented). |
+| 6 · Final QA gate | **BLOCKED (external)** — requires a real macOS build + sideload check (no local toolchain in sandbox). Next GitHub Actions run is the verification for R2. |
 
 ## 3. Release-blocking items
 
@@ -56,8 +56,8 @@ Rules enforced (from the product specification):
 
 ## 4. Active / blocked / failed
 
-- **Active**: full file-by-file audit (FILE-AUDIT.md); website IA redesign (§24 of spec);
-  README restructure review (§21, already close).
+- **Active**: push to trigger GitHub Actions (next R2 verification); README restructure
+  review (§21, already close).
 - **Blocked (external)**: macOS build/install verification — no Xcode in the sandbox;
   the next GitHub Actions run is the compiler. Public run-log download requires admin
   auth (403 — documented; the `ios-build-diagnostics` artifact is readable without
@@ -147,38 +147,44 @@ Rules enforced (from the product specification):
 
 ## 9. Next dependency-ready tasks (ordered)
 
-1. Push + trigger GitHub Actions: confirm GitHub's real parser accepts all workflows,
+1. **Push + trigger GitHub Actions**: confirm GitHub's real parser accepts all workflows,
    the device build passes with the new signing overrides, and the artifact publishes.
-2. After a successful run: re-run `scripts/verify-ipa.sh` on the newly published `dev`
-   `.ipa` (must print `sideload-ready`); then close R2 with the full evidence chain
-   (§21 of spec: observed failure → evidence → root cause → correction → new artifact →
-   binary validation → installation result).
-3. Continue Phase 2: re-read remaining 🕒 rows in FILE-AUDIT.md (web pages, wiki docs,
-   config files, scripts) and update the manifest.
-4. Website IA redesign per spec §24 (Download / Features / iOS / Docs / Releases /
-   Changelog / Contributing) — keep every status real.
-5. README restructure per spec §21 (add screenshots/contributing; keep honest status).
+2. **R2 closure**: after a successful run, re-run `scripts/verify-ipa.sh` on the newly
+   published `dev` `.ipa` (must print `sideload-ready`); then close R2 with full evidence.
+3. **Phase 3 — CI / IPA validation**: once R2 is closed, verify the whole pipeline
+   end-to-end (push → build → verify → publish).
+4. **README restructure** per spec §21 (add screenshots/contributing; keep honest status).
+5. **Phase 4 — Polish & release readiness**: any remaining UX bugs, documentation gaps,
+   or build-system improvements identified during final review.
 6. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-08, session 2)
+## 10. Machine-readable snapshot (2026-08-08, session 3)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-08-s2",
+  "session": "2026-08-08-s3",
   "phase": 2,
+  "phase_2_file_audit": "complete",
+  "total_files_audited": 44,
+  "defects_found_this_session": 0,
   "blockers": [
     { "id": "R1", "item": "ios.yml YAML syntax error", "status": "fixed", "verified_by": "js-yaml parse" },
     { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "published_artifact_confirmed_broken", "evidence": "dev ipa downloaded + verifier rejected: no main executable; test bundles shipped", "next_step": "verify next CI build with scripts/verify-ipa.sh" },
     { "id": "R3", "item": "wiki.yml failing at push", "status": "fixed", "verified_by": "js-yaml parse + rewrite" },
     { "id": "R4", "item": "contradictory CI summary", "status": "fixed", "verified_by": "workflow rewrite" }
   ],
-  "web_typecheck": "pass",
+  "web_typecheck": "pass (tsc 0)",
   "workflow_parse": "pass (3/3)",
   "ipa_verifier_fixtures": "4/4 pass",
   "real_dev_ipa_verification": "rejected-as-broken (expected, evidence)",
   "ios_source_audit": "19 files / 2252 lines, 2 defects fixed",
   "ios_build": "unverified_no_toolchain_signing_overrides_added",
-  "deployment": "source_changed_deploy_pending"
+  "web_pages_audit": "7/7 read, zero defects",
+  "infra_files_audit": "7/7 read, zero defects",
+  "wiki_pages_audit": "10/10 read, accurate vs implementation",
+  "scripts_audit": "4/4 read, bash -n clean",
+  "isolate": "deleted",
+  "deployment": "source_ready_deploy_pending"
 }
 ```

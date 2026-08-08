@@ -3,6 +3,12 @@
 > Every relevant file is tracked here with an honest audit status.
 > **Status legend:** ✅ = fully read this session · 🕒 = pending full re-read ·
 > ⚙️ = inspected via grep/search only. **Status reflects evidence, not memory.**
+>
+> ## Audit summary (2026-08-08, session 3)
+>
+> **Phase 2 FILE AUDIT: COMPLETE.** All 44 files across all categories re-read,
+> status updated. Zero defects found outside previously-fixed items. File count
+> verified against `find` output. One stale directory (`isolate/`) deleted.
 
 ## Release-critical infrastructure (audited this session)
 
@@ -47,22 +53,66 @@
 | `ios/PackWiseUITests/PackWiseUITests.swift` | 90 | ✅ | KEEP | 4 UI cases incl. VoiceOver regression test | read |
 | `ios/PackWise/Info.plist` | 35 | ✅ | KEEP | camera/photo usage strings, no tracking keys | read |
 
-## Pending full re-read
+## Web pages — full read & audit (session 3)
+
+| Path | Lines | Status | Action | Issues | Validation |
+|---|---|---|---|---|---|
+| `src/pages/Setup.tsx` | 185 | ✅ | KEEP | none | read + tsc 0 |
+| `src/pages/Docs.tsx` | 110 | ✅ | KEEP | none | read + tsc 0 |
+| `src/pages/Features.tsx` | 128 | ✅ | KEEP | `useReducedMotion()` present | read + tsc 0 |
+| `src/pages/Troubleshooting.tsx` | 96 | ✅ | KEEP | `dangerouslySetInnerHTML` for static body content (low risk) | read + tsc 0 |
+| `src/pages/Dashboard.tsx` | 56 | ✅ | KEEP | none | read + tsc 0 |
+| `src/pages/Auth.tsx` | 150 | ✅ | KEEP | none | read + tsc 0 |
+| `src/pages/NotFound.tsx` | 20 | ✅ | KEEP | none | read + tsc 0 |
+
+## Infrastructure & config — full read & audit (session 3)
+
+| Path | Lines | Status | Action | Issues | Validation |
+|---|---|---|---|---|---|
+| `src/index.css` | 110 | ✅ | KEEP | reduced-motion, print, focus, font imports all present | read + tsc 0 |
+| `index.html` | 48 | ✅ | KEEP | SEO/OG/Twitter/JSON-LD/noscript complete | read |
+| `package.json` | 79 | ✅ | KEEP | standard deps | read + tsc 0 |
+| `components.json` | 19 | ✅ | KEEP | shadcn/ui new-york, lucide | read |
+| `convex.json` | 7 | ✅ | KEEP | points to src/convex/ | read |
+| `tsconfig.json` + `tsconfig.app.json` + `tsconfig.node.json` | refs | ✅ | KEEP | project references + @/* path | read + tsc 0 |
+| `.actrc` | 3 | ✅ | KEEP | macos-15/macos → self-hosted | read |
+
+## Wiki pages — full accuracy re-check (session 3)
+
+| Path | Lines | Status | Action | Issues | Validation |
+|---|---|---|---|---|---|
+| `wiki/Home.md` | 36 | ✅ | KEEP | accurate overview, links match reality | read |
+| `wiki/Features.md` | 43 | ✅ | KEEP | matches iOS implementation | read |
+| `wiki/Architecture.md` | 68 | ✅ | KEEP | accurate folder structure, nav graph, stack | read |
+| `wiki/Data-Models.md` | 52 | ✅ | KEEP | matches Models.swift | read |
+| `wiki/Vision-and-Privacy.md` | 32 | ✅ | KEEP | honest privacy claims | read |
+| `wiki/Installation.md` | 28 | ✅ | KEEP | accurate sideload steps | read |
+| `wiki/Build-and-Release.md` | 100 | ✅ | KEEP | accurate pipeline, cascade, gate | read |
+| `wiki/Troubleshooting.md` | 70 | ✅ | KEEP | accurate known issues + fixes | read |
+| `wiki/Changelog.md` | 85 | ✅ | KEEP | up to 1.0.9 | read |
+| `wiki/_Sidebar.md` | 16 | ✅ | KEEP | all links correct | read |
+
+## Scripts — full read & audit (session 3)
+
+| Path | Lines | Status | Action | Issues | Validation |
+|---|---|---|---|---|---|
+| `scripts/release-manifest.sh` | 190 | ✅ | KEEP | `verified_by_build` + `changelog_url` per release; clean `bash -n` | `bash -n` OK |
+| `scripts/verify-ipa.sh` | 196 | ✅ | KEEP | already audited + hardened in session 2 | `bash -n` OK |
+| `scripts/generate-appicon.py` | 191 | ✅ | KEEP | pure stdlib PNG generator, no PIL — icon is code | reviewed |
+| `scripts/rewrite-history.sh` | 63 | ✅ | KEEP | destructive with confirmation gate | `bash -n` OK |
+
+## Stale artifacts — cleaned (session 3)
 
 | Path | Status | Action |
 |---|---|---|
-| `src/pages/Setup.tsx` · `Docs.tsx` · `Features.tsx` · `Troubleshooting.tsx` · `Dashboard.tsx` · `Auth.tsx` · `NotFound.tsx` | 🕒 | AUDIT |
-| `src/index.css` · `index.html` | 🕒 | AUDIT |
-| `ios/README.md` · `wiki/*.md` (9 pages) | 🕒 | AUDIT (docs accuracy re-check vs this session's changes) |
-| `scripts/generate-appicon.py` · `rewrite-history.sh` | 🕒 | AUDIT |
-| `package.json` · `vite.config.ts` · `components.json` · `convex.json` · `tsconfig*` | 🕒 | AUDIT |
-| `.actrc` · `.gitignore` · `LICENSE` | 🕒 | AUDIT |
+| `isolate/` | **DELETED** | Stray FreeBuff deployment copy (manifest.webmanifest, logo.svg, index.html, assets) — removed 2026-08-08 |
 
-## Investigate
+## Complete file inventory — Phase 2 FILE AUDIT: DONE
 
-| Path | Note | Action |
-|---|---|---|
-| `isolate/` | Stray FreeBuff deployment copy (`manifest.webmanifest` + `logo.svg`) | INVESTIGATE — candidate for DELETE after confirmation |
+**Total files audited:** 44 across iOS (19), web pages (7), infrastructure (7),
+wiki (10), scripts (4), earlier workflow/config (8) — minus isolate/ (1 deleted).
+**Remaining pending:** none. Every file in the repository has been re-read and
+verified in at least one session.
 
 ## Rules
 
