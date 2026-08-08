@@ -23,6 +23,7 @@ import {
   LIVE_RELEASE_LATEST,
   LIVE_RELEASE_DEV,
   LIVE_ACTIONS,
+  useManifest,
 } from "@/components/site-shared";
 
 function CopyBlock({ text, label }: { text: string; label?: string }) {
@@ -48,6 +49,8 @@ function CopyBlock({ text, label }: { text: string; label?: string }) {
 }
 
 export default function Download() {
+  const manifest = useManifest();
+  const ready = manifest.state === "verified";
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteNav />
@@ -59,15 +62,42 @@ export default function Download() {
         />
 
         <section className="max-w-[1180px] mx-auto px-6 pb-10">
-          {/* Status */}
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 flex gap-2.5">
-            <BadgeCheck className="size-4 text-emerald-700 shrink-0 mt-0.5" aria-hidden />
-            <div className="text-xs leading-5 text-emerald-900">
-              <span className="font-semibold">Build status is verified, not assumed.</span> Every IPA is validated before publishing: the
-              executable must exist inside <span className="font-mono">Payload/PackWise.app/</span>, be an arm64 device Mach-O, and contain
-              no test bundles. If validation fails, the workflow fails — nothing broken is released.
+          {/* Status — live, truthful, derived from the public release manifest */}
+          {manifest.state === "loading" && (
+            <div className="rounded-2xl border border-border bg-card p-4 flex gap-2.5">
+              <div className="text-xs leading-5 text-muted-foreground">Checking build status…</div>
             </div>
-          </div>
+          )}
+          {ready && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 flex gap-2.5">
+              <BadgeCheck className="size-4 text-emerald-700 shrink-0 mt-0.5" aria-hidden />
+              <div className="text-xs leading-5 text-emerald-900">
+                <span className="font-semibold">Build status is verified, not assumed.</span> Every IPA is validated before publishing:
+                the executable must exist inside <span className="font-mono">Payload/PackWise.app/</span>, be an arm64 device Mach-O, and
+                contain no test bundles. Latest verified build:{" "}
+                <span className="font-mono font-medium">{manifest.latest?.tag ?? manifest.dev?.tag ?? "dev"}</span>.
+              </div>
+            </div>
+          )}
+          {manifest.state === "unavailable" && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 flex gap-2.5">
+              <AlertTriangle className="size-4 text-amber-700 shrink-0 mt-0.5" aria-hidden />
+              <div className="text-xs leading-5 text-amber-900">
+                <span className="font-semibold">Status unavailable — no verified build is currently published.</span> The release
+                manifest could not be fetched (or contains no verified entry), and recent CI runs are failing. The last published{" "}
+                <span className="font-mono">dev</span> build was inspected and rejected: it is missing its main executable and contains
+                injected test bundles — do not sideload it. Until a new build passes the validation gate, use{" "}
+                <a href="/build" className="font-medium underline underline-offset-4">
+                  a local build
+                </a>{" "}
+                or watch{" "}
+                <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">
+                  Actions
+                </a>
+                .
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 grid lg:grid-cols-3 gap-4">
             {/* Direct .ipa */}
@@ -85,20 +115,20 @@ export default function Download() {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <a
-                  href={LIVE_RELEASE_LATEST}
+                  href={ready ? LIVE_RELEASE_LATEST : LIVE_RELEASES}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Latest IPA <ExternalLink className="size-3" aria-hidden />
+                  {ready ? "Latest IPA" : "View Releases"} <ExternalLink className="size-3" aria-hidden />
                 </a>
                 <a
-                  href={LIVE_RELEASE_DEV}
+                  href={ready ? LIVE_RELEASE_DEV : LIVE_RELEASES}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full border border-border bg-white hover:bg-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  dev — direct <ExternalLink className="size-3" aria-hidden />
+                  {ready ? "dev — direct" : "dev — unverified"} <ExternalLink className="size-3" aria-hidden />
                 </a>
               </div>
               <div className="mt-4">
@@ -195,12 +225,9 @@ export default function Download() {
               <AlertTriangle className="size-4 text-amber-700 shrink-0 mt-0.5" aria-hidden />
               <p className="text-xs leading-5 text-amber-900">
                 Unsigned IPAs must be re-signed by the sideload tool you choose — they are not App Store signed. If a sideloader reports{" "}
-                <span className="font-mono">Failed to map …/PackWise: Bad file descriptor</span>, the IPA predates the executable
-                validation fix; download the latest{" "}
-                <a href={LIVE_RELEASE_DEV} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">
-                  dev
-                </a>{" "}
-                build or run <span className="font-mono">./ios/build.sh</span>.
+                <span className="font-mono">Failed to map …/PackWise: Bad file descriptor</span>, the artifact has no installable
+                executable (or predates the executable validation fix). Use a verified build only, or run{" "}
+                <span className="font-mono">./ios/build.sh</span> locally.
               </p>
             </div>
             <div className="mt-4 rounded-xl bg-[#1a1a1e] text-zinc-100 p-3 font-mono text-xs leading-5 overflow-x-auto border border-white/10">

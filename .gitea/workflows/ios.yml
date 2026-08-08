@@ -22,7 +22,23 @@ jobs:
           xcodebuild -version
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          # Same runner hygiene as the GitHub workflow: remove an unused
+          # untrusted tap if present (never disable tap-trust globally) and fall
+          # back to XcodeGen's official release binary if brew fails.
+          brew untap aws/tap 2>/dev/null || true
+          if command -v xcodegen >/dev/null 2>&1; then
+            echo "xcodegen already installed: $(xcodegen --version 2>/dev/null || echo present)"
+          elif brew install xcodegen; then
+            echo "installed xcodegen via Homebrew: $(xcodegen --version 2>/dev/null || echo present)"
+          else
+            echo "brew failed — installing xcodegen from the official release binary"
+            curl -fsSL -o /tmp/xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+            sudo mkdir -p /usr/local/bin
+            sudo unzip -o /tmp/xcodegen.zip -d /usr/local/bin
+            sudo chmod +x /usr/local/bin/xcodegen
+            xcodegen --version
+          fi
 
       - name: Generate Xcode project
         working-directory: ios
@@ -33,13 +49,17 @@ jobs:
         continue-on-error: true
         working-directory: ios
         run: |
-          set -o pipefail
+          # Same fix as the GitHub workflow: disable errexit around the test
+          # pipeline so a test failure records TESTS_PASSED=0 and exits 0
+          # instead of aborting the step with xcodebuild's exit code.
           mkdir -p build
+          set +e
           xcodebuild test -project PackWise.xcodeproj -scheme PackWise \
             -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" \
             -configuration Debug CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             2>&1 | tee build/tests.log | tail -n 120
           TEST_EXIT=${PIPESTATUS[0]}
+          set -e
           if [ "$TEST_EXIT" = "0" ]; then echo "TESTS_PASSED=1" >> "$GITHUB_ENV"; else echo "TESTS_PASSED=0" >> "$GITHUB_ENV"; fi
           echo "Tests exited $TEST_EXIT — continuing regardless."
           exit 0
@@ -100,7 +120,7 @@ jobs:
 
       - name: Upload unsigned IPA (debug artifact)
         if: env.BUILT_UNSIGNED_IPA == '1'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PackWise-unsigned-ipa
           path: |
@@ -142,7 +162,7 @@ jobs:
       # Diagnostics always uploaded — failures stay readable.
       - name: Upload build diagnostics (always)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-build-diagnostics
           path: |
@@ -157,7 +177,7 @@ jobs:
         if: always()
         run: |
           echo "### PackWise — iOS (Gitea)" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${TESTS_PASSED:-0}" = "1" ]; then echo "✅ Tests passed" >> "$GITHUB_STEP_SUMMARY"; else echo "⚠️ Tests non-blocking — see log" >> "$GITHUB_STEP_SUMMARY"; fi
+          if [ "${TESTS_PASSED:-0}" = "1" ]; then echo "**Tests:** ✅ passed" >> "$GITHUB_STEP_SUMMARY"; elif [ "${TESTS_PASSED:-0}" = "0" ]; then echo "**Tests:** ⚠️ failed (non-blocking) — see tests.log" >> "$GITHUB_STEP_SUMMARY"; else echo "**Tests:** ⏭️ skipped" >> "$GITHUB_STEP_SUMMARY"; fi
           if [ "${BUILT_UNSIGNED_IPA:-0}" = "1" ]; then
             echo "✅ Unsigned IPA: \`PackWise-unsigned.ipa\` — validated (executable present, arm64 device, no test bundles)" >> "$GITHUB_STEP_SUMMARY"
             echo "Artifact: PackWise-unsigned-ipa (outer zip — unwrap to .ipa)" >> "$GITHUB_STEP_SUMMARY"

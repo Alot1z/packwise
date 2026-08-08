@@ -44,7 +44,25 @@ jobs:
           swift --version
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          # Runner hygiene: an unused untrusted tap (e.g. aws/tap) makes Homebrew
+          # refuse commands until trusted. We never use that tap — remove it if
+          # present (never disable tap-trust globally). Fall back to XcodeGen's
+          # official release binary if brew still fails, so a Homebrew hiccup can
+          # never block the IPA build.
+          brew untap aws/tap 2>/dev/null || true
+          if command -v xcodegen >/dev/null 2>&1; then
+            echo "xcodegen already installed: $(xcodegen --version 2>/dev/null || echo present)"
+          elif brew install xcodegen; then
+            echo "installed xcodegen via Homebrew: $(xcodegen --version 2>/dev/null || echo present)"
+          else
+            echo "brew failed — installing xcodegen from the official release binary"
+            curl -fsSL -o /tmp/xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+            sudo mkdir -p /usr/local/bin
+            sudo unzip -o /tmp/xcodegen.zip -d /usr/local/bin
+            sudo chmod +x /usr/local/bin/xcodegen
+            xcodegen --version
+          fi
 
       - name: Generate Xcode project
         working-directory: ios
@@ -57,9 +75,15 @@ jobs:
         continue-on-error: true
         working-directory: ios
         run: |
-          set -o pipefail
+          # GitHub runs steps with `bash -e -o pipefail` by default: a failing
+          # xcodebuild test would abort this script before `exit 0`, turning the
+          # "non-blocking" step into a hard failure that propagates xcodebuild's
+          # exit code (65/70) and never records TESTS_PASSED. Disable errexit
+          # around the pipeline, capture the real status, and always exit 0 so a
+          # test flake can never block the IPA or produce a misleading failure.
           mkdir -p build
           echo "→ Running tests (never blocks the IPA build)"
+          set +e
           xcodebuild test \
             -project PackWise.xcodeproj -scheme PackWise \
             -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" \
@@ -67,6 +91,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             2>&1 | tee build/tests.log | tail -n 120
           TEST_EXIT=${PIPESTATUS[0]}
+          set -e
           if [ "$TEST_EXIT" = "0" ]; then echo "TESTS_PASSED=1" >> "$GITHUB_ENV"; else echo "TESTS_PASSED=0" >> "$GITHUB_ENV"; fi
           echo "Tests exited $TEST_EXIT — continuing to build the IPA regardless."
           exit 0
@@ -155,7 +180,7 @@ jobs:
       # ── Direct .ipa download (no outer zip) — versioned Release on tag v* ──
       - name: Publish to GitHub Release (on tag v*)
         if: startsWith(github.ref, 'refs/tags/v') && env.BUILT_UNSIGNED_IPA == '1'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             ios/build/PackWise-unsigned.ipa
@@ -166,7 +191,7 @@ jobs:
       # ── Direct .ipa — auto dev prerelease on every push to main ──
       - name: Publish dev prerelease (every main push — 1-click .ipa)
         if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.BUILT_UNSIGNED_IPA == '1'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: dev
           name: dev — latest main build
@@ -180,7 +205,7 @@ jobs:
       # ── Debug artifact — GitHub wraps this in an outer .zip on download ──
       - name: Upload unsigned IPA (debug artifact — unwrap once to .ipa)
         if: env.BUILT_UNSIGNED_IPA == '1'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PackWise-unsigned-ipa
           path: |
@@ -192,7 +217,7 @@ jobs:
       # ── Diagnostics are ALWAYS uploaded so any failure is publicly readable ──
       - name: Upload build diagnostics (always — readable without sign-in)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-build-diagnostics
           path: |
@@ -209,9 +234,11 @@ jobs:
           echo "### PackWise — iOS" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ "${TESTS_PASSED:-0}" = "1" ]; then
-            echo "✅ Tests passed" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Tests:** ✅ passed" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${TESTS_PASSED:-0}" = "0" ]; then
+            echo "**Tests:** ⚠️ failed (non-blocking) — see tests.log in the diagnostics artifact" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "⚠️ Tests did not pass (non-blocking) — IPA still built" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Tests:** ⏭️ skipped or not run" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ "${BUILT_UNSIGNED_IPA:-0}" = "1" ]; then
@@ -222,7 +249,8 @@ jobs:
             echo "- Artifact \`PackWise-unsigned-ipa\` is an outer zip — unwrap once to get the \`.ipa\`" >> "$GITHUB_STEP_SUMMARY"
             echo "- Verify: \`./scripts/verify-ipa.sh <file>\` · \`shasum -a 256\`" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "❌ **No IPA produced** — see Build step log or the \`ios-build-diagnostics\` artifact." >> "$GITHUB_STEP_SUMMARY"
+            echo "❌ **No IPA produced** — the Build step failed; see the \`ios-build-diagnostics\` artifact." >> "$GITHUB_STEP_SUMMARY"
+            echo "   No release was published by this run — any previously published \`dev\` asset is stale and must not be trusted until a new build passes the gate." >> "$GITHUB_STEP_SUMMARY"
             if [ -f "ios/build/diagnostics.txt" ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "<details><summary>Last diagnostics (from diagnostics.txt)</summary>" >> "$GITHUB_STEP_SUMMARY"

@@ -28,8 +28,11 @@ EXEC_NAME=PackWise
 OUT_IPA="$BUILD/PackWise-unsigned.ipa"
 BUILD_LOG="$BUILD/build.log"
 DIAG="$BUILD/diagnostics.txt"
-NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="")
-NO_SIGN_STR="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="
+# Unsigned device builds: disable every signing hook and force Manual style so
+# Xcode 16 never demands a development team for an artifact we ship unsigned
+# (sideloaders re-sign locally).
+NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" CODE_SIGN_STYLE=Manual)
+NO_SIGN_STR="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=\"\" DEVELOPMENT_TEAM=\"\" CODE_SIGN_STYLE=Manual"
 
 mkdir -p "$BUILD"
 : > "$DIAG"
@@ -75,7 +78,14 @@ run_build() {
   note "→ trying strategy: $label"
   # shellcheck disable=SC2086
   xcodebuild "$@" 2>&1 | tee -a "$BUILD_LOG" | tail -n 25
-  return "${PIPESTATUS[0]}"
+  local rc=${PIPESTATUS[0]}
+  if [ "$rc" != "0" ]; then
+    # Make the next failure readable at a glance: extract the real error lines.
+    echo "   ── error lines (last 12) ──" >> "$DIAG"
+    grep -nE "error:|fatal error|FAILED|does not exist|requires a development team|Signing|CodeSign" "$BUILD_LOG" \
+      | tail -n 12 >> "$DIAG" 2>/dev/null || true
+  fi
+  return "$rc"
 }
 
 # validate_app <app dir> → echo path if the executable is a real device binary
@@ -86,6 +96,10 @@ validate_app() {
   local exec="$app/$EXEC_NAME"
   if [ ! -f "$exec" ] || [ ! -s "$exec" ]; then
     note "   ⚠ $app has no non-empty main executable — strategy unusable"
+    note "   ── bundle contents ──"
+    ls -la "$app" >> "$DIAG" 2>&1 || true
+    find "$app" -maxdepth 2 -type f 2>/dev/null | head -n 30 >> "$DIAG" || true
+    note "   ── end bundle contents ──"
     return 1
   fi
   chmod +x "$exec" 2>/dev/null || true

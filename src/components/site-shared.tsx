@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, Github, ExternalLink, ArrowRight, Menu, X, Package, Sparkles } from "lucide-react";
 
 /** Shared constants — every download button on the site points here. */
@@ -9,6 +9,56 @@ export const LIVE_RELEASE_LATEST = "https://github.com/Alot1z/packwise/releases/
 export const LIVE_RELEASE_DEV = "https://github.com/Alot1z/packwise/releases/tag/dev";
 export const LIVE_ACTIONS = "https://github.com/Alot1z/packwise/actions";
 export const WIKI_URL = "https://github.com/Alot1z/packwise/wiki";
+
+export type ReleasePointer = {
+  tag: string;
+  sha256?: string;
+  verified_by_build?: boolean;
+  published_at?: string;
+};
+
+type ManifestState = "loading" | "verified" | "unavailable";
+
+/**
+ * Live release status straight from GitHub's public release manifests.
+ * The dev prerelease is published on every successful main push, so it is the
+ * freshest signal; `latest` only exists once a v* release is published.
+ *
+ * Truthfulness contract: when neither manifest exists (or both 404), the state
+ * is `unavailable` — callers must show an explicit unavailable state, never
+ * pretend a download exists.
+ */
+export function useManifest() {
+  const [state, setState] = useState<ManifestState>("loading");
+  const [latest, setLatest] = useState<ReleasePointer | null>(null);
+  const [dev, setDev] = useState<ReleasePointer | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const poke = async () => {
+      const [devR, latestR] = await Promise.allSettled([
+        fetch("https://github.com/Alot1z/packwise/releases/download/dev/PackWise-releases.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
+        fetch("https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
+      ]);
+      if (cancelled) return;
+      const devJ = devR.status === "fulfilled" ? devR.value : null;
+      const latestJ = latestR.status === "fulfilled" ? latestR.value : null;
+      const devP: ReleasePointer | null = devJ?.dev ?? null;
+      const latestP: ReleasePointer | null = devJ?.latest ?? latestJ?.latest ?? null;
+      if (devP || latestP) {
+        setDev(devP);
+        setLatest(latestP);
+        setState("verified");
+      } else {
+        setState("unavailable");
+      }
+    };
+    void poke();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return { state, latest, dev };
+}
 
 export const serif = { fontFamily: "Instrument Serif, Cormorant Garamond, serif" } as const;
 
@@ -30,6 +80,8 @@ function isActivePath(current: string, target: string) {
 export function SiteNav() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const manifest = useManifest();
+  const ready = manifest.state === "verified";
   return (
     <>
       <a
@@ -77,12 +129,12 @@ export function SiteNav() {
 
           <div className="ml-auto flex items-center gap-2">
             <a
-              href={LIVE_RELEASE_LATEST}
+              href={ready ? LIVE_RELEASE_LATEST : LIVE_RELEASES}
               target="_blank"
               rel="noreferrer"
               className="hidden sm:inline-flex text-sm font-medium px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition items-center gap-1.5 shadow-sm hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <Download className="size-3.5" aria-hidden /> Download IPA
+              <Download className="size-3.5" aria-hidden /> {ready ? "Download IPA" : "View Releases"}
             </a>
             <a
               href={LIVE_REPO}
@@ -133,12 +185,12 @@ export function SiteNav() {
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <a
-                href={LIVE_RELEASE_LATEST}
+                href={ready ? LIVE_RELEASE_LATEST : LIVE_RELEASES}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium"
               >
-                <Download className="size-4" aria-hidden /> Latest IPA
+                <Download className="size-4" aria-hidden /> {ready ? "Latest IPA" : "View Releases"}
               </a>
               <a
                 href={LIVE_RELEASE_DEV}
@@ -160,6 +212,8 @@ export function SiteNav() {
 }
 
 export function SiteFooter() {
+  const manifest = useManifest();
+  const ready = manifest.state === "verified";
   return (
     <footer className="border-t border-border/70 bg-card/40">
       <div className="max-w-[1180px] mx-auto px-6 py-8 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between text-sm text-muted-foreground">
@@ -174,12 +228,12 @@ export function SiteFooter() {
         </span>
         <span className="inline-flex items-center gap-2 flex-wrap">
           <a
-            href={LIVE_RELEASE_LATEST}
+            href={ready ? LIVE_RELEASE_LATEST : LIVE_RELEASES}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline underline-offset-4"
           >
-            Download IPA <Download className="size-4" aria-hidden />
+            {ready ? "Download IPA" : "View Releases"} <Download className="size-4" aria-hidden />
           </a>
           <span className="text-border" aria-hidden>
             ·
@@ -209,7 +263,18 @@ export function SiteFooter() {
           </span>
           <span>Validated before every publish · executable · arm64 · no test bundles</span>
           <span className="ml-auto inline-flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden /> Verified pipeline
+            {ready ? (
+              <>
+                <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden /> Verified build available
+              </>
+            ) : (
+              <>
+                <span className="size-1.5 rounded-full bg-amber-500" aria-hidden /> Status: unavailable — see{" "}
+                <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="underline underline-offset-4 hover:text-foreground">
+                  Actions
+                </a>
+              </>
+            )}
           </span>
         </div>
       </div>

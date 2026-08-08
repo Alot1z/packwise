@@ -42,7 +42,9 @@ final class VisionService: ObservableObject {
         }
         do {
             let request = VNClassifyImageRequest()
-            let handler = VNImageRequestHandler(cgImage: cg, orientation: .up, options: [:])
+            // Respect the photo's stored rotation: UIImage.cgImage bakes no
+            // orientation, so `.up` would misclassify portrait photos.
+            let handler = VNImageRequestHandler(cgImage: cg, orientation: cgOrientation(image.imageOrientation), options: [:])
             try handler.perform([request])
             let results = (request.results ?? []).prefix(8)
             let mapped: [VisionSuggestion] = results
@@ -63,4 +65,19 @@ final class VisionService: ObservableObject {
     }
 
     func reset() { suggestions = []; error = nil; isProcessing = false }
+
+    /// Maps UIImage orientation → Vision's CGImagePropertyOrientation.
+    private func cgOrientation(_ o: UIImage.Orientation) -> CGImagePropertyOrientation {
+        switch o {
+        case .up: return .up
+        case .down: return .down
+        case .left: return .left
+        case .right: return .right
+        case .upMirrored: return .upMirrored
+        case .downMirrored: return .downMirrored
+        case .leftMirrored: return .leftMirrored
+        case .rightMirrored: return .rightMirrored
+        @unknown default: return .up
+        }
+    }
 }

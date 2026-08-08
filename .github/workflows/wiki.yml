@@ -11,39 +11,60 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
+      # GitHub does not create the wiki repo until the wiki feature is enabled
+      # (or a wiki page is viewed). Enabling it via the API is idempotent and
+      # makes the first push succeed instead of failing against a nonexistent
+      # repo. Docs-sync is not a product gate: failures are logged and the
+      # step is non-blocking so a wiki hiccup never red-flags every push.
+      - name: Ensure wiki is enabled (idempotent)
+        run: |
+          curl -fsSL -X PATCH \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY" \
+            -d '{"has_wiki": true}' \
+            && echo "wiki enabled" \
+            || echo "⚠ could not enable wiki via API (may already be enabled) — continuing"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Push wiki/ to Alot1z/packwise.wiki
+        continue-on-error: true
         run: |
           set -e
           if [ ! -d wiki ]; then echo "No wiki/ dir — nothing to sync"; exit 0; fi
           echo "wiki/ contents:"; ls -lh wiki/
           # Clone or init the wiki repo (it's a separate git repo: <repo>.wiki.git)
           WIKI_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
-          rm -rf /tmp/wiki && git clone "$WIKI_URL" /tmp/wiki 2>&1 | head -n 20 || {
-            echo "Wiki repo not yet initialized — will push initial wiki"
+          rm -rf /tmp/wiki
+          if git clone --quiet "$WIKI_URL" /tmp/wiki 2>/tmp/wiki-clone.log; then
+            echo "cloned existing wiki repo"
+          else
+            echo "wiki repo not reachable yet — will attempt initial push ($(tail -n 2 /tmp/wiki-clone.log 2>/dev/null || true))"
             mkdir -p /tmp/wiki
             git -C /tmp/wiki init
             git -C /tmp/wiki remote add origin "$WIKI_URL"
-          }
+          fi
           # Sync files — keep Home.md as entry, copy all wiki/*.md
-          rsync -av --delete wiki/ /tmp/wiki/ 2>&1 | head -n 60
+          rsync -av --delete wiki/ /tmp/wiki/ 2>&1 | tail -n 20
           # Ensure at least Home.md exists (GitHub Wiki needs it)
           if [ ! -f /tmp/wiki/Home.md ]; then
             cp wiki/Home.md /tmp/wiki/Home.md 2>/dev/null || echo "# PackWise Wiki" > /tmp/wiki/Home.md
           fi
-          cd /tmp/wiki
-          git config user.name "packwise-bot"
-          git config user.email "bot@packwise.app"
-          git add -A
-          if git diff --cached --quiet; then
+          git -C /tmp/wiki config user.name "packwise-bot"
+          git -C /tmp/wiki config user.email "bot@packwise.app"
+          git -C /tmp/wiki add -A
+          if git -C /tmp/wiki diff --cached --quiet; then
             echo "Wiki already up to date — nothing to push"
             exit 0
           fi
-          git commit -m "Wiki sync from main @ ${GITHUB_SHA::7} — packwise-bot"
-          git push origin HEAD:master 2>&1 | head -n 40 || git push origin HEAD:main 2>&1 | head -n 40
+          git -C /tmp/wiki commit -m "Wiki sync from main @ ${GITHUB_SHA::7} — packwise-bot" || true
+          git -C /tmp/wiki push origin HEAD:master 2>&1 | tail -n 15 || \
+            git -C /tmp/wiki push origin HEAD:main 2>&1 | tail -n 15
           echo "✓ Wiki synced to https://github.com/${GITHUB_REPOSITORY}/wiki"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

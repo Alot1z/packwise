@@ -7,6 +7,7 @@ struct TripListView: View {
     @Binding var selectedTrip: Trip?
     @State private var showNew = false
     @State private var search = ""
+    @State private var showDeleteConfirm: Trip?
 
     var filtered: [Trip] {
         guard !search.isEmpty else { return trips }
@@ -32,13 +33,12 @@ struct TripListView: View {
                     List {
                         ForEach(filtered) { trip in
                             NavigationLink(value: trip) { TripRow(trip: trip) }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         #if canImport(UIKit)
                                         UINotificationFeedbackGenerator().notificationOccurred(.warning)
                                         #endif
-                                        context.delete(trip)
-                                        try? context.save()
+                                        showDeleteConfirm = trip
                                     } label: { Label("Delete", systemImage: "trash") }
                                     .tint(.red)
                                 }
@@ -58,6 +58,13 @@ struct TripListView: View {
                     }
                     .listStyle(.insetGrouped)
                     .animation(.easeInOut(duration: 0.2), value: filtered.map(\.id))
+                    .confirmationDialog("Delete trip?", isPresented: Binding(get: { showDeleteConfirm != nil }, set: { if !$0 { showDeleteConfirm = nil } }), titleVisibility: .visible) {
+                        Button("Delete", role: .destructive) {
+                            if let t = showDeleteConfirm { context.delete(t); try? context.save() }
+                            showDeleteConfirm = nil
+                        }
+                        Button("Cancel", role: .cancel) { showDeleteConfirm = nil }
+                    } message: { Text("This will delete the trip and all its items and outfits. This cannot be undone.") }
                     .navigationDestination(for: Trip.self) { TripDetailView(trip: $0) }
                     .navigationDestination(for: PackingItem.self) { ItemDetailView(item: $0) }
                 }
