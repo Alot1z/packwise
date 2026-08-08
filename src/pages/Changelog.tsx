@@ -3,6 +3,17 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.13",
+    date: "R2 CLOSED — iOS 18 API bug + first real compile",
+    icon: Wrench,
+    items: [
+      "The session-6 platform fix was validated live: run 31256274224's step log shows the iOS device platform now installs on the macOS-15 runner and the compiler actually runs — R2's infrastructure blocker is CLOSED.",
+      "With a real build finally executing, the true remaining bug surfaced via the public annotation channel: `.searchActions` is an iOS 18-only API used in TripListView and GlobalSearchView with an iOS 17 deployment target — a hard compile error that no earlier run could reach.",
+      "Fix: new availability-safe `searchClearAction(_:clearLabel:)` modifier (SearchClearActionsModifier.swift) applies `.searchActions` only on iOS 18+ and degrades to the platform's built-in clear button on iOS 17.",
+      "Verified: tsc exit 0, bash -n 4/4 scripts, js-yaml 3/3 workflows; grep confirms zero unguarded searchActions calls remain. Next macOS CI run should produce the first valid IPA since the fix.",
+    ],
+  },
+  {
     tag: "1.0.12",
     date: "Session 7 — full verification sweep + docs sync",
     icon: Wrench,

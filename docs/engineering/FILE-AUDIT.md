@@ -40,14 +40,15 @@
 | `ios/PackWise/Services/RecommendationService.swift` | 77 | ✅ | KEEP | deterministic, deduped, offline | read |
 | `ios/PackWise/Services/NotificationService.swift` | 58 | ✅ | KEEP | local-only notifications | read |
 | `ios/PackWise/Views/DashboardView.swift` | 148 | ✅ | KEEP | minor: "Create trip" quick action navigates to an explanatory text (not a form) | read |
-| `ios/PackWise/Views/TripListView.swift` | 135 | ✅ | **FIXED** | swipe-delete deleted a whole trip with no confirmation (changelog claimed confirmations); added confirmationDialog | read + edit |
+| `ios/PackWise/Views/TripListView.swift` | 135 | ✅ | **FIXED (session 8)** | swipe-delete confirmation (session 2); **`.searchActions` (iOS 18-only) replaced with availability-safe `searchClearAction($search)`** — the real compile blocker R2 exposed once the platform fix let CI actually build | read + edit + grep |
 | `ios/PackWise/Views/TripDetailView.swift` | 332 | ✅ | KEEP | confirmations/haptics/a11y present | read |
 | `ios/PackWise/Views/ItemDetailView.swift` | 91 | ✅ | KEEP | photo downscale, auto-save, a11y | read |
 | `ios/PackWise/Views/LibraryView.swift` | 178 | ✅ | KEEP | reuse flow present | read |
 | `ios/PackWise/Views/PhotoScannerView.swift` | 120 | ✅ | KEEP | confirm-before-add Vision flow | read |
 | `ios/PackWise/Views/OnboardingView.swift` | 79 | ✅ | KEEP | reduced-motion + ScaledMetric + a11y | read |
 | `ios/PackWise/Views/TemplateLibraryView.swift` | 96 | ✅ | KEEP | delete confirmation present | read |
-| `ios/PackWise/Views/GlobalSearchView.swift` | 79 | ✅ | KEEP | minor: outfit/library/template hits render as text (no drill-down) | read |
+| `ios/PackWise/Views/GlobalSearchView.swift` | 79 | ✅ | **FIXED (session 8)** | **`.searchActions` (iOS 18-only) replaced with availability-safe `searchClearAction($q)`** — same compile blocker as TripListView | read + edit + grep |
+| `ios/PackWise/Views/SearchClearActionsModifier.swift` | 36 | ✅ | **NEW (session 8)** | availability-safe `searchActions` wrapper: applies only on iOS 18+, falls back to built-in clear on iOS 17 | written + grep + `#available` verified |
 | `ios/PackWise/Views/SettingsView.swift` | 70 | ✅ | KEEP | honest privacy/network statements | read |
 | `ios/PackWise/Views/NewTripSheet.swift` | 81 | ✅ | KEEP | date validation + local storage label | read |
 | `ios/PackWise/Views/RemindersView.swift` | 95 | ✅ | KEEP | local notifications, authorization flow | read |
@@ -162,6 +163,21 @@ the newest installed Xcode; `ios/build.sh` gained `ensure_device_platform()`
 self-healing guard (also covers standalone local builds). Local-vs-GitHub
 raw diff confirms the fix is the not-yet-shipped delta. Changelog 1.0.11
 synced web↔wiki (12/12). `tsc` 0 · `bash -n` 4/4 · `js-yaml` 3/3.
+
+**Session 8 (R2 infra CLOSED + the real compile bug — the loop is closing):**
+live CI run 31256274224 finally got past infrastructure: the
+`xcodebuild -downloadPlatform iOS` step succeeded, XcodeGen generated the
+project, simulator tests passed — and the Swift compiler actually RAN for
+the first time in the entire R2 saga. The annotation channel (public, no
+auth) exposed the true remaining bug: `value of type 'some View' has no
+member 'searchActions'` at `TripListView.swift:74` + `GlobalSearchView.swift:69`
+(cascade: `cannot infer contextual base ... 'bottom'` at line 86). Root
+cause: `.searchActions` is iOS 18-only but the deployment target is iOS 17.
+Fix: new `ios/PackWise/Views/SearchClearActionsModifier.swift` with
+`searchClearAction(_:clearLabel:)` — applies `.searchActions` only inside
+`if #available(iOS 18.0, *)`, falls back to the platform's built-in clear
+on iOS 17. Both views updated. Changelog 1.0.13 synced web↔wiki (14/14).
+`tsc` 0 · `bash -n` 4/4 · `js-yaml` 3/3 · grep sweep clean.
 
 ## Rules
 

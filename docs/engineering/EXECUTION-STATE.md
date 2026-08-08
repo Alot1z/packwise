@@ -2,9 +2,11 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 7 — full verification sweep; changelog 1.0.12 synced web↔wiki 13/13;
-> all 7 web pages + 10 wiki pages re-audited; tsc/bash/js-yaml/convex all green;
-> session 6 R2 fix (iOS device platform download) still awaiting next macOS CI run).
+> (session 8 — **R2 infrastructure blocker CLOSED + real compile error found and
+> fixed**: live CI run 31256274224 proved the platform-download fix works and the
+> Swift compiler finally ran; the true bug was an iOS 18-only `.searchActions`
+> call in a iOS 17-target app — fixed via availability-safe modifier;
+> changelog 1.0.13 synced web↔wiki 14/14; tsc/bash/js-yaml all green).
 
 ## 1. Project map
 
@@ -53,13 +55,14 @@ Rules enforced (from the product specification):
 | 11 · R2 third root cause + public annotations (session 5b) | **DONE** — live CI confirmed array fix shipped (raw diff) but run 31248315617 still failed in ~8s. Compared passing tests step vs failing build step: the difference is `CODE_SIGN_STYLE=Manual`. build.sh now matches the passing tests flags exactly (`CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=`), adds strategy D, and emits public `::error::` annotations on failure (logs/artifacts need auth; annotations don't). Changelog 1.0.10 updated web↔wiki. |
 | 12 · R2 TRUE root cause via public annotations (session 6) | **DONE** — the annotation channel delivered: run 31248752593's public `check-runs/93081580036/annotations` exposed the real error with zero auth: `Unable to find a destination … { platform:iOS, …, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`. **It was never signing** — macOS-15 runner images trim the iOS *device* platform (actions/runner-images #12758/#12862/#13570), so `-destination "generic/platform=iOS"` dies in <1s (matching every ~8s failure) while simulator tests pass. Fix shipped: workflow step `xcodebuild -downloadPlatform iOS` (sudo fallback) + newest-Xcode selection; `build.sh` self-healing `ensure_device_platform()` guard; mirrored in Gitea. Changelog 1.0.11 synced web↔wiki (12/12). |
 | 13 · Full verification sweep + docs sync (session 7) | **DONE** — tsc 0, bash -n 4/4, js-yaml 3/3, convex dev OK. Changelog parity count corrected (11/11 → 12/12 for 1.0.11 entry). All 7 web pages + 10 wiki pages re-audited. Changelog 1.0.12 synced web↔wiki (13/13). EXECUTION-STATE.md updated. |
+| 14 · R2 infra CLOSED + real compile bug fixed (session 8) | **DONE** — live CI run 31256274224 confirmed the session-6 platform fix works (device platform installed, compiler ran, XcodeGen OK, tests OK). Real blocker surfaced via public annotations: `.searchActions` (iOS 18-only) in TripListView + GlobalSearchView breaks the iOS 17 target build. Fixed with availability-safe `searchClearAction` modifier (new file SearchClearActionsModifier.swift). Changelog 1.0.13 synced web↔wiki (14/14). Next gate: macOS CI run to produce first valid IPA. |
 
 ## 3. Release-blocking items
 
 | # | Item | Status | Evidence |
 |---|---|---|---|
 | R1 | `.github/workflows/ios.yml` rejected by GitHub: *Invalid workflow file, YAML syntax error* (line 148) | **FIXED 2026-08-08** | Root cause: the manifest-validation snippet inside a `run: \|` literal block was indented at **column 0** (block indent is 10 spaces), which ended the literal block mid-file. Fixed by aligning the block. `js-yaml` (the parser GitHub Actions uses) parses both workflows cleanly; `bash -n` clean; the fixed python step runs end-to-end. |
-| R2 | `Failed to map …/PackWise: Bad file descriptor` at sideload | **ROOT CAUSE FINALLY PUBLIC (session 6): missing iOS device platform on the macOS-15 runner — fix shipped (`xcodebuild -downloadPlatform iOS`); next macOS CI run is the closure gate** | (1) Published artifact confirmed broken: downloaded `dev` IPA (5,004,581 bytes) **rejected** by hardened verifier — test bundles, **no main executable**. (2) Signing-arg fixes (1.0.9/1.0.10) **shipped** (raw-file diff proves `main` == local) but runs [31246529945](https://github.com/Alot1z/packwise/actions/runs/31246529945), [31248315617](https://github.com/Alot1z/packwise/actions/runs/31248315617), [31248752593](https://github.com/Alot1z/packwise/actions/runs/31248752593) all failed at "Build unsigned IPA" **~7–8s after tests** — too fast for a compile; the annotations channel (session 5b) then exposed the real error on run 31248752593: `Unable to find a destination matching the provided destination specifier: { platform:iOS, …, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`. **TRUE ROOT CAUSE: the GitHub macOS-15 runner image trims the iOS device platform** (actions/runner-images #12758/#12862/#13570); `-destination "generic/platform=iOS"` fails in <1s while simulator tests (which don't need the device platform) pass. Signing flags were hygiene, never the blocker. **Fix (session 6):** workflow step `xcodebuild -downloadPlatform iOS` (official remedy; sudo fallback) + select **newest** Xcode; `ios/build.sh` self-healing `ensure_device_platform()` guard for standalone local builds; mirrored in Gitea. `js-yaml` 3/3, `bash -n` 4/4, tsc 0, changelog 12/12. |
+| R2 | `Failed to map …/PackWise: Bad file descriptor` at sideload | **INFRA CLOSED (session 8): run 31256274224 proved the platform fix; real bug now fixed — iOS 18-only `.searchActions` in a iOS 17-target app; next macOS CI run is the binary closure gate** | (1) Published artifact confirmed broken: downloaded `dev` IPA (5,004,581 bytes) **rejected** by hardened verifier — test bundles, **no main executable**. (2) Signing-arg fixes (1.0.9/1.0.10) **shipped** (raw-file diff proves `main` == local) but runs [31246529945](https://github.com/Alot1z/packwise/actions/runs/31246529945), [31248315617](https://github.com/Alot1z/packwise/actions/runs/31248315617), [31248752593](https://github.com/Alot1z/packwise/actions/runs/31248752593) all failed at "Build unsigned IPA" **~7–8s after tests** — too fast for a compile; the annotations channel (session 5b) then exposed the real error on run 31248752593: `Unable to find a destination matching the provided destination specifier: { platform:iOS, …, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`. **TRUE ROOT CAUSE: the GitHub macOS-15 runner image trims the iOS device platform** (actions/runner-images #12758/#12862/#13570); `-destination "generic/platform=iOS"` fails in <1s while simulator tests (which don't need the device platform) pass. Signing flags were hygiene, never the blocker. **Fix (session 6):** workflow step `xcodebuild -downloadPlatform iOS` (official remedy; sudo fallback) + select **newest** Xcode; `ios/build.sh` self-healing `ensure_device_platform()` guard for standalone local builds; mirrored in Gitea. `js-yaml` 3/3, `bash -n` 4/4, tsc 0, changelog 12/12. |
 | R3 | Wiki sync workflow failing (run 31245277577, conclusion: failure at push step) | **FIXED 2026-08-08** | `.github/workflows/wiki.yml` rewritten: `checkout@v5`, wiki-repo enablement via API, robust push with accurate failure reporting. `js-yaml` parse OK. |
 | R4 | Contradictory CI summary: "Tests did not pass (non-blocking) — IPA still built" + "No IPA produced" | **FIXED 2026-08-08** | Root cause: tests step aborted under `bash -e -o pipefail` before `TESTS_PASSED` was recorded, so the summary ran with stale/unset state. Step now records results before any early exit; summary renders one truthful status. |
 
@@ -167,36 +170,34 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-08, session 7)
+## 10. Machine-readable snapshot (2026-08-08, session 8)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-08-s7",
-  "phase": 13,
-  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / convex dev OK / changelog 13:13)",
-  "changelog_count_fix": "corrected 1.0.11 parity from 11/11 to 12/12; added 1.0.12 entry",
-  "web_audit": "7/7 pages re-read; all accurate",
-  "wiki_audit": "10/10 pages re-read; all accurate vs implementation",
-  "convex_backend": "PASS — functions ready, OTP branded PackWise",
-  "pwa_manifest": "PASS — PackWise branded with /logo.svg",
+  "session": "2026-08-08-s8",
+  "phase": 14,
+  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 14:14)",
+  "r2_infrastructure_blocker": "CLOSED — run 31256274224: platform download step succeeded, compiler ran",
+  "real_blocker_found": "Swift compile error: .searchActions is iOS 18-only but deployment target is iOS 17",
+  "fix": {
+    "files": ["ios/PackWise/Views/TripListView.swift", "ios/PackWise/Views/GlobalSearchView.swift", "ios/PackWise/Views/SearchClearActionsModifier.swift (new)"],
+    "approach": "availability-safe searchClearAction modifier: #available(iOS 18.0, *) guard, iOS 17 falls back to built-in clear"
+  },
+  "changelog": "1.0.13 synced web↔wiki (14/14)",
   "live_ci_evidence": {
+    "latest_ios_run": "31256274224 (failure at device-build step — compile error now, not infrastructure)",
     "wiki_sync": "green (R3 closed)",
-    "ios_run_latest": "failure at device-build step (31248752593, ~8s)",
-    "r2_root_cause": "missing iOS device platform on macOS-15 runner",
-    "r2_fix": "deployed (xcodebuild -downloadPlatform iOS) — awaiting next macOS CI run",
-    "dev_release_asset": "stale broken IPA (5,004,581 bytes) — gated until green run"
+    "r2_status": "infra fixed; binary gate = next macOS CI run"
   },
   "blockers": [
     { "id": "R1", "item": "ios.yml YAML syntax error", "status": "fixed" },
-    { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "fix_deployed_awaiting_ci", "next": "next macOS CI run" },
+    { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "infra_closed_compile_fixed_awaiting_ci", "next": "next macOS CI run to produce first valid IPA" },
     { "id": "R3", "item": "wiki.yml failing at push", "status": "fixed" },
     { "id": "R4", "item": "contradictory CI summary", "status": "fixed" }
   ],
   "web_typecheck": "pass (tsc 0)",
   "workflow_parse": "pass (3/3)",
-  "ipa_verifier_fixtures": "4/4 pass",
-  "real_dev_ipa_verification": "rejected-as-broken (expected)",
-  "all_docs_surfaces": "synced (web changelog ↔ wiki changelog ↔ README ↔ site-shared)"
+  "all_docs_surfaces": "synced (web changelog ↔ wiki changelog ↔ EXECUTION-STATE ↔ FILE-AUDIT)"
 }
 ```

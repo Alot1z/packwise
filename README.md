@@ -344,13 +344,15 @@ PackWise is open source (MIT) and welcomes contributions. The most impactful are
 | Web documentation site | **Complete** — 7 pages + Convex auth | `tsc` clean, manifest-driven download CTAs, accurate status |
 | Wiki (9 pages) | **Complete** — synced from `wiki/` on every push | All pages re-read and verified against implementation |
 | CI workflows | **Fixed** — YAML, tests, wiki, summary all repaired | `js-yaml` parse clean; `bash -n` clean on all scripts |
-| IPA build pipeline | **Fixed, unverified** — three-strategy self-healing `build.sh` with strict publish gate | Signing overrides added; next GitHub Actions run is the verification |
-| Real-device IPA | **Not yet verified** — previous `dev` IPA confirmed broken (no executable) | Root cause identified; fix deployed; pending macOS runner test |
+| IPA build pipeline | **Infra fixed; compile bug fixed; binary gate pending** — platform download works, compiler runs, iOS 18-only `.searchActions` replaced with availability-safe modifier | Live CI run 31256274224 proved the platform fix; next macOS run is the binary gate |
+| Real-device IPA | **Not yet verified** — previous `dev` IPA confirmed broken (no executable) | Infrastructure + compile blockers closed; a green macOS run now produces the first valid artifact |
 | TestFlight / App Store | **Not available** — requires Apple Developer membership + App Store Connect | Not claimed anywhere in this repository |
 | Accessibility | **Audited** — VoiceOver, Dynamic Type, Reduced Motion, Color Contrast | All 4 passes complete across iOS + web |
 
-> **The next step** is a real macOS build on GitHub Actions with the fixed `build.sh`.
-> Once that produces a device arm64 IPA that passes `scripts/verify-ipa.sh`, we have
+> **The next step** is the macOS CI run that finally compiles the app end-to-end.
+> The infrastructure blocker (missing iOS device platform on macOS-15 runners) and
+> the compile blocker it hid (an iOS 18-only `.searchActions` call) are both fixed;
+> once CI produces a device arm64 IPA that passes `scripts/verify-ipa.sh`, we have
 > the full evidence chain: source → build → validate → publish → sideload.
 
 ---

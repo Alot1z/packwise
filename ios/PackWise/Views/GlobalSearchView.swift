@@ -66,7 +66,7 @@ struct GlobalSearchView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Search")
             .searchable(text: $q, prompt: "Search everything on device")
-            .searchActions { if !q.isEmpty { Button("Clear") { q = "" } } }
+            .searchClearAction($q, clearLabel: "Clear")
             .autocorrectionDisabled()
             .navigationDestination(for: Trip.self) { TripDetailView(trip: $0) }
             .navigationDestination(for: PackingItem.self) { ItemDetailView(item: $0) }
