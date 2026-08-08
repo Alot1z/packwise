@@ -4,14 +4,14 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 const entries = [
   {
     tag: "1.0.10",
-    date: "R2 signing-arg fix + web polish",
+    date: "R2 signing-arg fix + public annotations",
     icon: Wrench,
     items: [
-      'R2 second root cause fixed: the 1.0.9 signing overrides shipped (main == local) but the next CI run still failed at the device-build step ~7s in — an immediate xcodebuild config error, not a compile error.',
-      'Cause: NO_SIGN_STR word-split passed literal quote characters to xcodebuild (CODE_SIGN_IDENTITY=""), and an explicit DEVELOPMENT_TEAM= — even empty — makes Xcode 15/16 try to resolve a team ("requires a development team").',
-      'Fix: ios/build.sh now uses a proper bash array (NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual)) expanded as "${NO_SIGN[@]}" with empty-value assignments removed. Verified token expansion, no quote leakage; next macOS run is the check.',
-      'PWA manifest rebranded — was the platform template ("freebuff.com application", icon /logo.png which didn\'t exist); now PackWise with the real /logo.svg icon.',
-      'ContentView onboarding transition reduced-motion gated; auth OTP email appName fallback now "PackWise".',
+      'R2 third root cause fixed: signing overrides shipped (main == local) but two CI runs still failed at the device-build step ~7-8s in — an immediate xcodebuild config error, not a compile error.',
+      'Causes, in sequence: NO_SIGN_STR word-split passed literal quote chars (CODE_SIGN_IDENTITY=""); an explicit DEVELOPMENT_TEAM= — even empty — makes Xcode try to resolve a team; and CODE_SIGN_STYLE=Manual itself demands a resolvable team even with signing disabled.',
+      'Fix: ios/build.sh signing args now match the proven-passing CI tests step exactly — CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=, no style/team overrides — plus a fourth minimal fallback strategy (D). Verified clean token expansion; bash -n clean.',
+      'Public failure channel: CI logs/artifacts need sign-in, but check-run annotations are public — build.sh now emits ::error:: lines with the real error so the next run\'s annotations expose the exact cause without auth.',
+      'PWA manifest rebranded (real /logo.svg icon); ContentView onboarding transition reduced-motion gated; auth OTP email appName fallback now "PackWise".',
     ],
   },
   {

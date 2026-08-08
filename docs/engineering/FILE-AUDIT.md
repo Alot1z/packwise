@@ -17,7 +17,7 @@
 | `.github/workflows/ios.yml` | 245 | ✅ | **FIXED/EXTENDED** | tests step aborted under `bash -e -o pipefail` (exit 65/70, TESTS_PASSED never recorded); summary could print contradictory "IPA still built / No IPA produced"; brew tap hygiene; action majors stale | js-yaml parse OK · tsc N/A |
 | `.gitea/workflows/ios.yml` | 175 | ✅ | **FIXED/EXTENDED** | same tests-step bug; same brew/action updates | js-yaml parse OK |
 | `.github/workflows/wiki.yml` | 62 | ✅ | **REWRITTEN** | failing at push step; `checkout@v4` (Node 20); no wiki-repo enablement; push error handling weak | js-yaml parse OK |
-| `ios/build.sh` | 220 | ✅ | **EXTENDED (session 5)** | second R2 root cause: NO_SIGN_STR word-split passed literal quotes (`CODE_SIGN_IDENTITY=""`) and explicit `DEVELOPMENT_TEAM=` triggers Xcode "requires a development team"; now a bash array `"${NO_SIGN[@]}"` with empty-value assignments removed | `bash -n` OK · token expansion verified (no quote leakage) |
+| `ios/build.sh` | 240 | ✅ | **EXTENDED (session 5b)** | third R2 root cause: `CODE_SIGN_STYLE=Manual` demands a resolvable team even with signing disabled (tests step passes without it); signing args now match the passing tests step exactly (`CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=`); added 4th strategy D + public `::error::` annotations (logs/artifacts are auth-gated, annotations are public) | `bash -n` OK · token expansion verified (3 clean args, no quotes, no style) · annotation emission smoke-tested |
 | `scripts/verify-ipa.sh` | 150 | ✅ | **EXTENDED** | binary Info.plist piped through command substitution (NUL stripped → CFBundleExecutable detection defeated + noisy warning) | NUL warning gone · 4/4 fixtures · real-IPA rejection confirmed |
 | `scripts/release-manifest.sh` | 150 | ✅ | KEEP | none | smoke OK |
 | `ios/project.yml` | 90 | ✅ | KEEP | none | reviewed |
@@ -130,6 +130,20 @@ but was insufficient. `ios/build.sh` signing args converted to a bash array
 with empty-value assignments removed — token expansion verified, no quote
 leakage, `bash -n` clean. 1.0.10 changelog entry synced web↔wiki (11/11).
 `tsc` 0 after web edits.
+
+**Session 5b (R2 third root cause + public annotations):** run 31248315617
+(the auto-sync push of the verify request) still failed at the device-build
+step ~8s in with the array fix deployed. Step-level comparison pinned the
+remaining difference: the passing tests step uses the project's Automatic
+style with `CODE_SIGN_IDENTITY=""`; the failing build step forced
+`CODE_SIGN_STYLE=Manual`, which on Xcode 16 demands a resolvable team even
+with signing disabled. `ios/build.sh` now uses exactly the passing tests-step
+flags (`NO_SIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+CODE_SIGN_IDENTITY=)`), adds strategy D (minimal invocation), and emits
+public `::error::` annotations on failure — CI logs/artifacts require auth
+(403/401) but `check-runs/{id}/annotations` is public, so the next run
+surfaces the real error without credentials. Annotation emission smoke-tested
+(emit_annotations → `::error::` line, exit 0). `bash -n` + `tsc` clean.
 
 ## Rules
 
