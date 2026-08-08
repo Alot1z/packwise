@@ -1,4 +1,4 @@
-import { BadgeCheck, Wrench, Box, GitBranch, ExternalLink } from "lucide-react";
+import { Wrench, Box, ExternalLink } from "lucide-react";
 import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV, WIKI_URL } from "@/components/site-shared";
 
 const entries = [
@@ -28,33 +28,85 @@ const entries = [
   },
   {
     tag: "1.0.7",
-    date: "Interaction polish",
+    date: "Interaction polish & hardening",
     icon: Wrench,
     items: [
       "Swipe actions with haptics and confirmations across trips, items, library, templates, and reminders.",
       "Attention badge on the Trips tab; iPad-adaptive tab bar; pull-to-refresh on the Dashboard.",
       "Smarter on-device recommendations (cold / rain / long-trip heuristics, dedupe) and a richer Vision label map.",
       "Trip progress helpers (progressLabel, daysUntilDeparture, isPast) and notification cancel-all.",
-      "Reduced-motion gating on iOS and web; WCAG contrast fixes on warnings and star states.",
+      "Web: active-page nav highlighting, mobile drawer with CTAs, skip-to-content, SEO/OG/JSON-LD, live manifest in the hero.",
     ],
   },
   {
-    tag: "Sideload fix",
-    date: "Pipeline",
+    tag: "1.0.6",
+    date: "Reduced-motion + contrast",
+    icon: Wrench,
+    items: [
+      "The single animated iOS control (Onboarding “Continue”) now respects accessibilityReduceMotion.",
+      "Web Landing respects prefers-reduced-motion; a global CSS rule clamps residual animations to 0.01ms.",
+      "Essentials warnings move to a 4.8:1 brown paired with an icon — never color-only.",
+      "Favorite/essential stars move to a 5.6:1 amber with a VoiceOver label; Vision errors get a distinct dark red + icon.",
+    ],
+  },
+  {
+    tag: "1.0.5",
+    date: "Dynamic Type audit",
+    icon: Wrench,
+    items: [
+      "Full sweep for fixed-size fonts across every screen; the only offender (onboarding hero icon) now scales with @ScaledMetric.",
+      "Every other text element rides scalable text styles — all 16 screens reflow from smallest to largest Dynamic Type.",
+      "No minimumScaleFactor shrinking, no dynamicTypeSize caps — text is allowed to wrap and grow.",
+    ],
+  },
+  {
+    tag: "1.0.4",
+    date: "Accessibility & VoiceOver",
+    icon: Wrench,
+    items: [
+      "Explicit VoiceOver labels across every interactive control — item toggles announce “Mark {name} as packed / unpacked”.",
+      "Template Add / Apply / Delete buttons name their template; Vision suggestions expose selection state.",
+      "Decorative images hidden from VoiceOver; packing progress bars labeled; trip rows combine into one announcement.",
+      "New UI regression test: testItemToggleHasVoiceOverLabel.",
+    ],
+  },
+  {
+    tag: "1.0.3",
+    date: "Algorithm-friendly manifest",
+    icon: Wrench,
+    items: [
+      "scripts/release-manifest.sh emits PackWise-releases.json (schema packwise.releases/v1) as a release asset.",
+      "Stable deterministic URLs: releases/latest/download + releases/download/dev — no GitHub API key required.",
+      "Every entry carries verified_by_build, changelog_url (wiki), and release_notes_url (tag page).",
+      "Workflow now exposes Run workflow inputs: xcode_version, skip_tests, release_channel.",
+    ],
+  },
+  {
+    tag: "1.0.2",
+    date: "One-command IPA verification",
+    icon: Wrench,
+    items: [
+      "scripts/verify-ipa.sh — one command tells you whether any download is sideload-ready.",
+      "Accepts the direct .ipa, the GitHub artifact .zip (auto-unwraps), or any folder.",
+      "Checks zip integrity, Payload/<App>.app, main-executable existence, arm64 device Mach-O, and no test/signing artifacts.",
+      "Wired into both CI pipelines as the final publish gate — CI and users share one verifier.",
+    ],
+  },
+  {
+    tag: "1.0.1",
+    date: "Sideload fix + self-healing pipeline",
     icon: Wrench,
     items: [
       "Root cause fixed: published IPA was missing its main executable (the “Failed to map …/PackWise: Bad file descriptor” sideload error).",
-      "Pipeline now builds device-first (xcodebuild build -sdk iphoneos, arm64) and validates the executable before publishing: presence, non-empty, Mach-O arm64, iOS device platform (LC_BUILD_VERSION 2).",
+      "ios/build.sh is now self-healing — device build → archive → legacy build, with executable validation (exists, non-empty, arm64, platform 2).",
       "Test bundles (PlugIns/*.xctest) and XCTest frameworks are stripped before packaging — never shipped in a release.",
-      "XcodeGen scheme updated: test targets are test-action only; they can no longer be injected into an archived app.",
       "Strict publish gate: an IPA without Payload/PackWise.app/PackWise fails the workflow — no more broken “success”.",
-      "UI tests fixed to complete onboarding before asserting tabs (tests now pass on fresh install).",
       "Direct .ipa on the dev prerelease every push to main (no outer-zip unwrap).",
     ],
   },
   {
     tag: "1.0.0",
-    date: "Native iOS",
+    date: "Native iOS + docs platform",
     icon: Box,
     items: [
       "Dashboard: upcoming trips, packing progress, missing essentials, recent activity, quick actions.",
@@ -64,21 +116,9 @@ const entries = [
       "On-device Vision scanner (VNClassifyImageRequest) with explicit user confirmation.",
       "Outfit planner per trip day, composed from packed items.",
       "Global local search across trips, items, outfits, library, templates.",
-      "Starter + custom templates, apply to any trip.",
-      "Local reminders via UserNotifications.",
+      "Starter + custom templates, apply to any trip; local reminders via UserNotifications.",
       "SwiftData persistence, offline-first, no login, no cloud, no tracking.",
-    ],
-  },
-  {
-    tag: "Infrastructure",
-    date: "CI / Release",
-    icon: GitBranch,
-    items: [
-      "GitHub Actions (macos-15) + Gitea Actions mirror + local ios/build.sh — same validated artifact on every host.",
-      "Artifact upload (debug) + dev prerelease on every main push + versioned Release on tag v*.",
-      "sha256 published alongside every .ipa.",
-      "Non-blocking tests: a flaky test can never block the IPA.",
-      "Wiki (9 pages) + README with programmatic 3D SVG art — assets/ shared between README and this site.",
+      "Docs: README + Wiki (9 pages) + live site with programmatic 3D SVG art; XcodeGen build; three build hosts.",
     ],
   },
 ];
@@ -100,11 +140,6 @@ export default function Changelog() {
               <div className="size-9 rounded-xl bg-secondary grid place-items-center border border-border/50"><e.icon className="size-[18px]" /></div>
               <div className="font-mono text-sm font-semibold">{e.tag}</div>
               <div className="text-xs text-muted-foreground font-mono">{e.date}</div>
-              {e.tag === "Sideload fix" && (
-                <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-700">
-                  <BadgeCheck className="size-3" /> Live in pipeline
-                </span>
-              )}
             </div>
             <ul className="mt-4 space-y-2">
               {e.items.map((i) => (
