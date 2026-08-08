@@ -85,15 +85,20 @@ pass "bundle: $APP_DIR"
 # ── 4 · main executable present & sane ──────────────────────────────────────
 # Prefer the Info.plist's declared CFBundleExecutable; fall back to the app name.
 EXEC_NAME="$APP_ID"
-PLIST_XML=$(unzip -p "$IPA" "$APP_DIR/Info.plist" 2>/dev/null || true)
-if command -v python3 >/dev/null 2>&1; then
-  EXEC_NAME=$(printf '%s' "$PLIST_XML" | python3 -c "
+# Read Info.plist from a FILE (a command substitution would strip null bytes
+# from the binary plist and defeat plistlib) so CFBundleExecutable detection
+# works for real binary plists.
+PLIST_FILE="$TMP/Info.plist"
+unzip -oq "$IPA" "$APP_DIR/Info.plist" -d "$TMP" 2>/dev/null || true
+if command -v python3 >/dev/null 2>&1 && [ -f "$PLIST_FILE" ]; then
+  EXEC_NAME=$(python3 -c "
 import plistlib, sys
 try:
-    print(plistlib.loads(sys.stdin.buffer.read()).get('CFBundleExecutable',''))
+    with open(sys.argv[1], 'rb') as f:
+        print(plistlib.load(f).get('CFBundleExecutable',''))
 except Exception:
     print('')
-" 2>/dev/null) && [ -n "$EXEC_NAME" ] || EXEC_NAME="$APP_ID"
+" "$PLIST_FILE" 2>/dev/null) && [ -n "$EXEC_NAME" ] || EXEC_NAME="$APP_ID"
 fi
 [ -n "$EXEC_NAME" ] || EXEC_NAME="$APP_ID"
 

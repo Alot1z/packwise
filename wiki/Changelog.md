@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.9 — CI root-cause repair & binary verification (2026-08-08)
+
+**Build / Infrastructure:**
+
+- Pinned the real CI blocker by evidence: every recent run fails at the device-build step, and the previously published `dev` IPA was verified broken — it shipped `PlugIns/PackWiseTests.xctest` and XCTest frameworks with **no main executable**, the literal cause of `Failed to map …/PackWise: Bad file descriptor`. The hardened verifier rejects that exact artifact, and the pipeline will not publish again until the publish gate passes.
+- The iOS workflow's test step no longer aborts the whole job under `bash -e -o pipefail` before test results are recorded (the exit-70 signal). Removed the untrusted `aws/tap` Homebrew tap, added a Homebrew-free XcodeGen fallback (direct release-asset download), bumped to current action majors (`checkout@v5`, `upload-artifact@v7`, `softprops/action-gh-release@v3`), and made the job summary truthful — it can no longer print "IPA still built / No IPA produced" in the same run. Mirrored in the Gitea workflow.
+- Rewrote the Wiki sync workflow: `checkout@v5`, wiki-repo enablement via API, and a push step that reports failures accurately instead of failing silently.
+- `ios/build.sh`: fixed a latent unclosed-quote bug found by `bash -n`, added explicit unsigned-device-build signing overrides (`DEVELOPMENT_TEAM=""`, `CODE_SIGN_STYLE=Manual`, `CODE_SIGNING_ALLOWED=NO`), and richer failure diagnostics.
+- `scripts/verify-ipa.sh`: binary Info.plist is extracted to a file instead of being piped through a command substitution (NUL stripping had defeated `CFBundleExecutable` detection on real builds).
+
+**App:**
+
+- The Vision scanner now respects photo orientation — `UIImage.Orientation` is mapped to `CGImagePropertyOrientation`, so rotated/portrait photos classify correctly instead of being analyzed upside-down.
+- Swipe-deleting a trip now requires confirmation before the trip is removed.
+
+**Website:**
+
+- Download page, nav/footer CTAs, and the landing hero now read the live release manifest and show **Status unavailable** when no verified build exists — no more download buttons pointing at a 404 or implying a stale artifact is current.
+
 ## 1.0.8 — Release-pipeline hardening & site truthfulness (2026-08-08)
 
 **Build / Infrastructure:**

@@ -3,6 +3,30 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.9",
+    date: "CI repair & binary verification",
+    icon: Wrench,
+    items: [
+      "Root cause pinned by evidence: the published dev IPA shipped test bundles and no main executable (the exact “Bad file descriptor” sideload cause). The verifier now rejects it, and CI will not publish until the gate passes.",
+      "Workflow test step no longer aborts the job under bash -e -o pipefail; untrusted aws/tap brew tap removed; Homebrew-free XcodeGen fallback added; actions bumped to current majors (checkout@v5, upload-artifact@v7, gh-release@v3).",
+      "Wiki sync workflow rewritten (checkout@v5, wiki-repo enablement, accurate push errors).",
+      "ios/build.sh: fixed a latent unclosed-quote bug, explicit unsigned-device signing overrides, richer diagnostics.",
+      "Vision scanner now respects photo orientation; swipe-deleting a trip asks for confirmation.",
+      "Download/nav/landing CTAs read the live manifest and show Status unavailable when no verified build exists.",
+    ],
+  },
+  {
+    tag: "1.0.8",
+    date: "Pipeline hardening & truthfulness",
+    icon: Wrench,
+    items: [
+      "Fixed the workflow GitHub rejected as invalid YAML (manifest snippet indented at column 0 inside a run: block) — both GitHub and Gitea workflows now parse with GitHub's own parser.",
+      "scripts/verify-ipa.sh detects symlinked/empty main executables from zip metadata and probes the Mach-O header itself — device arm64, simulator, or not-a-binary, on any machine. Verified on 4 synthetic artifacts.",
+      "Manifest-validation step tolerates a dev: null pointer; new docs/engineering/EXECUTION-STATE.md + FILE-AUDIT.md.",
+      "Landing mock data now explicitly labeled “Concept preview — illustrative mockup”; screenshot grid labeled as placeholder frames.",
+    ],
+  },
+  {
     tag: "1.0.7",
     date: "Interaction polish",
     icon: Wrench,

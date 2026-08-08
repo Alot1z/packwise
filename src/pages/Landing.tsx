@@ -1,6 +1,5 @@
 import { Link } from "react-router";
 import { motion, useReducedMotion } from "framer-motion";
-import { useEffect, useState } from "react";
 import {
   Shield,
   HardDrive,
@@ -42,6 +41,7 @@ import {
   LIVE_RELEASE_LATEST,
   LIVE_RELEASE_DEV,
   LIVE_ACTIONS,
+  useManifest,
 } from "@/components/site-shared";
 
 function FeatureCard({ icon: Icon, title, desc }: { icon: typeof Scan; title: string; desc: string }) {
@@ -63,26 +63,11 @@ function FeatureCard({ icon: Icon, title, desc }: { icon: typeof Scan; title: st
   );
 }
 
-function useManifest() {
-  const [data, setData] = useState<{ latest: { tag: string; sha256: string } | null; dev: { tag: string } | null } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch("https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (!cancelled && j) setData(j);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  return data;
-}
-
 export default function Landing() {
   const reduceMotion = useReducedMotion();
   const manifest = useManifest();
+  const ready = manifest.state === "verified";
+  const currentTag = ready ? (manifest.latest?.tag ?? manifest.dev?.tag ?? null) : null;
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-[oklch(0.62_0.115_38/0.18)]">
       <SiteNav />
@@ -94,9 +79,9 @@ export default function Landing() {
               <div className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
                 <span className={`size-1.5 rounded-full bg-[oklch(0.62_0.115_38)] ${reduceMotion ? "" : "animate-pulse"}`} aria-hidden />
                 Native iOS — SwiftUI · SwiftData · Vision · On device
-                {manifest?.latest?.tag && (
+                {ready && currentTag && (
                   <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-mono text-emerald-700">
-                    <BadgeCheck className="size-3" aria-hidden /> {manifest.latest.tag}
+                    <BadgeCheck className="size-3" aria-hidden /> {currentTag}
                   </span>
                 )}
               </div>
@@ -118,12 +103,12 @@ export default function Landing() {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <a
-                  href={LIVE_RELEASE_LATEST}
+                  href={ready ? LIVE_RELEASE_LATEST : LIVE_RELEASES}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition shadow-[0_8px_24px_-12px_oklch(0.25_0.05_42/0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <Download className="size-4" aria-hidden /> Download IPA — Latest Release
+                  <Download className="size-4" aria-hidden /> {ready ? "Download IPA — Latest Release" : "View Releases"}
                 </a>
                 <a
                   href={LIVE_ACTIONS}
@@ -142,6 +127,18 @@ export default function Landing() {
                   <Zap className="size-4" aria-hidden /> dev — latest main
                 </a>
               </div>
+              {manifest.state === "unavailable" && (
+                <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5">
+                  <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+                  <span>
+                    No verified release is currently published — recent CI runs are failing. See{" "}
+                    <a href={LIVE_ACTIONS} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">
+                      Actions
+                    </a>{" "}
+                    or build locally with <span className="font-mono">./ios/build.sh</span>.
+                  </span>
+                </p>
+              )}
               <p className="text-[11px] text-muted-foreground mt-2 font-mono">
                 <a href={LIVE_REPO} target="_blank" rel="noreferrer" className="underline underline-offset-4 hover:text-foreground">
                   Alot1z/packwise
@@ -197,8 +194,11 @@ export default function Landing() {
             >
               <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className={`size-1.5 rounded-full bg-emerald-500 ${reduceMotion ? "" : "animate-pulse"}`} aria-hidden />
-                  Built & verified · latest on main
+                  <span
+                    className={`size-1.5 rounded-full ${ready ? "bg-emerald-500" : "bg-amber-500"} ${reduceMotion ? "" : "animate-pulse"}`}
+                    aria-hidden
+                  />
+                  {ready ? "Built & verified · latest on main" : "Build status: unavailable"}
                 </span>
                 <span>iOS 17+ · iPad</span>
               </div>
@@ -252,12 +252,12 @@ export default function Landing() {
               </div>
               <div className="mt-3 flex gap-2">
                 <a
-                  href={LIVE_RELEASE_LATEST}
+                  href={ready ? LIVE_RELEASE_LATEST : LIVE_RELEASES}
                   target="_blank"
                   rel="noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Download IPA <ExternalLink className="size-3" aria-hidden />
+                  {ready ? "Download IPA" : "View Releases"} <ExternalLink className="size-3" aria-hidden />
                 </a>
                 <a
                   href={LIVE_ACTIONS}
@@ -307,10 +307,13 @@ export default function Landing() {
                 <Package className="size-3.5" aria-hidden /> Primary delivery target
               </div>
               <div className="mt-1 font-mono text-lg font-medium">PackWise-unsigned.ipa</div>
-              {manifest?.latest && (
+              {ready && manifest.latest && (
                 <div className="text-[11px] font-mono text-muted-foreground mt-1">
-                  Latest: {manifest.latest.tag} · {manifest.latest.sha256.slice(0, 12)}… · verified
+                  Latest: {manifest.latest.tag} · {manifest.latest.sha256?.slice(0, 12)}… · verified
                 </div>
+              )}
+              {!ready && (
+                <div className="text-[11px] font-mono text-amber-700 mt-1">Status unavailable — no verified build is currently published.</div>
               )}
             </div>
             <div className="text-[13px] leading-6 text-muted-foreground md:border-l md:border-border md:pl-5">
@@ -515,20 +518,20 @@ export default function Landing() {
                 </ol>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <a
-                    href={LIVE_RELEASE_LATEST}
+                    href={ready ? LIVE_RELEASE_LATEST : LIVE_RELEASES}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    Download latest IPA <ExternalLink className="size-3.5" aria-hidden />
+                    {ready ? "Download latest IPA" : "View Releases"} <ExternalLink className="size-3.5" aria-hidden />
                   </a>
                   <a
-                    href={LIVE_RELEASE_DEV}
+                    href={ready ? LIVE_RELEASE_DEV : LIVE_RELEASES}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-white text-sm font-medium hover:bg-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    dev — direct .ipa
+                    {ready ? "dev — direct .ipa" : "dev — unverified"}
                   </a>
                 </div>
               </div>
