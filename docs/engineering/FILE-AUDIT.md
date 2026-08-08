@@ -26,13 +26,15 @@
 | `src/pages/Download.tsx` | 330 | ✅ | **EXTENDED** | static "verified" claim; download buttons implied availability of a broken/stale artifact | `tsc` 0 |
 | `src/pages/Changelog.tsx` | 150 | ✅ | KEEP | synced earlier | `tsc` 0 |
 | `wiki/Changelog.md` | 110 | ✅ | **EDITED** | 1.0.9 added | reviewed |
+| `public/manifest.webmanifest` | 26 | ✅ | **REBRANDED (session 4)** | was FreeBuff template — generic "freebuff.com application" name + icon `/logo.png` (file did not exist); now PackWise-branded with real `/logo.svg` icon + travel categories | reviewed + grep verified |
+| `src/convex/auth/emailOtp.ts` | 27 | ✅ | **EDITED (session 4)** | OTP email `appName` fallback said "a freebuff.com application"; now "PackWise" | `convex dev --once` OK · `tsc` 0 |
 
 ## iOS application — full line-by-line audit (this session, 19 files, 2,252 lines)
 
 | Path | Lines | Status | Action | Issues | Validation |
 |---|---|---|---|---|---|
 | `ios/PackWise/App/PackWiseApp.swift` | 12 | ✅ | KEEP | none | read |
-| `ios/PackWise/App/ContentView.swift` | 89 | ✅ | KEEP | minor: `.animation` not reduced-motion gated (trivial fade) | read |
+| `ios/PackWise/App/ContentView.swift` | 92 | ✅ | **FIXED (session 4)** | `.animation` onboarding transition not reduced-motion gated; now `.animation(reduceMotion ? nil : .easeInOut(...))` via `@Environment(\.accessibilityReduceMotion)` | read + edit |
 | `ios/PackWise/Models/Models.swift` | 275 | ✅ | KEEP | none | read |
 | `ios/PackWise/Services/VisionService.swift` | 93 | ✅ | **FIXED** | orientation bug: `VNImageRequestHandler` used `.up`, misclassifying rotated photos; now maps `UIImage.Orientation` → `CGImagePropertyOrientation` | read + edit |
 | `ios/PackWise/Services/RecommendationService.swift` | 77 | ✅ | KEEP | deterministic, deduped, offline | read |
@@ -107,12 +109,18 @@
 |---|---|---|
 | `isolate/` | **DELETED** | Stray FreeBuff deployment copy (manifest.webmanifest, logo.svg, index.html, assets) — removed 2026-08-08 |
 
-## Complete file inventory — Phase 2 FILE AUDIT: DONE
+## Complete file inventory — Phase 2 FILE AUDIT: DONE (session 4 addendum)
 
-**Total files audited:** 44 across iOS (19), web pages (7), infrastructure (7),
-wiki (10), scripts (4), earlier workflow/config (8) — minus isolate/ (1 deleted).
+**Total files audited:** 47 across iOS (20), web pages (7), infrastructure (7),
+wiki (10), scripts (4), earlier workflow/config (8) — minus isolate/ (1 deleted),
+plus session-4 rows (`public/manifest.webmanifest`, `src/convex/auth/emailOtp.ts`,
+and the ContentView fix).
 **Remaining pending:** none. Every file in the repository has been re-read and
 verified in at least one session.
+
+**Session 4 verify sweep:** `tsc` 0 · `bash -n` 4/4 (verify-ipa, release-manifest,
+rewrite-history, build.sh) · `js-yaml` 3/3 (ios.yml, wiki.yml, gitea ios.yml) ·
+changelog parity 10/10 (web ↔ wiki) · `convex dev --once` OK.
 
 ## Rules
 

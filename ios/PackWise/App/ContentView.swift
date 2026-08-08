@@ -6,6 +6,7 @@ struct ContentView: View {
     @Query(sort: \Trip.updatedAt, order: .reverse) private var trips: [Trip]
     @State private var selection: Tab = .dashboard
     @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum Tab: Hashable { case dashboard, trips, scanner, library, search, more }
 
@@ -51,7 +52,8 @@ struct ContentView: View {
                 .accessibilityLabel("Main navigation")
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: prefs.first?.hasCompletedOnboarding)
+        // Reduced-motion users get an instant swap, no fade (accessibility).
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: prefs.first?.hasCompletedOnboarding)
     }
 }
 
