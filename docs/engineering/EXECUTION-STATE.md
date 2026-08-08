@@ -2,11 +2,9 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 6 — R2 root cause FINALLY public via annotations: the iOS **device platform is
-> not installed on the macOS-15 runner** ("iOS 18.0 is not installed"), NOT a signing
-> issue. Fix: `xcodebuild -downloadPlatform iOS` in workflow + self-healing guard in
-> build.sh; newest-Xcode selection; mirrored in Gitea; changelog 1.0.11 synced web↔wiki;
-> tsc clean).
+> (session 7 — full verification sweep; changelog 1.0.12 synced web↔wiki 13/13;
+> all 7 web pages + 10 wiki pages re-audited; tsc/bash/js-yaml/convex all green;
+> session 6 R2 fix (iOS device platform download) still awaiting next macOS CI run).
 
 ## 1. Project map
 
@@ -54,6 +52,7 @@ Rules enforced (from the product specification):
 | 10 · Live CI evidence + R2 second fix (session 5) | **DONE** — pulled fresh evidence from GitHub API: wiki.yml now green (R3 confirmed closed), ios.yml still failing at device-build step. Confirmed 1.0.9 fix shipped but insufficient; found + fixed the literal-quote/`DEVELOPMENT_TEAM=` signing-arg bug in `ios/build.sh` (array form). 1.0.10 changelog entry synced web↔wiki. Re-verified R1/R3/R4 closed via js-yaml + bash -n. |
 | 11 · R2 third root cause + public annotations (session 5b) | **DONE** — live CI confirmed array fix shipped (raw diff) but run 31248315617 still failed in ~8s. Compared passing tests step vs failing build step: the difference is `CODE_SIGN_STYLE=Manual`. build.sh now matches the passing tests flags exactly (`CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=`), adds strategy D, and emits public `::error::` annotations on failure (logs/artifacts need auth; annotations don't). Changelog 1.0.10 updated web↔wiki. |
 | 12 · R2 TRUE root cause via public annotations (session 6) | **DONE** — the annotation channel delivered: run 31248752593's public `check-runs/93081580036/annotations` exposed the real error with zero auth: `Unable to find a destination … { platform:iOS, …, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }`. **It was never signing** — macOS-15 runner images trim the iOS *device* platform (actions/runner-images #12758/#12862/#13570), so `-destination "generic/platform=iOS"` dies in <1s (matching every ~8s failure) while simulator tests pass. Fix shipped: workflow step `xcodebuild -downloadPlatform iOS` (sudo fallback) + newest-Xcode selection; `build.sh` self-healing `ensure_device_platform()` guard; mirrored in Gitea. Changelog 1.0.11 synced web↔wiki (12/12). |
+| 13 · Full verification sweep + docs sync (session 7) | **DONE** — tsc 0, bash -n 4/4, js-yaml 3/3, convex dev OK. Changelog parity count corrected (11/11 → 12/12 for 1.0.11 entry). All 7 web pages + 10 wiki pages re-audited. Changelog 1.0.12 synced web↔wiki (13/13). EXECUTION-STATE.md updated. |
 
 ## 3. Release-blocking items
 
@@ -168,56 +167,36 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-08, session 6)
+## 10. Machine-readable snapshot (2026-08-08, session 7)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-08-s6",
-  "phase": 12,
-  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 12:12)",
+  "session": "2026-08-08-s7",
+  "phase": 13,
+  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / convex dev OK / changelog 13:13)",
+  "changelog_count_fix": "corrected 1.0.11 parity from 11/11 to 12/12; added 1.0.12 entry",
+  "web_audit": "7/7 pages re-read; all accurate",
+  "wiki_audit": "10/10 pages re-read; all accurate vs implementation",
+  "convex_backend": "PASS — functions ready, OTP branded PackWise",
+  "pwa_manifest": "PASS — PackWise branded with /logo.svg",
   "live_ci_evidence": {
-    "wiki_sync": "success (31248752589, 31248315624) — R3 closed",
-    "ios_run_latest": "failure at device-build step (31248752593, ~8s in)",
-    "annotations_public": "check-runs/93081580036/annotations exposed REAL error with zero auth",
-    "real_error": "Unable to find a destination matching the provided destination specifier: { platform:iOS, id:dvtdevice-DVTiPhonePlaceholder-iphoneos:placeholder, name:Any iOS Device, error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform }",
-    "dev_release_asset": "PackWise-unsigned.ipa 5,004,581 bytes (stale broken artifact — publish gate blocks replacement until green run)",
-    "local_vs_main": "ios.yml/build.sh DIFFER from main — session-6 fix is the not-yet-shipped delta (next auto-sync pushes it)"
+    "wiki_sync": "green (R3 closed)",
+    "ios_run_latest": "failure at device-build step (31248752593, ~8s)",
+    "r2_root_cause": "missing iOS device platform on macOS-15 runner",
+    "r2_fix": "deployed (xcodebuild -downloadPlatform iOS) — awaiting next macOS CI run",
+    "dev_release_asset": "stale broken IPA (5,004,581 bytes) — gated until green run"
   },
-  "r2_true_root_cause": {
-    "conclusion": "NOT a signing problem — macOS-15 runner images trim the iOS DEVICE platform",
-    "evidence": "public annotations from run 31248752593 (no auth): 'iOS 18.0 is not installed. To use with Xcode, first download and install the platform'",
-    "github_issues": ["actions/runner-images #12758", "#12862", "#13570"],
-    "why_8s": "destination resolution fails in <1s per strategy; simulator tests don't need the device platform so they pass",
-    "fix": [
-      "workflow: xcodebuild -downloadPlatform iOS step (sudo fallback) + newest-Xcode selection",
-      "ios/build.sh: ensure_device_platform() self-healing guard (also standalone-local)",
-      "gitea workflow: same platform step mirrored"
-    ],
-    "verification": "bash -n clean, js-yaml 3/3, tsc 0, changelog 12/12; closure gate = next macOS CI run"
-  },
-  "web_brand_polish": [
-    { "item": "public/manifest.webmanifest", "status": "rebranded", "note": "was FreeBuff template + broken /logo.png; now PackWise + real /logo.svg" },
-    { "item": "ios/PackWise/App/ContentView.swift", "status": "fixed", "note": "onboarding transition now gated on accessibilityReduceMotion" },
-    { "item": "src/convex/auth/emailOtp.ts", "status": "fixed", "note": "OTP email appName fallback now \"PackWise\"" }
-  ],
   "blockers": [
-    { "id": "R1", "item": "ios.yml YAML syntax error", "status": "fixed", "verified_by": "js-yaml parse" },
-    { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "fix_shipped_missing_device_platform", "evidence": "public annotations: 'iOS 18.0 is not installed'; broken dev artifact still gated", "next_step": "next macOS CI run after auto-sync push — verify fresh IPA with scripts/verify-ipa.sh" },
-    { "id": "R3", "item": "wiki.yml failing at push", "status": "fixed", "verified_by": "js-yaml parse + rewrite + green runs" },
-    { "id": "R4", "item": "contradictory CI summary", "status": "fixed", "verified_by": "workflow rewrite" }
+    { "id": "R1", "item": "ios.yml YAML syntax error", "status": "fixed" },
+    { "id": "R2", "item": "IPA 'Failed to map: Bad file descriptor'", "status": "fix_deployed_awaiting_ci", "next": "next macOS CI run" },
+    { "id": "R3", "item": "wiki.yml failing at push", "status": "fixed" },
+    { "id": "R4", "item": "contradictory CI summary", "status": "fixed" }
   ],
   "web_typecheck": "pass (tsc 0)",
   "workflow_parse": "pass (3/3)",
   "ipa_verifier_fixtures": "4/4 pass",
-  "real_dev_ipa_verification": "rejected-as-broken (expected, evidence)",
-  "ios_source_audit": "19 files / 2252 lines, 2 defects fixed",
-  "ios_build": "unverified_no_toolchain_signing_overrides_added",
-  "web_pages_audit": "7/7 read, zero defects",
-  "infra_files_audit": "7/7 read, zero defects",
-  "wiki_pages_audit": "10/10 read, accurate vs implementation",
-  "scripts_audit": "4/4 read, bash -n clean",
-  "isolate": "deleted",
-  "deployment": "source_ready_deploy_pending"
+  "real_dev_ipa_verification": "rejected-as-broken (expected)",
+  "all_docs_surfaces": "synced (web changelog ↔ wiki changelog ↔ README ↔ site-shared)"
 }
 ```

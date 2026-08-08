@@ -3,6 +3,18 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.12",
+    date: "Session 7 — full verification sweep + docs sync",
+    icon: Wrench,
+    items: [
+      "Full verification sweep: tsc exit 0, bash -n 4/4 scripts, js-yaml 3/3 workflows, convex dev --once OK.",
+      "Fixed changelog parity count: the 1.0.11 entry said 11/11 but there are 12 versions (1.0.0–1.0.11); corrected to 12/12 across both web and wiki surfaces.",
+      "Audited all web pages (Landing, Download, Features, Setup, Docs, Troubleshooting, Changelog), site-shared.tsx, and all 10 wiki pages — all accurate against the implementation.",
+      "Verified Convex backend (auth, packing functions, http) and the PWA manifest — all consistent with the PackWise brand.",
+      "Updated EXECUTION-STATE.md with session 7 results and next dependency-ready tasks.",
+    ],
+  },
+  {
     tag: "1.0.11",
     date: "R2 closed — missing iOS device platform",
     icon: Wrench,
@@ -10,7 +22,7 @@ const entries = [
       'The public annotation channel paid off: CI run 31248752593 surfaced the actual error with zero credentials — "Unable to find a destination … error:iOS 18.0 is not installed. To use with Xcode, first download and install the platform".',
       'It was never a signing problem: GitHub macOS-15 runner images trim the iOS DEVICE platform to save disk (actions/runner-images #12758/#12862/#13570), so xcodebuild -destination "generic/platform=iOS" dies in under a second — why every run failed ~7-8s in while the simulator tests step passed.',
       'Fix: workflow runs xcodebuild -downloadPlatform iOS (official remedy, sudo fallback) before the build, picks the newest installed Xcode, and ios/build.sh gained a self-healing ensure_device_platform() guard for standalone local builds. Mirrored in the Gitea workflow.',
-      'Verified: tsc exit 0, bash -n 4/4 scripts, js-yaml 3/3 workflows, changelog parity 11/11, local-vs-GitHub diff confirms the fix is the not-yet-shipped delta. Next macOS CI run is the R2 closure gate.',
+      'Verified: tsc exit 0, bash -n 4/4 scripts, js-yaml 3/3 workflows, changelog parity 12/12, local-vs-GitHub diff confirms the fix is the not-yet-shipped delta. Next macOS CI run is the R2 closure gate.',
     ],
   },
   {
