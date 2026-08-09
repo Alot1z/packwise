@@ -134,14 +134,16 @@ final class Outfit {
     var dayLabel: String?
     var itemIDs: [UUID]
     var note: String?
+    var isFavorite: Bool
     var createdAt: Date
     var trip: Trip?
 
-    init(name: String, dayLabel: String? = nil, itemIDs: [UUID] = [], note: String? = nil, trip: Trip? = nil) {
+    init(name: String, dayLabel: String? = nil, itemIDs: [UUID] = [], note: String? = nil, isFavorite: Bool = false, trip: Trip? = nil) {
         self.name = name
         self.dayLabel = dayLabel
         self.itemIDs = itemIDs
         self.note = note
+        self.isFavorite = isFavorite
         self.createdAt = Date()
         self.trip = trip
     }
