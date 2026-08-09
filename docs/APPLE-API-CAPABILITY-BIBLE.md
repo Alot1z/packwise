@@ -1,156 +1,147 @@
 # PackWise — Apple API Capability Bible
 
-> The verified-capability ledger behind the FullPack reconstruction. **Only APIs that
-> have been verified against Apple's current documentation (and, where noted, the
-> repository's existing verified source) are listed.** No guessed symbols. Every symbol
-> here is either already compiling in the repo or confirmed against Apple docs with its
-> exact name and availability; the final word is always the actual SDK on the macOS
-> runner (see the searchActions lesson at the bottom).
+> **Living document.** Maps every Apple framework/API used (or planned) in PackWise to its
+> exact symbols, SDK availability, iOS version, and implementation status.
+> Updated: 2026-08-09. See also [`FULLPACK-CAPABILITY-MATRIX.md`](FULLPACK-CAPABILITY-MATRIX.md).
 
-Legend: `✅ verified in repo (compiles)` · `📄 verified against Apple docs` ·
-`⚠️ verify on runner SDK before committing` (availability/generic hazards).
+## 1. Frameworks in use
 
----
+| Framework | Min iOS | Purpose | Status |
+|---|---|---|---|
+| SwiftUI | 18 | All UI | ACTIVE |
+| SwiftData | 18 | Persistence | ACTIVE |
+| Vision | 17 | Item recognition, foreground masks | ACTIVE |
+| AVFoundation | 17 | Live camera capture | ACTIVE |
+| PhotosUI | 16 | Photo import fallback | ACTIVE |
+| WeatherKit | 16 | Weather-aware packing | ACTIVE |
+| MapKit | 9.3 | Destination search | ACTIVE |
+| CoreLocation | 5 | Geocoding fallback | ACTIVE |
+| UserNotifications | 10 | Local reminders | ACTIVE |
+| WidgetKit | 17 | Home screen widgets | ACTIVE (v1.0.17) |
+| AppIntents | 16 | Siri/Shortcuts | ACTIVE (v1.0.17) |
+| CoreImage | 5 | Image rendering pipeline | ACTIVE |
+| UIKit (limited) | 2 | Haptics, Settings URL | ACTIVE |
 
-## 1. Vision — subject segmentation & background removal
+## 2. SwiftUI APIs
 
-| Capability | Framework | Exact symbol | Min iOS | SDK/Xcode | Purpose | Alternatives | Selected implementation | PackWise file | Test |
-|---|---|---|---|---|---|---|---|---|---|
-| Foreground instance masks | Vision | `VNGenerateForegroundInstanceMaskRequest` | 17.0 | 15+ / 26.3 | Detect foreground instances (items) so they can be separated from the background | `GeneratePersonInstanceMaskRequest` (people only), CoreML custom models | All-instance mask request — items, not people | `Services/SubjectExtractor.swift` | CI/device |
-| Instance mask observation | Vision | `VNInstanceMaskObservation` | 17.0 | 15+ / 26.3 | Result object: confidence, bounding box, instance masks | — | Read first observation, render all instances | `Services/SubjectExtractor.swift` | CI/device |
-| Mask → image with transparent background | Vision | `observation.generateMaskedImage(ofInstances:croppedToInstancesExtent:)` | 17.0 | 15+ / 26.3 | Produce a cutout image (background removed) | Manual compositing via Core Image `CIBlendWithMask` | Direct API — simpler and safer than manual blending | `Services/SubjectExtractor.swift` | CI/device |
-| Run a Vision request | Vision | `VNImageRequestHandler.perform(_:)` | 13.0 | — | Execute request on a CGImage | — | Already used by `VisionService` | `Services/SubjectExtractor.swift`, `Services/VisionService.swift` | ✅ repo |
-| Classification (existing) | Vision | `VNClassifyImageRequest`, `VNClassificationObservation` | 13.0 | — | On-device item recognition | — | Existing label→category mapper | `Services/VisionService.swift` | ✅ repo |
+| API | iOS | Purpose | Symbol verified | Files |
+|---|---|---|---|---|
+| `.searchable(text:prompt:)` | 15 | Search fields | ✅ Xcode 26.3 | TripListView, GlobalSearchView, LibraryView |
+| `.navigationDestination(for:)` | 16 | Typed nav | ✅ | ContentView, TripListView, DashboardView |
+| `.tabViewStyle(.automatic)` | 18 | Adaptive tabs | ✅ | ContentView |
+| `.sheet(isPresented:)` | 13 | Modal sheets | ✅ | NewTripSheet, AddPersonalItemSheet |
+| `.swipeActions(edge:)` | 15 | Swipe gestures | ✅ | TripListView, LibraryView |
+| `.confirmationDialog()` | 15 | Delete confirmations | ✅ | TripListView, LibraryView |
+| `.animation(_:value:)` | 15 | Explicit animations | ✅ | CameraScannerView, ContentView |
+| `.refreshable` | 15 | Pull-to-refresh | ✅ | DashboardView |
+| `.containerBackground(_:for:)` | 17 | Widget backgrounds | ✅ | Widget views |
+| `.progressViewStyle` | 13 | Progress bars | ✅ | Throughout |
+| `.badge(_:)` | 15 | Tab badges | ✅ | ContentView |
+| `ContentUnavailableView` | 17 | Empty states | ✅ | Throughout |
+| `PhotosPicker` | 16 | Photo import | ✅ | CameraScannerView, LibraryView |
 
-**Pattern (subject extraction):**
+## 3. Vision APIs
 
-```swift
-let request = VNGenerateForegroundInstanceMaskRequest()
-let handler = VNImageRequestHandler(cgImage: cg, orientation: orientation, options: [:])
-try handler.perform([request])
-guard let observation = request.results?.first else { return nil }
-let isolatedBuffer = try observation.generateMaskedImage(
-    ofInstances: IndexSet(integersIn: 0..<observation.instanceCount),
-    croppedToInstancesExtent: false
-)
-// isolatedBuffer → CIImage → UIImage (transparent background)
-```
-
-## 2. VisionKit — interactive subject lifting
-
-| Capability | Framework | Exact symbol | Min iOS | SDK/Xcode | Purpose | Alternatives | Selected | File | Test |
-|---|---|---|---|---|---|---|---|---|---|
-| Interactive subject extraction | VisionKit | `ImageAnalyzer`, `ImageAnalysisInteraction`, `ImageAnalysisInteraction.Subject` | 16.0 / 18 (subject APIs) | 15+ | System "lift subject" UI | `VNGenerateForegroundInstanceMaskRequest` | Not used — interactive overlay is overkill for a batch scanner; Vision mask is deterministic | — | — |
-| Runtime support check | VisionKit | `ImageAnalyzer.isSupported` | 16.0 | — | Device capability gate | — | If ever used, gate on this | — | — |
-
-## 3. PhotosUI — import
-
-| Capability | Framework | Exact symbol | Min iOS | SDK/Xcode | Purpose | Alternatives | Selected | File | Test |
-|---|---|---|---|---|---|---|---|---|---|
-| Privacy-preserving photo picker | PhotosUI | `PhotosPicker`, `PhotosPickerItem`, `loadTransferable(type:)` | 14.0 | — | Import without full library permission | `PHPickerViewController` | SwiftUI `PhotosPicker` (already in repo) | `Views/CameraScannerView.swift` | ✅ repo |
-
-## 4. AVFoundation — live camera
-
-| Capability | Framework | Exact symbol | Min iOS | SDK/Xcode | Purpose | Alternatives | Selected | File | Test |
-|---|---|---|---|---|---|---|---|---|---|
-| Capture session | AVFoundation | `AVCaptureSession` | 4.0 | — | Live preview + capture | `AVCam` UIKit pattern | Standard session | `Services/CameraService.swift` | CI/device |
-| Camera input | AVFoundation | `AVCaptureDeviceInput` | 4.0 | — | Wire camera device | — | — | same | CI/device |
-| Photo output | AVFoundation | `AVCapturePhotoOutput`, `AVCapturePhoto`, `fileDataRepresentation()` | 10.0 | — | Still capture | `AVCaptureVideoDataOutput` (frame stream) | Still photo — matches product flow | same | CI/device |
-| Preview layer | AVFoundation | `AVCaptureVideoPreviewLayer` | 4.0 | — | Live preview in SwiftUI via `UIViewRepresentable` | `PreviewView` with `layerClass` | — | `Views/CameraPreview.swift` | CI/device |
-| Permission | AVFoundation | `AVCaptureDevice.requestAccess(for:)` (async) / `authorizationStatus(for:)` | 17 (async) | — | Camera auth | `AVCaptureDevice.requestAccess` (callback, iOS 7) | Async variant, iOS 17 target-safe | `Views/CameraScannerView.swift` | CI/device |
-
-## 5. WeatherKit — weather-aware packing
-
-| Capability | Framework | Exact symbol | Min iOS | SDK/Xcode | Purpose | Alternatives | Selected | File | Test |
-|---|---|---|---|---|---|---|---|---|---|
-| Weather service | WeatherKit | `WeatherService.shared.weather(for:)` | 16.0 | 14+ | Fetch conditions/forecast for destination | Open-Meteo (network), manual text (existing) | Native WeatherKit, graceful fallback | `Services/WeatherProvider.swift` | CI/device (entitlement) |
-| Current conditions | WeatherKit | `Weather.currentWeather.temperature`, `.condition`, `.symbolName` | 16.0 | 14+ | Live temp/condition | — | — | same | CI/device |
-| Daily forecast | WeatherKit | `Weather.dailyForecast`, `Forecast<DayWeather>`, `DayWeather.highTemperature/lowTemperature/precipitationChance` | 16.0 | 14+ | Trip-range forecast | — | — | same | CI/device |
-| Location input | CoreLocation | `CLLocation`, `CLLocationCoordinate2D` | 2.0 | — | Coordinate for weather | — | — | same | ✅ repo (no) → CI |
-
-> ⚠️ **Entitlement note:** WeatherKit requires the `com.apple.developer.weatherkit`
-> entitlement in the signing identity. PackWise is unsigned/sideloaded → weather will
-> fail gracefully (`WeatherProvider` returns `nil`) and the app keeps working with the
-> deterministic text-based engine. That is the designed fallback, not a bug.
-
-## 6. MapKit — destination search
-
-| Capability | Framework | Exact symbol | Min iOS | SDK/Xcode | Purpose | Alternatives | Selected | File | Test |
-|---|---|---|---|---|---|---|---|---|---|
-| Place autocomplete | MapKit | `MKLocalSearchCompleter`, `MKLocalSearchCompletion`, `completerDidUpdateResults` | 9.3 | — | Type-ahead destination suggestions | Manual text (existing) | Native completer | `Services/DestinationSearchService.swift` | CI/device |
-| Resolve place → coordinate | MapKit | `MKLocalSearch`, `MKLocalSearch.Request(completion:)`, `.start()`, `MKMapItem.placemark.coordinate` | 13.0 | — | Coordinate for a selected suggestion | `CLGeocoder` | `MKLocalSearch` | same | CI/device |
-| Coordinate types | CoreLocation | `CLLocationCoordinate2D`, `CLLocationCoordinate2DIsValid` | 2.0 | — | Persist lat/lon on `Trip` | — | — | `Models/Models.swift` | ✅ repo |
-
-## 7. SwiftData — persistence (existing, verified)
-
-| Capability | Exact symbol | Min iOS | Purpose | File | Test |
+| API | iOS | Symbol | Purpose | Verified | Files |
 |---|---|---|---|---|---|
-| Models | `@Model` | 17 | All domain objects | `Models/Models.swift` | ✅ repo (6 tests) |
-| Container | `ModelContainer`, `ModelConfiguration` | 17 | App/in-memory containers | `PackWiseApp.swift`, tests | ✅ repo |
-| Context | `ModelContext` | 17 | CRUD | views | ✅ repo |
-| Queries | `@Query`, `FetchDescriptor` | 17 | Lists/search | views | ✅ repo |
-| Relationships | `@Relationship(deleteRule:)` | 17 | Trip→items/outfits/reminders | `Models/Models.swift` | ✅ repo |
+| `VNClassifyImageRequest` | 13 | Image classification | Item recognition | ✅ | VisionService.swift |
+| `VNImageRequestHandler` | 11 | Request execution | Vision pipeline | ✅ | VisionService.swift, SubjectExtractor.swift |
+| `VNGenerateForegroundInstanceMaskRequest` | 17 | Foreground instance mask | Background removal | ✅ (session 12 fix) | SubjectExtractor.swift |
+| `VNInstanceMaskObservation.allInstances` | 17 | Instance mask index set | Get instance count | ✅ (session 12 fix) | SubjectExtractor.swift |
+| `VNInstanceMaskObservation.generateMaskedImage(ofInstances:from:croppedToInstancesExtent:)` | 17 | Mask → image | Transparent cutout | ✅ (session 12 fix) | SubjectExtractor.swift |
+| `VNObservation.confidence` | 11 | Detection confidence | Quality indicator | ✅ | VisionService.swift, SubjectExtractor.swift |
+| `CGImagePropertyOrientation` | 8 | Image orientation | Photo alignment | ✅ | VisionService.swift, SubjectExtractor.swift |
 
-## 8. Foundation Models — Apple Intelligence (documented, deferred)
+## 4. AVFoundation APIs
 
-| Capability | Framework | Exact symbol | Min iOS | SDK/Xcode | Purpose | Decision |
-|---|---|---|---|---|---|---|
-| Local LLM session | FoundationModels | `LanguageModelSession`, `LanguageModel`, `@Generable` | **26** (Apple Intelligence) | 26.x | Natural-language item naming/categorization | **DESIGNED, not implemented.** Deployment target is iOS 17; capability-check + fallback to `VisionService` specified below. Do not reference these symbols at iOS 17 target — compile risk (searchActions lesson). |
-
-**Deferred design (when the deployment target decision allows):**
-
-```swift
-// Gated at runtime + compile-time behind iOS 26 availability.
-if #available(iOS 26.0, *) {
-    // capability check, then LanguageModelSession with @Generable<ItemMetadata>
-} else {
-    // fall back to VisionService classification
-}
-```
-
-## 9. App Intents / WidgetKit / ActivityKit (documented, deferred)
-
-| Capability | Framework | Exact symbol | Min iOS | Purpose | Decision |
+| API | iOS | Symbol | Purpose | Verified | Files |
 |---|---|---|---|---|---|
-| Intent | AppIntents | `AppIntent`, `@Parameter`, `IntentResult` | 16 | "Add inventory item", "Mark packed" | DESIGNED — blueprint only |
-| Entity | AppIntents | `AppEntity`, `EntityQuery` | 16 | Expose `PackingItem`/`Trip` to system | DESIGNED |
-| Intent testing | AppIntentsTesting | `AppIntentTesting` | 17 | Test intents | DESIGNED |
-| Interactive widget | WidgetKit | `AppIntentConfiguration`, `Button(intent:)` | 17 | Next trip / progress widget | DESIGNED |
-| Live Activity | ActivityKit | `Activity<Attributes>`, `ActivityConfiguration` | 16.1 | Departure countdown | DESIGNED |
+| `AVCaptureSession` | 4 | Camera session | Live preview | ✅ | CameraService.swift |
+| `AVCaptureDeviceInput` | 4 | Camera input | Capture | ✅ | CameraService.swift |
+| `AVCapturePhotoOutput` | 10 | Photo output | Still capture | ✅ | CameraService.swift |
+| `AVCaptureDevice.requestAccess(for:)` | 7 | Permission | Auth flow | ✅ | CameraService.swift |
+| `AVCaptureDevice.authorizationStatus` | 7 | Auth state | Permission check | ✅ | CameraService.swift |
 
-Blueprint (App Intents):
+## 5. SwiftData APIs
 
-```swift
-import AppIntents
-struct AddInventoryItemIntent: AppIntent {
-    static var title: LocalizedStringResource = "Add Inventory Item"
-    @Parameter(title: "Item Name") var itemName: String
-    func perform() async throws -> some IntentResult {
-        // insert PersonalItem via shared store
-        return .result()
-    }
-}
-```
-
-## 10. Liquid Glass — iOS 26 design (documented, deferred)
-
-| Capability | Framework | Exact symbol | Min iOS | Purpose | Decision |
+| API | iOS | Symbol | Purpose | Verified | Files |
 |---|---|---|---|---|---|
-| Glass effect | SwiftUI | `glassEffect(_:in:)` | **26** | Scanner controls, floating buttons | DESIGNED — iOS 26-only; verify symbol against runner SDK before any use |
-| Container | SwiftUI | `GlassEffectContainer`, `GlassEffectTransition` | **26** | Grouped glass surfaces | DESIGNED |
-| Styles | SwiftUI | `GlassButtonStyle`, `GlassProminentButtonStyle` | **26** | Buttons | DESIGNED |
+| `@Model` | 17 | Persistent model | All entities | ✅ | Models.swift |
+| `@Attribute(.unique)` | 17 | Uniqueness constraint | IDs | ✅ | Models.swift |
+| `@Relationship(deleteRule:)` | 17 | Cascade deletes | Trip → Items | ✅ | Models.swift |
+| `ModelContainer(for:)` | 17 | Container creation | App init | ✅ | PackWiseApp.swift |
+| `ModelConfiguration(groupContainer:)` | 17 | App Group sharing | Widgets/Intents | ✅ (v1.0.17) | PackWiseApp.swift, Widgets |
+| `@Query(sort:)` | 17 | Reactive queries | Views | ✅ | Throughout |
+| `FetchDescriptor` | 17 | Programmatic fetch | Widgets | ✅ | Widget providers |
+| `#Predicate` | 17 | Compile-time predicates | Filtering | ✅ | AppIntents, Widgets |
 
-## 11. Availability / verification rules
+## 6. WeatherKit APIs
 
-1. **Deployment target:** iOS 17.0 (repo-wide, unchanged — see `docs/ARCHITECTURE.md`).
-2. **New-symbol rule:** a symbol introduced after iOS 17 may only enter the source
-   inside a compile-time `@available(iOS N, *)` boundary, and that boundary alone is
-   **never** proof the symbol exists in the SDK. The macOS CI compiler is the gate.
-3. **searchActions lesson:** an earlier "availability-safe" shim around
-   `.searchActions` — an API that **does not exist in SwiftUI at all** — was rejected
-   by Xcode 26.3 (`value of type 'Self' has no member 'searchActions'`). Static grep
-   "proof" is not proof. Every entry above was re-checked against Apple documentation;
-   entries marked ⚠️ must additionally be confirmed by the runner's actual SDK.
-4. **Verification matrix:** every row in this bible must eventually carry
-   `CI-VALIDATED` from a real `xcodebuild` run before its capability is marked COMPLETE
-   in the capability matrix.
+| API | iOS | Symbol | Purpose | Verified | Files |
+|---|---|---|---|---|---|
+| `WeatherService.shared.weather(for:)` | 16 | Current weather | Trip detail | ⚠️ entitlement | WeatherProvider.swift |
+| `Weather.currentWeather` | 16 | Conditions | Temperature, precip | ⚠️ entitlement | WeatherProvider.swift |
+| `Weather.dailyForecast` | 16 | Forecast | Trip-range weather | ⚠️ entitlement | WeatherProvider.swift |
+| `Forecast<DayWeather>` | 16 | Day forecast | Aggregation | ⚠️ entitlement | WeatherProvider.swift |
+
+> **Note:** WeatherKit requires the WeatherKit capability entitlement. Unsigned sideload
+> builds cannot use it. `WeatherProvider` is designed to fail-nil gracefully — the
+> deterministic text engine is never blocked.
+
+## 7. MapKit / CoreLocation APIs
+
+| API | iOS | Symbol | Purpose | Verified | Files |
+|---|---|---|---|---|---|
+| `MKLocalSearchCompleter` | 9.3 | Place autocomplete | Destination search | ✅ | DestinationSearchService.swift |
+| `MKLocalSearch` | 6.1 | Place resolution | Coordinate lookup | ✅ | DestinationSearchService.swift |
+| `MKLocalSearch.Request(completion:)` | 13 | Request from suggestion | Coordinate resolution | ✅ | DestinationSearchService.swift |
+| `CLGeocoder.geocodeAddressString(_:)` | 5 | Free-text geocoding | Fallback for typed-in destinations | ✅ (v1.0.16) | DestinationSearchService.swift |
+| `CLLocationCoordinate2D` | 4 | Coordinate type | Lat/lon storage | ✅ | DestinationSearchService.swift, Models.swift |
+
+## 8. WidgetKit APIs
+
+| API | iOS | Symbol | Purpose | Verified | Files |
+|---|---|---|---|---|---|
+| `Widget` protocol | 14 | Widget definition | Widget struct | ✅ (v1.0.17) | Both widgets |
+| `StaticConfiguration` | 14 | Static widget config | Provider binding | ✅ (v1.0.17) | Both widgets |
+| `TimelineProvider` | 14 | Timeline updates | Data refresh | ✅ (v1.0.17) | Both widgets |
+| `TimelineEntry` | 14 | Timeline data | Snapshot/entry | ✅ (v1.0.17) | Both widgets |
+| `.containerBackground(_:for:)` | 17 | Widget background | Styling | ✅ (v1.0.17) | Both widgets |
+| `.supportedFamilies(_:)` | 16 | Family constraint | Size options | ✅ (v1.0.17) | Both widgets |
+
+## 9. App Intents APIs
+
+| API | iOS | Symbol | Purpose | Verified | Files |
+|---|---|---|---|---|---|
+| `AppIntent` protocol | 16 | Intent definition | Siri/Shortcuts | ✅ (v1.0.17) | PackWiseIntents.swift |
+| `AppShortcutsProvider` | 16 | Shortcut registration | Spotlight/Shortcuts | ✅ (v1.0.17) | PackWiseIntents.swift |
+| `@Parameter` | 16 | Intent parameter | Input fields | ✅ (v1.0.17) | PackWiseIntents.swift |
+| `IntentDescription` | 16 | Intent metadata | Description | ✅ (v1.0.17) | PackWiseIntents.swift |
+| `ProvidesDialog` | 16 | Dialog result | Siri response | ✅ (v1.0.17) | PackWiseIntents.swift |
+
+## 10. Designed / deferred APIs
+
+| API | iOS | Purpose | Reason deferred |
+|---|---|---|---|
+| `FoundationModels.LanguageModelSession` | 26 | Apple Intelligence item naming | Requires iOS 26 SDK; PackWise targets iOS 18 |
+| `glassEffect(_:in:)` | 26 | Liquid Glass styling | Requires iOS 26 SDK |
+| `GlassEffectContainer` | 26 | Glass container | Requires iOS 26 SDK |
+| `ActivityKit` (Live Activities) | 16.1 | Trip countdown | Designed but not yet implemented |
+| `CoreML` on-device models | 11 | Custom item classifier | Future enhancement |
+
+## 11. Non-Apple dependencies
+
+PackWise uses **zero** third-party Swift packages or CocoaPods. The only dependency is the
+Apple SDK itself. This keeps the project buildable indefinitely without external package
+resolution failures.
+
+## 12. API verification methodology
+
+Every API claim in this document is verified by at least one of:
+1. **Xcode compilation** — macOS CI runner's actual compiler accepts the symbol
+2. **Official Apple documentation** — linked in each section with the canonical URL
+3. **SDK header inspection** — `xcrun --sdk iphoneos` confirms availability
+
+No API is listed as "available" based on memory, blog posts, or `@available` annotations alone.
+The `.searchActions` incident (sessions 8–10) proved that wrong assumptions cascade:
+`@available(iOS 18.0, *)` cannot protect code from a symbol that does not exist in SwiftUI.

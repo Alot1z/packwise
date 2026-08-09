@@ -99,29 +99,50 @@ private struct TripRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                Text(trip.status.label).font(.caption2.bold()).padding(.horizontal, 7).padding(.vertical, 3).background(.secondary.opacity(0.18), in: Capsule())
+                Text(trip.status.label)
+                    .font(PackWiseDesign.Typography.captionBold)
+                    .packWiseChip(color: statusColor(for: trip.status))
                     .accessibilityLabel("Status: \(trip.status.label)")
                 Spacer()
-                if let d = trip.startDate { Text(d, style: .date).font(.caption2).foregroundStyle(.secondary) }
+                if let d = trip.startDate {
+                    Text(d, style: .date)
+                        .font(PackWiseDesign.Typography.caption2)
+                        .foregroundStyle(PackWiseDesign.Color.textTertiary)
+                }
             }
-            Text(trip.title).font(.headline).lineLimit(1)
-            Label(trip.destination, systemImage: "mappin").font(.caption).foregroundStyle(.secondary)
+            Text(trip.title)
+                .font(PackWiseDesign.Typography.headline)
+                .foregroundStyle(PackWiseDesign.Color.textPrimary)
+                .lineLimit(1)
+            Label(trip.destination, systemImage: "mappin")
+                .font(PackWiseDesign.Typography.caption)
+                .foregroundStyle(PackWiseDesign.Color.textSecondary)
             if trip.essentialsMissing > 0 {
                 Label("\(trip.essentialsMissing) essentials unpacked", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Color(red: 0.72, green: 0.36, blue: 0.0))
+                    .font(PackWiseDesign.Typography.caption2.weight(.semibold))
+                    .foregroundStyle(PackWiseDesign.Color.warning)
                     .accessibilityLabel("\(trip.essentialsMissing) essentials still unpacked")
             }
             ProgressView(value: trip.progress)
-                .tint(trip.status == .ready ? .green : .accentColor)
+                .tint(trip.status == .ready ? PackWiseDesign.Color.success : PackWiseDesign.Color.primary)
                 .accessibilityLabel("Packing progress")
                 .accessibilityValue("\(Int(trip.progress * 100)) percent")
-            Text("\(trip.items.filter(\.packed).count) of \(trip.items.count) packed · \(Int(trip.progress*100))%")
-                .font(.caption2).foregroundStyle(.secondary)
+            Text(trip.progressLabel)
+                .font(PackWiseDesign.Typography.caption2)
+                .foregroundStyle(PackWiseDesign.Color.textSecondary)
                 .accessibilityHidden(true)
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(trip.title), \(trip.destination), \(trip.status.label), \(Int(trip.progress * 100)) percent packed")
+    }
+
+    private func statusColor(for status: TripStatus) -> Color {
+        switch status {
+        case .planning: return PackWiseDesign.Color.info
+        case .packing: return PackWiseDesign.Color.accent
+        case .ready: return PackWiseDesign.Color.success
+        case .archived: return PackWiseDesign.Color.textTertiary
+        }
     }
 }
