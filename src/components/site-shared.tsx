@@ -20,39 +20,70 @@ export type ReleasePointer = {
 type ManifestState = "loading" | "verified" | "unavailable";
 
 /**
- * Live release status straight from GitHub's public release manifests.
- * The dev prerelease is published on every successful main push, so it is the
- * freshest signal; `latest` only exists once a v* release is published.
+ * Live release status straight from the GitHub REST API.
  *
- * Truthfulness contract: when neither manifest exists (or both 404), the state
- * is `unavailable` — callers must show an explicit unavailable state, never
- * pretend a download exists.
+ * Why the REST API and not `releases/download/...`? The download endpoints do
+ * not send CORS headers, so a browser fetch is blocked (ERR_FAILED) and the
+ * site could never show a verified state. api.github.com sends
+ * `Access-Control-Allow-Origin: *` for public repos, so it works in the
+ * browser. `dev` is published on every successful main push (freshest signal);
+ * `latest` only exists once a v* release is published.
+ *
+ * Truthfulness contract: when no releases exist (or the API is unreachable),
+ * the state is `unavailable` — callers must show an explicit unavailable
+ * state, never pretend a download exists.
+ *
+ * The result is cached 5 minutes and shared across hook instances (SiteNav +
+ * page + footer all call this), so one page load = one API call, well inside
+ * the unauthenticated rate limit (60/hr per IP).
  */
+type ManifestResult = { latest: ReleasePointer | null; dev: ReleasePointer | null };
+let manifestCache: { at: number; promise: Promise<ManifestResult> } | null = null;
+const MANIFEST_TTL_MS = 5 * 60 * 1000;
+
+function fetchReleasePointers(): Promise<ManifestResult> {
+  return fetch("https://api.github.com/repos/Alot1z/packwise/releases?per_page=6", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((list: unknown) => {
+      if (!Array.isArray(list) || list.length === 0) return { latest: null, dev: null };
+      const toPointer = (rel: { tag_name: string; published_at?: string | null }): ReleasePointer => ({
+        tag: rel.tag_name,
+        published_at: rel.published_at ?? undefined,
+      });
+      // Truthfulness: a release only counts as verified if it actually carries
+      // a real IPA asset (the workflow attaches it only after the publish gate
+      // passes). A bare release tag with no ipa, or a broken shell, must not
+      // light up the green "verified" UI.
+      const hasIpa = (rel: { assets?: Array<{ name?: string; size?: number }> }) =>
+        (rel?.assets ?? []).some((a) => a.name === "PackWise-unsigned.ipa" && (a.size ?? 0) > 100_000);
+      const dev = list.find((r) => r?.tag_name === "dev");
+      const latest = list.find((r) => r && !r.prerelease) ?? null;
+      return {
+        dev: dev && hasIpa(dev) ? toPointer(dev) : null,
+        latest: latest && hasIpa(latest) ? toPointer(latest) : null,
+      };
+    })
+    .catch(() => ({ latest: null, dev: null }));
+}
+
 export function useManifest() {
   const [state, setState] = useState<ManifestState>("loading");
   const [latest, setLatest] = useState<ReleasePointer | null>(null);
   const [dev, setDev] = useState<ReleasePointer | null>(null);
   useEffect(() => {
     let cancelled = false;
-    const poke = async () => {
-      const [devR, latestR] = await Promise.allSettled([
-        fetch("https://github.com/Alot1z/packwise/releases/download/dev/PackWise-releases.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-        fetch("https://github.com/Alot1z/packwise/releases/latest/download/PackWise-releases.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-      ]);
-      if (cancelled) return;
-      const devJ = devR.status === "fulfilled" ? devR.value : null;
-      const latestJ = latestR.status === "fulfilled" ? latestR.value : null;
-      const devP: ReleasePointer | null = devJ?.dev ?? null;
-      const latestP: ReleasePointer | null = devJ?.latest ?? latestJ?.latest ?? null;
-      if (devP || latestP) {
-        setDev(devP);
-        setLatest(latestP);
-        setState("verified");
-      } else {
-        setState("unavailable");
+    const run = async () => {
+      const now = Date.now();
+      if (!manifestCache || now - manifestCache.at > MANIFEST_TTL_MS) {
+        manifestCache = { at: now, promise: fetchReleasePointers() };
       }
+      const result = await manifestCache.promise;
+      if (cancelled) return;
+      setDev(result.dev);
+      setLatest(result.latest);
+      setState(result.dev || result.latest ? "verified" : "unavailable");
     };
-    void poke();
+    void run();
     return () => {
       cancelled = true;
     };
