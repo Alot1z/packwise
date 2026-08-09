@@ -2,6 +2,14 @@ import ActivityKit
 import Foundation
 import SwiftData
 
+/// `Activity` is internally thread-safe (a reference type managing a system
+/// connection) but is not marked `Sendable` in the current SDK, so awaiting
+/// its `nonisolated` `update`/`end` methods trips Swift 6 strict concurrency
+/// with "sending 'activity' risks causing data races". This canonical
+/// ActivityKit bridge conformance makes the awaits legal; the service is still
+/// `@MainActor`-isolated so all access is serialized.
+extension Activity: @retroactive @unchecked Sendable {}
+
 /// Starts, updates, and ends the trip-departure Live Activity
 /// (Lock Screen + Dynamic Island).
 ///
