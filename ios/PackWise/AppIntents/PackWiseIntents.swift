@@ -13,9 +13,9 @@ struct PackWiseShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: AddInventoryItemIntent(),
             phrases: [
-                "Add \\(\.$itemName) to my inventory",
-                "Add \\(\.$itemName) to my packing list",
-                "Add \\(\.$itemName) to PackWise"
+                "Add \(\.$itemName) to my inventory",
+                "Add \(\.$itemName) to my packing list",
+                "Add \(\.$itemName) to PackWise"
             ],
             shortTitle: "Add Item",
             systemImageName: "plus.circle"
@@ -23,9 +23,9 @@ struct PackWiseShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: MarkPackedIntent(),
             phrases: [
-                "Mark \\(\.$itemName) as packed",
-                "Mark \\(\.$itemName) as packed in PackWise",
-                "Check off \\(\.$itemName)"
+                "Mark \(\.$itemName) as packed",
+                "Mark \(\.$itemName) as packed in PackWise",
+                "Check off \(\.$itemName)"
             ],
             shortTitle: "Mark Packed",
             systemImageName: "checkmark.circle"
@@ -33,9 +33,9 @@ struct PackWiseShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: CreateTripIntent(),
             phrases: [
-                "Create a trip to \\(\.$destination) in PackWise",
-                "Plan a trip to \\(\.$destination)",
-                "Make a new trip called \\(\.$tripTitle)"
+                "Create a trip to \(\.$destination) in PackWise",
+                "Plan a trip to \(\.$destination)",
+                "Make a new trip called \(\.$tripTitle)"
             ],
             shortTitle: "New Trip",
             systemImageName: "airplane"
