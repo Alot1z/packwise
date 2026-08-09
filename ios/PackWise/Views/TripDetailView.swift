@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 struct TripDetailView: View {
     @Environment(\.modelContext) private var context
@@ -18,6 +19,8 @@ struct TripDetailView: View {
     @State private var outfitName = ""
     @State private var outfitDay = ""
     @State private var showDeleteConfirm = false
+    @State private var weather: WeatherSnapshot?
+    @State private var weatherChecked = false
 
     enum Tab: String, CaseIterable { case items = "Packing List", outfits = "Outfits", export = "Export" }
     enum PackedFilter: String, CaseIterable { case all = "All", packed = "Packed", unpacked = "Unpacked" }
@@ -71,6 +74,7 @@ struct TripDetailView: View {
             }
         }
         .searchable(text: $search, prompt: "Search items, categories, notes")
+        .task { await loadWeatherIfPossible() }
         .confirmationDialog("Delete trip?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { deleteTrip() }
             Button("Cancel", role: .cancel) {}
@@ -95,14 +99,25 @@ struct TripDetailView: View {
             }
             if let a = trip.activities, !a.isEmpty { Label(a, systemImage: "figure.hiking").font(.caption).foregroundStyle(.secondary) }
             if let c = trip.climateInfo, !c.isEmpty { Label(c, systemImage: "cloud.sun").font(.caption).foregroundStyle(.secondary) }
+            if let weather {
+                Label("\(weather.condition) · \(Int(weather.temperatureC))°C now", systemImage: weather.symbolName)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Weather: \(weather.condition), \(Int(weather.temperatureC)) degrees Celsius")
+                if let first = weather.daily.first {
+                    Text("Trip days: high \(Int(first.highC))° · low \(Int(first.lowC))° · \(Int((first.precipitationChance) * 100))% rain")
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+            }
             if trip.essentialsMissing > 0 {
                 Label("\(trip.essentialsMissing) essentials still unpacked", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(Color(red: 0.72, green: 0.36, blue: 0.0))
             }
 
-            // Local recommendations
-            let recs = RecommendationService.suggestions(for: trip)
+            // Local recommendations (text-based always; weather-aware when available)
+            let recs = RecommendationService.suggestions(for: trip, weather: weather)
             if !recs.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Suggested — confirm to add").font(.caption2.bold())
@@ -258,6 +273,19 @@ struct TripDetailView: View {
                 LabeledContent("Outfits", value: "\(trip.outfits.count)")
             }
         }.listStyle(.insetGrouped)
+    }
+
+    /// Fetches live weather once when the trip has a destination coordinate.
+    /// Fails silently to the deterministic text engine (unsigned builds have no
+    /// WeatherKit entitlement — that is the designed fallback, not an error).
+    @MainActor
+    private func loadWeatherIfPossible() async {
+        guard !weatherChecked,
+              let lat = trip.destinationLatitude,
+              let lon = trip.destinationLongitude else { return }
+        weatherChecked = true
+        let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        weather = await WeatherProvider.snapshot(for: coord)
     }
 
     private func exportString() -> String {

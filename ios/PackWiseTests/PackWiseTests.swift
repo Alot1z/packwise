@@ -69,3 +69,73 @@ struct PackWiseTests {
         #expect(!r.title.isEmpty)
     }
 }
+
+@Suite("PackWise — Weather-aware recommendations (deterministic, offline)")
+struct WeatherRecommendationTests {
+
+    private func snapshot(condition: String, temp: Double, days: [(Date, Double, Double, Double)]) -> WeatherSnapshot {
+        WeatherSnapshot(
+            temperatureC: temp,
+            condition: condition,
+            symbolName: "cloud",
+            daily: days.map { WeatherSnapshot.WeatherDay(date: $0.0, highC: $0.1, lowC: $0.2, condition: condition, symbolName: "cloud", precipitationChance: $0.3) }
+        )
+    }
+
+    @Test("Rain in the trip window adds umbrella + rain shell")
+    func rainy() {
+        let start = Calendar.current.startOfDay(for: Date())
+        let end = start.addingTimeInterval(86400 * 2)
+        let trip = Trip(title: "Wet", destination: "Lisbon", startDate: start, endDate: end)
+        let weather = snapshot(condition: "Rain", temp: 15, days: [(start, 18, 12, 0.8), (start.addingTimeInterval(86400), 17, 11, 0.7), (start.addingTimeInterval(2 * 86400), 19, 13, 0.2)])
+        let titles = RecommendationService.suggestions(for: trip, weather: weather).map(\.title)
+        #expect(titles.contains("Umbrella"))
+        #expect(titles.contains("Rain shell"))
+    }
+
+    @Test("Cold lows add warm layers + gloves")
+    func cold() {
+        let start = Calendar.current.startOfDay(for: Date())
+        let end = start.addingTimeInterval(86400)
+        let trip = Trip(title: "Cold", destination: "Oslo", startDate: start, endDate: end)
+        let weather = snapshot(condition: "Snow", temp: -2, days: [(start, 2, -6, 0.9)])
+        let titles = RecommendationService.suggestions(for: trip, weather: weather).map(\.title)
+        #expect(titles.contains("Warm layers"))
+        #expect(titles.contains("Gloves"))
+    }
+
+    @Test("Heat adds sun protection")
+    func hot() {
+        let trip = Trip(title: "Hot", destination: "Cancún")
+        let weather = snapshot(condition: "Clear", temp: 31, days: [])
+        let titles = RecommendationService.suggestions(for: trip, weather: weather).map(\.title)
+        #expect(titles.contains("Sunscreen"))
+        #expect(titles.contains("Sunglasses"))
+    }
+
+    @Test("Nil weather falls back to the text engine only")
+    func fallback() {
+        let trip = Trip(title: "Beach", destination: "Tenerife beach", startDate: Date(), endDate: Date().addingTimeInterval(86400 * 5))
+        let with = RecommendationService.suggestions(for: trip, weather: snapshot(condition: "Clear", temp: 25, days: [])).map(\.title)
+        let without = RecommendationService.suggestions(for: trip, weather: nil).map(\.title)
+        #expect(without.contains("Sunscreen")) // text engine still fires on "beach"
+        #expect(with.count >= without.count)
+    }
+
+    @Test("Precipitation chance averages only days inside the trip window")
+    func precipitationAverages() {
+        let start = Calendar.current.startOfDay(for: Date())
+        let days = [
+            (start.addingTimeInterval(-86400), 1.0), // before trip — excluded
+            (start, 0.5),
+            (start.addingTimeInterval(86400), 1.0),
+            (start.addingTimeInterval(2 * 86400), 0.0) // after trip — excluded
+        ]
+        let weather = WeatherSnapshot(
+            temperatureC: 12, condition: "Cloudy", symbolName: "cloud",
+            daily: days.map { WeatherSnapshot.WeatherDay(date: $0.0, highC: 15, lowC: 10, condition: "Cloudy", symbolName: "cloud", precipitationChance: $0.1) }
+        )
+        let chance = WeatherProvider.precipitationChance(in: weather, from: start, to: start.addingTimeInterval(86400))
+        #expect(chance == 0.75)
+    }
+}

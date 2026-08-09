@@ -46,7 +46,7 @@ ios/PackWise/
   App/        PackWiseApp.swift, ContentView.swift
   Models/     Models.swift (all @Model + TemplateItem + constants)
   Services/   VisionService.swift, NotificationService.swift, RecommendationService.swift
-  Views/      DashboardView, TripListView, TripDetailView, ItemDetailView, PhotoScannerView, LibraryView, GlobalSearchView, TemplateLibraryView, RemindersView, SettingsView, OnboardingView, NewTripSheet
+  Views/      DashboardView, TripListView, TripDetailView, ItemDetailView, CameraScannerView, LibraryView, GlobalSearchView, TemplateLibraryView, RemindersView, SettingsView, OnboardingView, NewTripSheet
   Resources/  Assets.xcassets, Info.plist
 ```
 
