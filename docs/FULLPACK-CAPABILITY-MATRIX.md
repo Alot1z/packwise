@@ -66,7 +66,7 @@ Apple APIs.
 |---|---|---|---|---|---|---|---|
 | Trips with name/dates/destination | Listing ("trips with dates/destinations") | CRUD, status, duplicate | SwiftData | 17 | `Trip` model, `TripListView`, `NewTripSheet` | `Models/Models.swift`, `Views/TripListView.swift`, `Views/NewTripSheet.swift` | TESTED |
 | Destination search / place autocomplete | "destinations" | type-ahead place results | `MKLocalSearchCompleter`, `MKLocalSearch`, `MKMapItem` | 9.3 / 13 | `DestinationSearchService` + suggestions list in `NewTripSheet`; coordinate persisted on `Trip` | `Services/DestinationSearchService.swift`, `Views/NewTripSheet.swift` | IMPLEMENTED (CI gate pending) |
-| Geocoding fallback for free-text destinations | Product norm | text → coordinate | `CLGeocoder` (iOS 5) | 5 | Planned: geocode when no completer result chosen | `Services/DestinationSearchService.swift` | DESIGNED |
+| Geocoding fallback for free-text destinations | Product norm | text → coordinate | `CLGeocoder` (iOS 5) | 5 | `DestinationSearchService.geocode(destination:)` — resolves free-text on trip creation when no completer suggestion was picked | `Services/DestinationSearchService.swift` | IMPLEMENTED |
 | Destination coordinate on trip | Needed by weather | lat/lon persisted | SwiftData optional doubles | — | `Trip.destinationLatitude/Longitude` | `Models/Models.swift` | IMPLEMENTED |
 
 ### 2.5 Weather-aware packing
@@ -90,7 +90,7 @@ Apple APIs.
 | FullPack capability | Evidence | Atomic behavior | Apple API | Min iOS | PackWise implementation | Files | Status |
 |---|---|---|---|---|---|---|---|
 | Outfit planning | Listing ("outfit planning") | compose from items, day labels | SwiftData + SwiftUI | 17 | `Outfit` model + outfits tab in `TripDetailView` | `Models/Models.swift`, `Views/TripDetailView.swift` | TESTED (indirect) |
-| Outfit recommendation engine | Design objective | deterministic color/category/weather combos | pure Swift | — | `RecommendationService.outfitSuggestions` (planned; deterministic, no cloud) | — | DESIGNED |
+| Outfit recommendation engine | Design objective | deterministic color/category/weather combos | pure Swift | — | `RecommendationService.outfitSuggestions(for:weather:)` with weather-aware, trip-context, and packed-item filtering | `Services/RecommendationService.swift` | IMPLEMENTED (CI gate pending) |
 
 ### 2.8 System integrations (modernization layer)
 

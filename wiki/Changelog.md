@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.16 — Outfit recommendation engine & destination geocoding fallback (2026-08-09)
+
+**Outfit recommendations arrive — deterministic, weather-aware, item-aware.**
+
+- **Outfit recommendation engine:** `RecommendationService.outfitSuggestions(for:weather:)` generates FullPack-class outfit ideas from trip context (business meetings → blazer/white-shirt, beach → swim-shorts/sandals, outdoor → hiking boots/rain-shell, cold → warm-layers/gloves, international → travel-day), weather conditions, and items already packed. Each suggestion maps named items to a purpose and day label, but **only when every item is already packed** — suggestions that reference absent items are filtered out.
+- **Destination geocoding fallback:** when you type a free-text destination (e.g. "Kyoto, Japan") without picking a MapKit completer suggestion, `CLGeocoder` now resolves it to coordinates on trip creation — no more manual lat/lon entry. The `NewTripSheet` Create button waits for the geocoding result before persisting the trip.
+- **Tests:** 5 new deterministic offline outfit recommendation tests (`OutfitRecommendationTests`) in `PackWiseTests` (business, beach, rainy-outdoor, international, unpacked-item filtering).
+- Docs: `FULLPACK-CAPABILITY-MATRIX.md` outfit row updated (DESIGNED → IMPLEMENTED).
+
+**Validation:** web `tsc` 0 · `bash -n` 3/3 scripts · `js-yaml` 3/3 workflows · Convex codegen OK. **Pending:** the next macOS CI run is the acceptance gate for the new Swift files (Xcode compile + archive + IPA verification).
+
 ## 1.0.15 — FullPack-class scanner, background removal & weather-aware packing (2026-08-09)
 
 **The `.searchActions` API never existed — the previous shim wrapped a phantom.**

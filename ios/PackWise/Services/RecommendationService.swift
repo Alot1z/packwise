@@ -136,4 +136,121 @@ enum RecommendationService {
     static func missingEssentials(in trip: Trip) -> [Suggestion] {
         trip.items.filter { $0.essential && !$0.packed }.map { Suggestion(title: $0.name, reason: "Essential, still unpacked", category: $0.category) }
     }
+
+    // MARK: - Outfit suggestions
+
+    /// A pre-composed outfit suggestion for a specific day or context.
+    struct OutfitSuggestion: Identifiable, Hashable {
+        let id = UUID()
+        /// Display name for the outfit, e.g. "Business meeting" or "Beach afternoon".
+        let name: String
+        /// Optional day label, e.g. "Day 1" or "Monday".
+        let dayLabel: String?
+        /// The item names (case-insensitive matched against the trip's packed items).
+        let itemNames: [String]
+        /// Why this outfit was suggested.
+        let reason: String
+    }
+
+    /// Deterministic outfit suggestions based on trip context, weather, and available items.
+    /// Each suggestion names items from the trip that are already packed — suggestions
+    /// that reference absent items are filtered out.
+    static func outfitSuggestions(for trip: Trip, weather: WeatherSnapshot?) -> [OutfitSuggestion] {
+        let packed = Set(trip.items.filter(\.packed).map { $0.name.lowercased() })
+        let dest = (trip.destination + " " + (trip.purpose ?? "") + " " + (trip.activities ?? "") + " " + (trip.climateInfo ?? "")).lowercased()
+        let cond = weather?.condition.lowercased() ?? ""
+        let temp = weather?.temperatureC ?? 20
+        let precip = WeatherProvider.precipitationChance(in: weather ?? WeatherSnapshot(
+            temperatureC: 20, condition: "Clear", symbolName: "sun.max", daily: []
+        ), from: trip.startDate, to: trip.endDate)
+
+        var candidates: [OutfitSuggestion] = []
+
+        // Business / work context
+        if dest.contains("business") || dest.contains("meeting") || dest.contains("conference") || dest.contains("work") {
+            candidates.append(OutfitSuggestion(
+                name: "Business meeting", dayLabel: "Day 1",
+                itemNames: ["Blazer", "White shirt", "Dark trousers", "Dress shoes", "Notebook"],
+                reason: "Business context"
+            ))
+            candidates.append(OutfitSuggestion(
+                name: "Business casual", dayLabel: "Day 2",
+                itemNames: ["Linen shirt", "Dark trousers", "Sneakers"],
+                reason: "Business casual alternative"
+            ))
+        }
+
+        // Beach / warm / tropical
+        if dest.contains("beach") || dest.contains("coast") || dest.contains("tropical") || dest.contains("island") || temp >= 28 {
+            candidates.append(OutfitSuggestion(
+                name: "Beach afternoon", dayLabel: nil,
+                itemNames: ["Swim shorts", "Linen shirt", "Sandals", "Sunglasses"],
+                reason: temp >= 28 ? "\(Int(temp))°C — beach weather" : "Beach destination"
+            ))
+            candidates.append(OutfitSuggestion(
+                name: "Coastal evening", dayLabel: nil,
+                itemNames: ["Linen trousers", "Linen shirt", "Sneakers"],
+                reason: "Cooler evening by the coast"
+            ))
+        }
+
+        // Outdoor / hiking / mountain
+        if dest.contains("hiking") || dest.contains("trail") || dest.contains("mountain") || dest.contains("outdoor") || trip.tripCategory == "Outdoor" {
+            candidates.append(OutfitSuggestion(
+                name: "Trail day", dayLabel: "Day 1",
+                itemNames: ["Hiking boots", "Rain shell", "Water bottle", "Headlamp"],
+                reason: "Outdoor activity"
+            ))
+            if let p = precip, p >= 0.5 {
+                candidates.append(OutfitSuggestion(
+                    name: "Wet trail", dayLabel: nil,
+                    itemNames: ["Rain shell", "Waterproof bag", "Hiking boots"],
+                    reason: "\(Int(p * 100))% precipitation chance"
+                ))
+            }
+        }
+
+        // Cold / snow / winter
+        if dest.contains("cold") || dest.contains("snow") || dest.contains("winter") || dest.contains("ski") || temp <= 5 {
+            candidates.append(OutfitSuggestion(
+                name: "Cold day out", dayLabel: nil,
+                itemNames: ["Warm layers", "Parka", "Gloves", "Boots", "Scarf"],
+                reason: temp <= 5 ? "\(Int(temp))°C — cold conditions" : "Cold climate"
+            ))
+        }
+
+        // Rain / wet
+        if cond.contains("rain") || cond.contains("shower") || cond.contains("thunder") || dest.contains("rain") || dest.contains("monsoon") {
+            candidates.append(OutfitSuggestion(
+                name: "Rain-ready", dayLabel: nil,
+                itemNames: ["Rain shell", "Waterproof bag", "Umbrella", "Boots"],
+                reason: "Rain expected"
+            ))
+        }
+
+        // International / travel day
+        if dest.contains("international") || trip.tripCategory == "International" {
+            candidates.append(OutfitSuggestion(
+                name: "Travel day", dayLabel: "Arrival",
+                itemNames: ["Sneakers", "Linen shirt", "Dark trousers", "Passport"],
+                reason: "International travel"
+            ))
+        }
+
+        // General / weekend — always offer if enough items are packed
+        let generalItems = packed.intersection(["linen shirt", "dark trousers", "sneakers", "hoodie", "jeans", "t-shirt"].map { $0.lowercased() })
+        if generalItems.count >= 2, candidates.isEmpty || dest.trimmingCharacters(in: .whitespaces).isEmpty {
+            candidates.append(OutfitSuggestion(
+                name: "Casual day", dayLabel: nil,
+                itemNames: ["Linen shirt", "Dark trousers", "Sneakers"],
+                reason: "Everyday casual"
+            ))
+        }
+
+        // Filter to only outfits where every item is already packed (case-insensitive).
+        // A suggestion that references absent items is useless to the user.
+        return candidates.filter { outfit in
+            outfit.itemNames.allSatisfy { name in packed.contains(name.lowercased()) }
+        }
+    }
 }
