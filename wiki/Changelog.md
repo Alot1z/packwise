@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.15 — FullPack-class scanner, background removal & weather-aware packing (2026-08-09)
+
+**The `.searchActions` API never existed — the previous shim wrapped a phantom.**
+
+- **Root cause finally resolved, and the fix is deletion:** Apple's SwiftUI has no `.searchActions` modifier on any OS version. The `SearchClearActionsModifier.swift` wrapper (1.0.13/1.0.14) was wrapping a nonexistent symbol that the Xcode 26.3 / iOS 26.2 SDK compiler rejected with `value of type 'Self' has no member 'searchActions'`. The entire shim is now **deleted**, along with its two callers in `TripListView` and `GlobalSearchView`. iOS 17's `.searchable()` already provides a built-in clear (X) button, so the user experience is unchanged — the compile blocker is simply gone.
+- **Real camera scanner:** `CameraService` (`AVCaptureSession` live preview, capture, flip, permission/unauthorized states) + `CameraScannerView` replacing the picker-only `PhotoScannerView` (deleted). Photo-library import remains as a fallback (`PhotosPicker`).
+- **Background removal (FullPack-style):** `SubjectExtractor` uses `VNGenerateForegroundInstanceMaskRequest` (iOS 17+) for a transparent cutout + thumbnail, with graceful fallback to the original photo when no subject is found. On-device, offline.
+- **Weather-aware packing:** `DestinationSearchService` (`MKLocalSearchCompleter` → coordinate, no manual lat/lon) wired into the New Trip sheet; `WeatherProvider` (`WeatherKit`) shows live conditions in the trip header; `RecommendationService` gains deterministic weather rules (rain → umbrella/rain shell, cold lows → layers/gloves, heat → sun protection). Unsigned sideload builds lack the WeatherKit entitlement, so weather is designed to fail silently into the offline text engine — never a blocker.
+- **Tests:** 5 new deterministic, offline `WeatherRecommendationTests` (rain/cold/heat/fallback/precipitation-window averaging) in `PackWiseTests`. `Trip` gains optional `destinationLatitude`/`destinationLongitude`.
+- **CI bug fixed earlier this session chain:** `validate_app()` stdout pollution (diagnostics corrupting the `$APP` path — the build failure after Swift compilation succeeded) and the hardcoded `iPhone 16` test destination (now dynamic simulator discovery).
+- Docs: `docs/FULLPACK-CAPABILITY-MATRIX.md`, `docs/APPLE-API-CAPABILITY-BIBLE.md`, `docs/ARCHITECTURE.md`, `docs/BUILD.md`, `docs/CI.md` added; wiki `Features` updated.
+
+**Validation:** web `tsc` 0 · Vite build 0 · `bash -n` 3/3 scripts · `js-yaml` 3/3 workflows · Convex codegen OK · stale `CIOKFVVM`/`isolate/` absent. **Pending:** the next macOS CI run is the acceptance gate for the new Swift files (Xcode compile + archive + IPA verification).
+
 ## 1.0.14 — Bulletproof .searchActions shim + streamlined release process (2026-08-08)
 
 **Hardened the iOS-18 .searchActions availability shim further.** The previous fix (1.0.13) put a fully `@available(iOS 18.0, *)` wrapper around `.searchActions`, but a generic-`Content` `ViewModifier` returning `some View` still forces the compiler to consider type witnesses for both branches at the iOS-17 deployment target — a known compile-time resolution hazard for any SwiftUI iOS-version shim. Session 9 hardens the pattern with the canonical workaround: `body` returns `AnyView` and the iOS-18 branch is a separate `@available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>`. This delivers:

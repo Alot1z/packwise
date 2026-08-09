@@ -10,7 +10,69 @@ enum RecommendationService {
         let category: String
     }
 
+    /// Existing text-based engine — kept as the always-available fallback.
     static func suggestions(for trip: Trip) -> [Suggestion] {
+        suggestions(for: trip, weather: nil)
+    }
+
+    /// Text-based suggestions merged with weather-based ones when a live
+    /// `WeatherSnapshot` is available. Pure and deterministic — fully testable
+    /// without network access.
+    static func suggestions(for trip: Trip, weather: WeatherSnapshot?) -> [Suggestion] {
+        var out: [Suggestion] = weatherSuggestions(for: trip, weather: weather)
+        out.append(contentsOf: textSuggestions(for: trip))
+
+        // Dedupe against existing items (case-insensitive) and within suggestions
+        let existing = Set(trip.items.map { $0.name.lowercased() })
+        var seen = Set<String>()
+        return out.filter { s in
+            let k = s.title.lowercased()
+            guard !existing.contains(k), !seen.contains(k) else { return false }
+            seen.insert(k)
+            return true
+        }
+    }
+
+    /// Deterministic weather rules. Empty when weather is nil (the app is fully
+    /// functional offline without WeatherKit).
+    static func weatherSuggestions(for trip: Trip, weather: WeatherSnapshot?) -> [Suggestion] {
+        guard let weather else { return [] }
+        var out: [Suggestion] = []
+        let cond = weather.condition.lowercased()
+        let start = trip.startDate
+        let end = trip.endDate
+
+        // Precipitation risk across the trip's date range.
+        let precip = WeatherProvider.precipitationChance(in: weather, from: start, to: end)
+        if let precip, precip >= 0.5 {
+            out.append(Suggestion(title: "Umbrella", reason: "\(Int(precip * 100))% chance of precipitation", category: "Accessories"))
+            out.append(Suggestion(title: "Rain shell", reason: "Rain likely during your trip", category: "Outdoor"))
+        }
+
+        // Cold lows → warm layers.
+        if let low = WeatherProvider.coldestLow(in: weather, from: start, to: end), low < 5 {
+            out.append(Suggestion(title: "Warm layers", reason: "Lows of \(Int(low))°C", category: "Clothing"))
+            out.append(Suggestion(title: "Gloves", reason: "Cold conditions", category: "Accessories"))
+        }
+
+        // Current condition heuristics (when no date range is set).
+        if cond.contains("rain") || cond.contains("shower") || cond.contains("thunder") {
+            out.append(Suggestion(title: "Umbrella", reason: "\(weather.condition) expected", category: "Accessories"))
+        }
+        if cond.contains("snow") || cond.contains("sleet") || cond.contains("blizzard") {
+            out.append(Suggestion(title: "Warm layers", reason: "\(weather.condition) conditions", category: "Clothing"))
+        }
+        if weather.temperatureC >= 28 {
+            out.append(Suggestion(title: "Sunscreen", reason: "\(Int(weather.temperatureC))°C — sun protection", category: "Medical"))
+            out.append(Suggestion(title: "Sunglasses", reason: "Bright, warm conditions", category: "Accessories"))
+        } else if weather.temperatureC <= 10 {
+            out.append(Suggestion(title: "Warm layers", reason: "\(Int(weather.temperatureC))°C at destination", category: "Clothing"))
+        }
+
+        return out
+    }
+
+    private static func textSuggestions(for trip: Trip) -> [Suggestion] {
         var out: [Suggestion] = []
         let dest = (trip.destination + " " + (trip.purpose ?? "") + " " + (trip.activities ?? "") + " " + (trip.climateInfo ?? "")).lowercased()
         // Inclusive day count: Jan 1 → Jan 3 is 3 days of travel.
