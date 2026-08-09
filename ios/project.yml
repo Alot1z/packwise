@@ -6,11 +6,9 @@ options:
     iOS: "18.0"
   generateEmptyDirectories: true
   createIntermediateGroups: true
-  # App Group for shared SwiftData between app, widgets, and intents extension.
-  entitlements:
-    properties:
-      com.apple.security.application-groups:
-        - group.com.packwise
+  # NOTE: entitlements belong on targets (below), NOT in options — XcodeGen
+  # rejects unknown option keys, which previously killed the CI run at
+  # "Generate Xcode project" in 0 seconds.
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -73,10 +71,9 @@ targets:
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
-    dependencies:
-      - sdk: SwiftData.framework
-      - sdk: WidgetKit.framework
-      - sdk: SwiftUI.framework
+    # NOTE: SwiftData/WidgetKit/SwiftUI are auto-linked by the Swift compiler —
+    # no explicit sdk: dependencies needed. Declaring them can trip XcodeGen's
+    # SDK resolution on newer toolchains.
   PackWiseTests:
     type: bundle.unit-test
     platform: iOS

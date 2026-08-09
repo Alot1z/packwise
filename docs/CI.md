@@ -13,14 +13,19 @@
 
 ## 2. iOS pipeline (ios.yml)
 
+Two jobs run in **parallel**:
+
 ```
-checkout → environment recording (sw_vers, xcodebuild -version, -showsdks, swift --version)
-→ XcodeGen install/verify → xcodegen generate
-→ (missing device platform?) xcodebuild -downloadPlatform iOS (sudo fallback)
-→ tests (simulator, no signing, non-blocking — dynamic iPhone discovery)
-→ build.sh cascade → verify-ipa.sh strict gate → release-manifest.sh
-→ upload ios-build-diagnostics artifact (always) + PackWise-unsigned.ipa artifact
-→ publish dev prerelease / v* Release ONLY if the gate passed
+web-static-validation (ubuntu)   build-and-test (macos)
+  ├─ setup bun                    ├─ environment recording
+  ├─ bun install (cached)         ├─ select newest Xcode (deterministic)
+  ├─ tsc -b --noEmit              ├─ restore iOS device platform (cached)
+  ├─ bun run build                ├─ downloadPlatform iOS (fallback)
+  └─ bash -n + js-yaml            ├─ XcodeGen (cached, pinned 2.46.0)
+                                  ├─ xcodegen generate (::error:: on failure)
+                                  ├─ tests (simulator, non-blocking)
+                                  ├─ build.sh cascade → verify-ipa.sh → manifest
+                                  └─ publish dev / v* Release ONLY if gate passed
 ```
 
 Design rules (hard requirements):
@@ -34,6 +39,23 @@ Design rules (hard requirements):
 - A failed run publishes **nothing** — previous artifacts are never presented as the
   result of a failed run. The summary states explicitly "no IPA published".
 
+## 2b. Caching strategy (warm CI)
+
+| Resource | Strategy | Cache key | Invalidation |
+|---|---|---|---|
+| Xcode | Runner-provided — never downloaded | — | — |
+| iOS device platform | Cached, restored with sudo, **validated** (`xcodebuild -showsdks`), download fallback | `ios-platform-{os}-{arch}-{Xcode version}` | Xcode version changes |
+| XcodeGen | Cached binary, pinned 2.46.0, version verified every run | `xcodegen-{os}-2.46.0` | version bump |
+| Bun deps | Cached install cache | `bun-{os}-{lockfile hash}` | `bun.lock` / `package.json` change |
+| DerivedData / SPM | **Intentionally not cached** — archive always compiles fresh so stale objects can never hide a source regression | — | — |
+| IPA / release artifacts | **Always freshly produced** by the current commit's build | — | — |
+| Signing credentials | Secrets — never cached | — | — |
+
+Cache correctness contract: clean cache → build succeeds; warm cache → build succeeds;
+changed dependency → correct invalidation; corrupt cache → validation catches it and
+falls back to the fresh path. Caching is an optimization layer, never a correctness
+requirement.
+
 ## 3. Failure semantics
 
 - `exit 0` = success, non-zero = failure, on every required step.
@@ -45,14 +67,17 @@ Design rules (hard requirements):
 
 ## 4. Current CI state (evidence)
 
-- Swift compile of the existing 20-file app: **PASSED** on the macOS runner
-  (Xcode 26.3 / iOS 26.2 SDK, target iOS 17.0) after the nonexistent
-  `.searchActions` API was removed.
-- The last failure was IPA staging (`validate_app` stdout pollution) — fixed; the
-  next macOS run is the gate for the current artifact.
-- **Pending:** macOS CI validation of the new camera / subject-extraction / weather /
-  destination-search Swift added in the FullPack reconstruction. That run is the
-  acceptance criterion — see `docs/FULLPACK-CAPABILITY-MATRIX.md` status column.
+- **2026-08-09 (session 14):** run [31317701450](https://github.com/Alot1z/packwise/actions/runs/31317701450)
+  failed at **Generate Xcode project** in 0 seconds. Root cause: invalid
+  `options.entitlements` key in `ios/project.yml` (XcodeGen spec rejects unknown
+  option keys) — **fixed** by moving entitlements to targets only. Also removed
+  nonstandard `sdk:` framework deps from the Widget target (auto-linked).
+  Workflow redesigned for warm CI: parallel web-validation job, XcodeGen + Bun +
+  device-platform caches, public `::error::` annotations on the xcodegen step.
+- **Pending:** the next macOS CI run must pass XcodeGen generation (project.yml
+  fix), then compile the iOS-18-targeted Swift (camera / subject-extraction /
+  weather / destination-search / widgets / app-intents). That run is the acceptance
+  criterion — see `docs/FULLPACK-CAPABILITY-MATRIX.md` status column.
 
 ## 5. Versioning & release
 
