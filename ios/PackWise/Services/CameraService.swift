@@ -127,7 +127,9 @@ final class CameraService: NSObject, ObservableObject {
 
         return try await withCheckedThrowingContinuation { continuation in
             pendingPhoto = continuation
-            photoOutput.capturePhoto(with: settings, delegate: delegate)
+            // Assign onFinish BEFORE requesting the capture: if the callback
+            // fired first, it would hit a nil handler and the continuation
+            // would never resume (the await would hang forever).
             delegate.onFinish = { [weak self] result in
                 // onFinish may fire from a nonisolated context; hop to the
                 // main actor before touching MainActor-isolated state.
@@ -137,6 +139,7 @@ final class CameraService: NSObject, ObservableObject {
                 }
                 continuation.resume(with: result)
             }
+            photoOutput.capturePhoto(with: settings, delegate: delegate)
         }
     }
 
@@ -175,7 +178,12 @@ final class CameraService: NSObject, ObservableObject {
 
 /// Bridges `AVCapturePhotoCaptureDelegate` callbacks (delivered on the session's
 /// delegate queue) to a completion handler on the main actor.
-private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+///
+/// One-shot per capture: `onFinish` is assigned before the capture is requested
+/// and invoked at most once, so `@unchecked Sendable` is safe here (the same
+/// pattern Apple uses in AVCam for Swift 6). The delegate is handed to
+/// `AVCapturePhotoOutput` and the handler closure is the only mutable state.
+private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate, @unchecked Sendable {
     var onFinish: ((Result<UIImage, Error>) -> Void)?
 
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
