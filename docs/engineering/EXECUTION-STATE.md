@@ -1,5 +1,7 @@
 # PackWise — Engineering Execution State
 
+> **Session 16 — Swift 6 WidgetKit callback isolation:** macOS run [31330390878](https://github.com/Alot1z/packwise/actions/runs/31330390878) passed XcodeGen generation and simulator tests, then reached the device build and failed only on `sending 'completion' risks causing data races` at both widget `getTimeline` callbacks. Removing `@MainActor` from the task (already present in the failing run) was insufficient. The two timeline callback parameters now explicitly use `@escaping @Sendable`; no strict-concurrency bypass was added. Linux validation is green; the next macOS run remains authoritative for compiler confirmation.
+
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-09**
 > (session 15 — **Comprehensive CI scan + REAL XcodeGen root cause**: scanned

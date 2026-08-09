@@ -52,8 +52,8 @@ struct NextTripProvider: TimelineProvider {
         completion(placeholder(in: context))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<NextTripEntry>) -> Void) {
-        Task { @MainActor in
+    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<NextTripEntry>) -> Void) {
+        Task {
             let entry = await fetchNextTrip()
             let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900)))
             completion(timeline)
