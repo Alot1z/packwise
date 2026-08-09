@@ -83,7 +83,8 @@ final class SubjectExtractor {
         return Extraction(isolatedImage: isolated, thumbnail: thumbnail, confidence: observation.confidence)
     }
 
-    private nonisolated static func makeThumbnail(of cg: CGImage) -> UIImage {
+    /// Internal for unit tests (`@testable import`); pure function of the image.
+    nonisolated static func makeThumbnail(of cg: CGImage) -> UIImage {
         let side: CGFloat = 240
         let scale = min(side / CGFloat(cg.width), side / CGFloat(cg.height), 1)
         let w = max(1, Int(CGFloat(cg.width) * scale))
@@ -99,7 +100,8 @@ final class SubjectExtractor {
         return UIImage(cgImage: scaled)
     }
 
-    private nonisolated static func cgOrientation(for o: UIImage.Orientation) -> CGImagePropertyOrientation {
+    /// Internal for unit tests (`@testable import`); pure orientation mapping.
+    nonisolated static func cgOrientation(for o: UIImage.Orientation) -> CGImagePropertyOrientation {
         switch o {
         case .up: return .up
         case .down: return .down
