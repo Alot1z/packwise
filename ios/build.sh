@@ -142,39 +142,41 @@ run_build() {
 
 # validate_app <app dir> → echo path if the executable is a real device binary
 validate_app() {
+  # IMPORTANT: this function is called via $(validate_app ...) — its stdout
+  # becomes the APP variable.  Diagnostic output MUST go to stderr or the
+  # diag file only, never to stdout, or cp -R "$APP" will get a garbled path.
   local app="$1"
+  local _log _kind _plat
   [ -d "$app" ] || return 1
   [ -f "$app/Info.plist" ] || return 1
   local exec="$app/$EXEC_NAME"
   if [ ! -f "$exec" ] || [ ! -s "$exec" ]; then
-    note "   ⚠ $app has no non-empty main executable — strategy unusable"
-    note "   ── bundle contents ──"
+    printf '   ⚠ %s has no non-empty main executable — strategy unusable\n' "$app" | tee -a "$DIAG" >&2
+    printf '   ── bundle contents ──\n' >> "$DIAG"
     ls -la "$app" >> "$DIAG" 2>&1 || true
     find "$app" -maxdepth 2 -type f 2>/dev/null | head -n 30 >> "$DIAG" || true
-    note "   ── end bundle contents ──"
+    printf '   ── end bundle contents ──\n' >> "$DIAG"
     return 1
   fi
   chmod +x "$exec" 2>/dev/null || true
   if command -v file >/dev/null 2>&1; then
-    local kind
-    kind=$(file "$exec" || true)
-    note "   file: $kind"
-    case "$kind" in
+    _kind=$(file "$exec" || true)
+    printf '   file: %s\n' "$_kind" | tee -a "$DIAG" >&2
+    case "$_kind" in
       *arm64*) : ;;
-      *) note "   ⚠ not arm64 — strategy unusable"; return 1 ;;
+      *) printf '   ⚠ not arm64 — strategy unusable\n' | tee -a "$DIAG" >&2; return 1 ;;
     esac
   fi
   if command -v otool >/dev/null 2>&1; then
-    local plat
-    plat=$(otool -l "$exec" 2>/dev/null | grep -A5 "LC_BUILD_VERSION" | grep -m1 "platform" | awk '{print $2}' || true)
-    note "   LC_BUILD_VERSION platform=$plat (2=iOS device, 7=simulator)"
-    if [ "$plat" = "7" ]; then note "   ⚠ simulator binary — cannot sideload"; return 1; fi
+    _plat=$(otool -l "$exec" 2>/dev/null | grep -A5 "LC_BUILD_VERSION" | grep -m1 "platform" | awk '{print $2}' || true)
+    printf '   LC_BUILD_VERSION platform=%s (2=iOS device, 7=simulator)\n' "$_plat" | tee -a "$DIAG" >&2
+    if [ "$_plat" = "7" ]; then printf '   ⚠ simulator binary — cannot sideload\n' | tee -a "$DIAG" >&2; return 1; fi
   fi
   if command -v lipo >/dev/null 2>&1 && lipo -info "$exec" 2>/dev/null | grep -q "x86_64"; then
-    note "   → stripping non-arm64 slices (lipo -thin arm64)"
+    printf '   → stripping non-arm64 slices (lipo -thin arm64)\n' | tee -a "$DIAG" >&2
     lipo -thin arm64 "$exec" -output "$exec.tmp" && mv "$exec.tmp" "$exec"
   fi
-  echo "$app"
+  printf '%s\n' "$app"
 }
 
 APP=""
