@@ -230,3 +230,49 @@ struct OutfitRecommendationTests {
         #expect(!outfits.contains(where: { $0.name == "Travel day" }))
     }
 }
+
+@Suite("PackWise — OutfitComposer (canvas drag-and-drop logic)")
+struct OutfitComposerTests {
+
+    @Test("adding appends a new id and is idempotent")
+    func adding() {
+        let a = UUID(); let b = UUID()
+        #expect(OutfitComposer.adding(a, to: []) == [a])
+        #expect(OutfitComposer.adding(b, to: [a]) == [a, b])
+        #expect(OutfitComposer.adding(a, to: [a, b]) == [a, b]) // no duplicates
+    }
+
+    @Test("removing drops the id and preserves order")
+    func removing() {
+        let a = UUID(); let b = UUID(); let c = UUID()
+        #expect(OutfitComposer.removing(b, from: [a, b, c]) == [a, c])
+        #expect(OutfitComposer.removing(UUID(), from: [a, b]) == [a, b])
+        #expect(OutfitComposer.removing(a, from: []) == [])
+    }
+
+    @Test("moving reorders so the id sits before the target")
+    func moving() {
+        let a = UUID(); let b = UUID(); let c = UUID()
+        // Move c before a: [a,b,c] -> [c,a,b]
+        #expect(OutfitComposer.moving(c, before: a, in: [a, b, c]) == [c, a, b])
+        // Move a before c: [a,b,c] -> [b,a,c]
+        #expect(OutfitComposer.moving(a, before: c, in: [a, b, c]) == [b, a, c])
+        // Moving onto itself is a no-op
+        #expect(OutfitComposer.moving(b, before: b, in: [a, b, c]) == [a, b, c])
+        // Unknown ids are a no-op
+        #expect(OutfitComposer.moving(UUID(), before: a, in: [a, b]) == [a, b])
+        #expect(OutfitComposer.moving(a, before: UUID(), in: [a, b]) == [a, b])
+    }
+
+    @Test("outfit favorite persists through SwiftData")
+    func favoritePersists() throws {
+        let container = try ModelContainer(for: Outfit.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = ModelContext(container)
+        let outfit = Outfit(name: "Arrival", itemIDs: [], isFavorite: true)
+        ctx.insert(outfit)
+        try ctx.save()
+        let fetched = try ctx.fetch(FetchDescriptor<Outfit>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.isFavorite == true)
+    }
+}
