@@ -3,6 +3,20 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.18",
+    date: "iOS 18 target, warm design system & scanner polish",
+    icon: Wrench,
+    items: [
+      "iOS 18+ deployment target: bumped from iOS 17 to iOS 18 (Swift 6.0, Xcode 16.0). Unlocks modern SwiftUI, SwiftData, and Vision APIs.",
+      "Warm PackWise design system: central DesignTokens.swift with terracotta primary, deep teal secondary, golden amber accent, warm off-white backgrounds, serif headings, controlled spacing (4–32pt), spring animations (fast/standard/slow/bouncy), card/chip/section-header modifiers.",
+      "Scanner UX: capture flash overlay (150ms white fade), shutter button spring animation, review transition (opacity + scale), Reduce Motion gates on every animation.",
+      "Redesigned Dashboard: warm stat pills with terracotta tint, card-based upcoming trips, amber-tinted recommendations, serif section headers, quick action grid, scroll-based layout.",
+      "TripListView themed: status chips with per-status colors, PackWise typography, warm warning colors for essentials.",
+      "Docs: APPLE-API-CAPABILITY-BIBLE.md (60+ verified API symbols), UI-UX-DESIGN-SYSTEM.md (full design system spec), CI-VALIDATION.md placeholder path.",
+      "All pre-flight checks green: tsc 0, bash -n 3/3, js-yaml 3/3.",
+    ],
+  },
+  {
     tag: "1.0.17",
     date: "App Intents, Widgets & CI compile fix",
     icon: Wrench,

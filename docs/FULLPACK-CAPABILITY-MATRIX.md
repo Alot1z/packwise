@@ -98,8 +98,9 @@ Apple APIs.
 |---|---|---|---|---|---|---|---|
 | Siri/Shortcuts actions | Modern native norm | add item, mark packed, create trip | `AppIntents.AppIntent`, `AppEntity` | 16 | **IMPLEMENTED** — `AddInventoryItemIntent`, `MarkPackedIntent`, `CreateTripIntent` + `PackWiseShortcuts` provider; App Group container ensures intents see the same SwiftData store | `AppIntents/PackWiseIntents.swift` | IMPLEMENTED (CI gate pending) |
 | Widgets (next trip, progress) | Modern native norm | interactive widget | `WidgetKit.StaticConfiguration` | 17 | **IMPLEMENTED** — `NextTripWidget` (systemSmall/systemMedium) + `PackingProgressWidget` (systemMedium/systemLarge); App Group container for shared SwiftData | `Widgets/PackWiseWidgetBundle.swift`, `Widgets/NextTripWidget.swift`, `Widgets/PackingProgressWidget.swift` | IMPLEMENTED (CI gate pending) |
+| PackWise warm design system | Original product design | terracotta primary, serif headings, card/chip modifiers, spring animation tokens | SwiftUI | 18 | **IMPLEMENTED** — `DesignSystem/DesignTokens.swift` (240+ lines) with full color palette, typography scale, spacing system, animation tokens, reusable view modifiers | `DesignSystem/DesignTokens.swift` | IMPLEMENTED |
 | Live Activities (departure) | Modern native norm | trip countdown | `ActivityKit` | 16.1 | **DESIGNED** | — | DESIGNED |
-| Liquid Glass styling | iOS 26 design system | glass surfaces | `glassEffect(_:in:)`, `GlassEffectContainer` | **26** | **DESIGNED — deferred.** iOS 26-only; verify against runner SDK before use (searchActions lesson) | — | DESIGNED (BLOCKED until iOS 26 target) |
+| Liquid Glass styling | iOS 26 design system | glass surfaces | `glassEffect(_:in:)`, `GlassEffectContainer` | **26** | **DESIGNED — deferred.** Requires iOS 26 SDK; PackWise targets iOS 18 | — | DESIGNED (BLOCKED until iOS 26 target) |
 
 ### 2.9 Privacy & architecture (PackWise invariants, not FullPack features)
 
@@ -134,6 +135,7 @@ Apple APIs.
 | Trips + destination search | IMPLEMENTED — needs macOS CI |
 | Weather-aware packing | IMPLEMENTED — needs device/entitlement validation |
 | Packing lists / templates / outfits | TESTED |
+| Design system / iOS 18 migration / scanner polish | IMPLEMENTED (design system + iOS 18 + scanner UX) |
 | App Intents / Widgets / Liquid Glass | IMPLEMENTED (Widgets + App Intents) / DESIGNED (Liquid Glass — iOS 26) |
 | Privacy / offline-first | IMPLEMENTED |
 
