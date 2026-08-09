@@ -137,7 +137,8 @@ jobs:
           if ! xcrun simctl list runtimes available 2>/dev/null | grep -qiE '^iOS|iOS [0-9]'; then
             if [ "${{ inputs.download_simulator }}" = "true" ]; then
               echo "→ no iOS Simulator runtime — downloading (can take 5-10 min)..."
-              xcodebuild -downloadPlatform iOS-Simulator 2>&1 | tail -n 5 || true
+              xcodebuild -downloadPlatform iOS-Simulator 2>&1 | tail -n 5 || \
+                { echo "→ retrying with sudo (platform dir is root-owned on runners)"; sudo xcodebuild -downloadPlatform iOS-Simulator 2>&1 | tail -n 5; }
             fi
             if ! xcrun simctl list runtimes available 2>/dev/null | grep -qiE '^iOS|iOS [0-9]'; then
               echo "TESTS_SKIPPED=1" >> "$GITHUB_ENV"
@@ -146,20 +147,27 @@ jobs:
               exit 0
             fi
           fi
-          # Pick the first iPhone device type that has a runtime behind it.
+          # Resolve an actual simulator DEVICE UDID. A device NAME can exist
+          # in simctl even with no usable runtime-backed device (xcodebuild
+          # then fails with "Unable to find a destination"), so list devices
+          # and take the first available iPhone UDID; if the runtime exists
+          # but no device is materialized yet, create one.
           SIM_DEST=""
-          for NAME in "iPhone 17 Pro" "iPhone 17" "iPhone 16 Pro" "iPhone 16" "iPhone 15"; do
-            if xcrun simctl list devices available "$NAME" 2>/dev/null | grep -q "$NAME"; then
-              SIM_DEST="platform=iOS Simulator,name=$NAME,OS=latest"
-              echo "→ using simulator: $SIM_DEST"
-              break
+          DEV_UDID=$(xcrun simctl list devices available 2>/dev/null | grep -m1 'iPhone' | grep -oE '[0-9A-F-]{36}' | head -1)
+          if [ -z "$DEV_UDID" ]; then
+            DEV_TYPE=$(xcrun simctl list devicetypes 2>/dev/null | grep -m1 'iPhone' | grep -oE 'com\.apple\.CoreSimulator\.SimDeviceType\.iPhone-[0-9A-Za-z-]+' | head -1)
+            RUNTIME_ID=$(xcrun simctl list runtimes available 2>/dev/null | grep -m1 'iOS' | grep -oE 'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+' | head -1)
+            if [ -n "$DEV_TYPE" ] && [ -n "$RUNTIME_ID" ]; then
+              DEV_UDID=$(xcrun simctl create "PackWise Test iPhone" "$DEV_TYPE" "$RUNTIME_ID" 2>/dev/null || true)
             fi
-          done
-          if [ -z "$SIM_DEST" ]; then
+          fi
+          if [ -z "$DEV_UDID" ]; then
             echo "TESTS_SKIPPED=1" >> "$GITHUB_ENV"
-            echo "→ no iPhone simulator device found — tests skipped (exit 0)."
+            echo "→ no usable iPhone simulator device — tests skipped (exit 0)."
             exit 0
           fi
+          SIM_DEST="platform=iOS Simulator,id=$DEV_UDID"
+          echo "→ using simulator: $SIM_DEST"
           echo "→ Running tests on $SIM_DEST (never blocks the IPA build)"
           set +e
           xcodebuild test \
