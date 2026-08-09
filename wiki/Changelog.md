@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.19 — CI caching redesign & XcodeGen spec fix (2026-08-09)
+
+**The real CI blocker, found by inspecting the failing run — plus a warm-cache pipeline.**
+
+- **Root cause fixed:** run [31317701450](https://github.com/Alot1z/packwise/actions/runs/31317701450) failed at **Generate Xcode project** in 0 seconds. The GitHub annotations channel said only "exit code 1", so the step structure was inspected: everything before `xcodegen generate` passed, the step itself died instantly → a spec error, not a compile error. Root cause: `options.entitlements` was placed under `options:` in `ios/project.yml` — XcodeGen's spec rejects unknown option keys (entitlements belong on **targets**). Fixed; entitlements now live only on the `PackWise` and `PackWiseWidget` targets.
+- **Removed nonstandard `sdk:` framework dependencies** from the Widget extension target — SwiftUI/SwiftData/WidgetKit are auto-linked by the Swift compiler; declaring them can trip XcodeGen's SDK resolution on newer toolchains.
+- **Workflow redesigned for warm CI** (`.github/workflows/ios.yml`):
+  - **Parallel jobs:** `web-static-validation` (Ubuntu: bun install → `tsc -b --noEmit` → `vite build` → `bash -n` → `js-yaml`) runs concurrently with the macOS build — web regressions never burn macOS minutes.
+  - **Xcode:** runner-provided, selected deterministically (newest installed), recorded (`sw_vers`, `xcodebuild -version`, `xcode-select -p`, `swift --version`, SDKs). Never downloaded.
+  - **iOS device platform cache:** keyed by exact Xcode version + arch, restored with sudo, **validated** via `xcodebuild -showsdks`; the official `xcodebuild -downloadPlatform iOS` remains the fallback. A corrupt cache can never conceal a missing platform.
+  - **XcodeGen cache:** pinned 2.46.0 in the runner tool cache — the same release is never downloaded twice; the version is still verified on every run.
+  - **Bun cache:** lockfile-keyed (`bun-{os}-{hash(bun.lock, package.json)}`), invalidated on any dependency change.
+  - **DerivedData / SPM deliberately NOT cached:** the archive always compiles fresh, so stale objects can never hide a source regression. Cache is an optimization layer, never a correctness requirement.
+  - **Release chain untouched:** the IPA is always freshly produced by the current commit, passes `verify-ipa.sh`, and only then publishes.
+- **Public failure channel extended:** the xcodegen step now emits `::error::` annotations, so any future spec error is readable without sign-in.
+- **Gitea mirror updated:** dynamic simulator discovery (replaces hardcoded "iPhone 16") + the same error annotations.
+- Docs: `docs/CI.md` rewritten with the caching strategy table and cache-correctness contract.
+
+**Validation:** web `tsc` 0 · `bash -n` 3/3 · `js-yaml` 4/4 (ios.yml, gitea ios.yml, wiki.yml, project.yml). **Pending:** next macOS CI run is the authority — XcodeGen generation must pass, then the iOS-18-targeted Swift must compile, archive, and pass IPA verification.
+
 ## 1.0.18 — iOS 18 target, warm design system & scanner polish (2026-08-09)
 
 **iOS 18 minimum, a new visual identity, and a polished scanner.**
