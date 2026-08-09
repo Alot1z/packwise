@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.17 — App Intents, Widgets & CI compile fix (2026-08-09)
+
+**Siri shortcuts and home screen widgets arrive — plus the CI compile fix.**
+
+- **CI compile fix:** `SubjectExtractor.swift` used two APIs that don't exist on iOS 17: `.instanceCount` (now `observation.allInstances`, an `IndexSet`) and `generateMaskedImage(ofInstances:croppedToInstancesExtent:)` without the required `from:` parameter (now passes the `VNImageRequestHandler`). The Xcode 26.3 / iOS 26.2 compiler rejected both — this was the real cause of the session-16 CI failure.
+- **App Intents (Siri + Shortcuts):** three intents registered via `PackWiseShortcuts` provider:
+  - `AddInventoryItemIntent` — "Add socks to my inventory" (name + optional category)
+  - `MarkPackedIntent` — "Mark passport as packed" (finds the first unpacked match across all trips)
+  - `CreateTripIntent` — "Create a trip to Paris" (title + destination + optional start date)
+  All intents use the App Group SwiftData container so they see the same data as the app.
+- **Home Screen Widgets**, delivered as a WidgetKit extension (`PackWiseWidget`):
+  - `NextTripWidget` (systemSmall + systemMedium) — shows the next upcoming trip, days until departure, and packing progress with a progress bar.
+  - `PackingProgressWidget` (systemMedium + systemLarge) — lists up to 5 active trips with destination names, days-away badges, and per-trip progress bars ("3/12 packed").
+  - Widgets read the same SwiftData store as the main app via `group.com.packwise` App Group container.
+- **Architecture:** the main app now uses `ModelConfiguration(groupContainer:)` with an automatic fallback to the default local store when App Groups are unavailable (unsigned simulator builds). Widget extension embeds in the app bundle; scheme updated to include it in build/archive.
+
+**Validation:** web `tsc` 0 · `bash -n` 3/3 scripts · `js-yaml` 3/3 workflows. **Pending:** the next macOS CI run is the acceptance gate for all three changes (compile fix, App Intents, Widget extension compilation). The Xcode compiler must successfully build the widget extension alongside the main app.
+
 ## 1.0.16 — Outfit recommendation engine & destination geocoding fallback (2026-08-09)
 
 **Outfit recommendations arrive — deterministic, weather-aware, item-aware.**
