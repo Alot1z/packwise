@@ -56,8 +56,15 @@ targets:
     type: app-extension
     platform: iOS
     deploymentTarget: "18.0"
+    # IMPORTANT: do NOT use a bare filename in `excludes:` for the Widget
+    # sources. XcodeGen rejects this with "Decoding failed at 'path': Nothing
+    # found" and the entire project generation dies in 0 seconds. The
+    # Info.plist is already handled correctly via INFOPLIST_FILE below, so
+    # it does not need to be excluded from source compilation.
     sources:
       - path: PackWise/Widgets
+        excludes:
+          - "**/Info.plist"
       - path: PackWise/Models
     entitlements:
       properties:
