@@ -60,7 +60,10 @@ struct TripListView: View {
                     .animation(.easeInOut(duration: 0.2), value: filtered.map(\.id))
                     .confirmationDialog("Delete trip?", isPresented: Binding(get: { showDeleteConfirm != nil }, set: { if !$0 { showDeleteConfirm = nil } }), titleVisibility: .visible) {
                         Button("Delete", role: .destructive) {
-                            if let t = showDeleteConfirm { context.delete(t); try? context.save() }
+                            if let t = showDeleteConfirm {
+                                context.delete(t); try? context.save()
+                                Task { await LiveActivityService.shared.end(for: t) }
+                            }
                             showDeleteConfirm = nil
                         }
                         Button("Cancel", role: .cancel) { showDeleteConfirm = nil }
@@ -82,6 +85,7 @@ struct TripListView: View {
             }
             .navigationDestination(for: String.self) { s in if s == "dashboard" { DashboardView() } }
             .sheet(isPresented: $showNew) { NewTripSheet() }
+            .task { await LiveActivityService.shared.syncAll(Array(trips)) }
             .overlay(alignment: .bottom) {
                 if !trips.isEmpty {
                     Text("Stored locally on this device · Private · Offline-first")

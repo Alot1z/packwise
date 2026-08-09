@@ -75,8 +75,13 @@ struct TripDetailView: View {
         }
         .searchable(text: $search, prompt: "Search items, categories, notes")
         .task { await loadWeatherIfPossible() }
+        .task { await LiveActivityService.shared.sync(for: trip) }
         .confirmationDialog("Delete trip?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { deleteTrip() }
+            Button("Delete", role: .destructive) {
+                let endedTrip = trip
+                deleteTrip()
+                Task { await LiveActivityService.shared.end(for: endedTrip) }
+            }
             Button("Cancel", role: .cancel) {}
         } message: { Text("This will delete the trip and all its items and outfits. This cannot be undone.") }
     }
@@ -167,6 +172,7 @@ struct TripDetailView: View {
                 Button("Add") {
                     let item = PackingItem(name: newName.trimmingCharacters(in: .whitespaces), category: newCategory, quantity: newQty, essential: newEssential, notes: newNotes.isEmpty ? nil : newNotes, trip: trip)
                     context.insert(item); trip.updatedAt = Date(); try? context.save()
+                    Task { await LiveActivityService.shared.sync(for: trip) }
                     #if canImport(UIKit)
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     #endif
@@ -182,6 +188,7 @@ struct TripDetailView: View {
                             NavigationLink(value: item) {
                                 ItemRowInline(item: item) {
                                     item.packed.toggle(); trip.updatedAt = Date(); try? context.save()
+                                    Task { await LiveActivityService.shared.sync(for: trip) }
                                     #if canImport(UIKit)
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     #endif
@@ -190,11 +197,13 @@ struct TripDetailView: View {
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     context.delete(item); try? context.save()
+                                    Task { await LiveActivityService.shared.sync(for: trip) }
                                 } label: { Label("Delete", systemImage: "trash") }
                             }
                             .swipeActions(edge: .leading) {
                                 Button {
                                     item.packed.toggle(); trip.updatedAt = Date(); try? context.save()
+                                    Task { await LiveActivityService.shared.sync(for: trip) }
                                 } label: { Label(item.packed ? "Unpack" : "Pack", systemImage: item.packed ? "circle" : "checkmark.circle.fill") }
                                 .tint(item.packed ? .gray : .green)
                             }
