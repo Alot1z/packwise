@@ -276,3 +276,60 @@ struct OutfitComposerTests {
         #expect(fetched.first?.isFavorite == true)
     }
 }
+
+@Suite("TripActivitySupport — Live Activity policy")
+struct TripActivitySupportTests {
+    private let hour: TimeInterval = 3600
+    private let day: TimeInterval = 86400
+
+    @Test("progress clamps to 0...1")
+    func progressClamps() {
+        #expect(TripActivitySupport.progress(packed: 0, total: 0) == 0)
+        #expect(TripActivitySupport.progress(packed: 3, total: 12) == 0.25)
+        #expect(TripActivitySupport.progress(packed: 12, total: 3) == 1)
+        #expect(TripActivitySupport.progress(packed: -2, total: 5) == 0)
+        #expect(TripActivitySupport.progress(packed: 2, total: -5) == 0)
+    }
+
+    @Test("no departure date means no activity")
+    func noDeparture() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(TripActivitySupport.shouldPresent(departure: nil, end: nil, now: now) == false)
+    }
+
+    @Test("finished trips end their activity")
+    func finishedTrip() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let pastEnd = now.addingTimeInterval(-hour)
+        #expect(TripActivitySupport.shouldPresent(departure: now.addingTimeInterval(-2 * day), end: pastEnd, now: now) == false)
+    }
+
+    @Test("activity only starts inside the lead window")
+    func leadWindow() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let departureInTwoDays = now.addingTimeInterval(2 * day)
+        #expect(TripActivitySupport.shouldPresent(departure: departureInTwoDays, end: nil, now: now) == false)
+        let departureIn12h = now.addingTimeInterval(12 * hour)
+        #expect(TripActivitySupport.shouldPresent(departure: departureIn12h, end: nil, now: now) == true)
+        #expect(TripActivitySupport.shouldPresent(departure: departureInTwoDays, end: nil, now: now, leadWindow: 3 * day) == true)
+    }
+
+    @Test("ongoing trips stay live")
+    func ongoingTrip() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let departed = now.addingTimeInterval(-2 * hour)
+        let endsTomorrow = now.addingTimeInterval(day)
+        #expect(TripActivitySupport.shouldPresent(departure: departed, end: endsTomorrow, now: now) == true)
+    }
+
+    @Test("countdown labels are deterministic")
+    func countdownLabels() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(TripActivitySupport.countdownLabel(departure: nil, now: now) == "—")
+        #expect(TripActivitySupport.countdownLabel(departure: now.addingTimeInterval(2 * day + 4 * hour), now: now) == "2d 4h")
+        #expect(TripActivitySupport.countdownLabel(departure: now.addingTimeInterval(3 * hour + 12 * 60), now: now) == "3h 12m")
+        #expect(TripActivitySupport.countdownLabel(departure: now.addingTimeInterval(45 * 60), now: now) == "45m")
+        #expect(TripActivitySupport.countdownLabel(departure: now.addingTimeInterval(30), now: now) == "Now")
+        #expect(TripActivitySupport.countdownLabel(departure: now.addingTimeInterval(-60), now: now) == "Departed")
+    }
+}

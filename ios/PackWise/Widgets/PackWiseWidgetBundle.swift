@@ -8,5 +8,6 @@ struct PackWiseWidgetBundle: WidgetBundle {
     var body: some Widget {
         NextTripWidget()
         PackingProgressWidget()
+        TripLiveActivityWidget()
     }
 }

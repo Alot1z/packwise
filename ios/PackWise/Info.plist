@@ -19,5 +19,6 @@
 	<key>NSCameraUsageDescription</key><string>PackWise can use the camera to photograph items for your private packing list. Images stay on device.</string>
 	<key>NSPhotoLibraryUsageDescription</key><string>PackWise can import photos to suggest packing items on device. Nothing is uploaded.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key><string>Save item photos locally.</string>
+	<key>NSSupportsLiveActivities</key><true/>
 </dict>
 </plist>
