@@ -96,8 +96,8 @@ Apple APIs.
 
 | FullPack capability | Evidence | Atomic behavior | Apple API | Min iOS | PackWise implementation | Files | Status |
 |---|---|---|---|---|---|---|---|
-| Siri/Shortcuts actions | Modern native norm | add item, mark packed, create trip | `AppIntents.AppIntent`, `AppEntity` | 16 | **DESIGNED** — `AddInventoryItemIntent` blueprint in API bible; no speculative symbols committed | — | DESIGNED |
-| Widgets (next trip, progress) | Modern native norm | interactive widget | `WidgetKit.AppIntentConfiguration`, `Button(intent:)` | 17 | **DESIGNED** | — | DESIGNED |
+| Siri/Shortcuts actions | Modern native norm | add item, mark packed, create trip | `AppIntents.AppIntent`, `AppEntity` | 16 | **IMPLEMENTED** — `AddInventoryItemIntent`, `MarkPackedIntent`, `CreateTripIntent` + `PackWiseShortcuts` provider; App Group container ensures intents see the same SwiftData store | `AppIntents/PackWiseIntents.swift` | IMPLEMENTED (CI gate pending) |
+| Widgets (next trip, progress) | Modern native norm | interactive widget | `WidgetKit.StaticConfiguration` | 17 | **IMPLEMENTED** — `NextTripWidget` (systemSmall/systemMedium) + `PackingProgressWidget` (systemMedium/systemLarge); App Group container for shared SwiftData | `Widgets/PackWiseWidgetBundle.swift`, `Widgets/NextTripWidget.swift`, `Widgets/PackingProgressWidget.swift` | IMPLEMENTED (CI gate pending) |
 | Live Activities (departure) | Modern native norm | trip countdown | `ActivityKit` | 16.1 | **DESIGNED** | — | DESIGNED |
 | Liquid Glass styling | iOS 26 design system | glass surfaces | `glassEffect(_:in:)`, `GlassEffectContainer` | **26** | **DESIGNED — deferred.** iOS 26-only; verify against runner SDK before use (searchActions lesson) | — | DESIGNED (BLOCKED until iOS 26 target) |
 
@@ -134,7 +134,7 @@ Apple APIs.
 | Trips + destination search | IMPLEMENTED — needs macOS CI |
 | Weather-aware packing | IMPLEMENTED — needs device/entitlement validation |
 | Packing lists / templates / outfits | TESTED |
-| App Intents / Widgets / Liquid Glass | DESIGNED (documented, deferred) |
+| App Intents / Widgets / Liquid Glass | IMPLEMENTED (Widgets + App Intents) / DESIGNED (Liquid Glass — iOS 26) |
 | Privacy / offline-first | IMPLEMENTED |
 
 > Next gate: the macOS CI run on the new Swift (camera, subject extraction, weather,

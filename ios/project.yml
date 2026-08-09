@@ -6,6 +6,11 @@ options:
     iOS: "17.0"
   generateEmptyDirectories: true
   createIntermediateGroups: true
+  # App Group for shared SwiftData between app, widgets, and intents extension.
+  entitlements:
+    properties:
+      com.apple.security.application-groups:
+        - group.com.packwise
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -22,7 +27,16 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
     sources:
-      - PackWise
+      - path: PackWise
+        excludes:
+          - "**/Widgets"
+    entitlements:
+      properties:
+        com.apple.security.application-groups:
+          - group.com.packwise
+    dependencies:
+      - target: PackWiseWidget
+        embed: true
     settings:
       base:
         INFOPLIST_FILE: PackWise/Info.plist
@@ -40,6 +54,29 @@ targets:
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: YES
         TARGETED_DEVICE_FAMILY: "1,2"
+  PackWiseWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PackWise/Widgets
+      - path: PackWise/Models
+    entitlements:
+      properties:
+        com.apple.security.application-groups:
+          - group.com.packwise
+    settings:
+      base:
+        INFOPLIST_FILE: PackWise/Widgets/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.packwise.app.widget
+        PRODUCT_NAME: PackWiseWidget
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - sdk: SwiftData.framework
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
   PackWiseTests:
     type: bundle.unit-test
     platform: iOS
@@ -70,9 +107,13 @@ schemes:
     # bundle and — worse — the produced bundle can miss the main executable,
     # which makes sideloaders fail with "Failed to map .../PackWise:
     # Bad file descriptor" (the file is not there).
+    #
+    # The Widget extension IS part of build/archive — it's embedded in the
+    # app bundle as a proper app extension.
     build:
       targets:
         PackWise: all
+        PackWiseWidget: all
     run:
       config: Debug
     test:

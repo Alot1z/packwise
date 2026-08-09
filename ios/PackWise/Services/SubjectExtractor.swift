@@ -60,13 +60,14 @@ final class SubjectExtractor {
 
         guard let observation = request.results?.first else { throw ExtractionError.noSubject }
 
-        let instanceCount = observation.instanceCount
-        guard instanceCount > 0 else { throw ExtractionError.noSubject }
+        let instances = observation.allInstances
+        guard !instances.isEmpty else { throw ExtractionError.noSubject }
 
         // All instances, not cropped to the instance extent — keep the original
         // frame so the cutout lines up with the source photo.
         let maskBuffer = try observation.generateMaskedImage(
-            ofInstances: IndexSet(integersIn: 0..<instanceCount),
+            ofInstances: instances,
+            from: handler,
             croppedToInstancesExtent: false
         )
 

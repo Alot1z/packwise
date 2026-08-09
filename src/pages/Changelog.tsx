@@ -3,6 +3,18 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.17",
+    date: "App Intents, Widgets & CI compile fix",
+    icon: Wrench,
+    items: [
+      "CI compile fix: SubjectExtractor.swift now uses the correct iOS 17 API — observation.allInstances (IndexSet) instead of the nonexistent .instanceCount, and generateMaskedImage now passes from: handler as required by VNInstanceMaskObservation.",
+      "App Intents (Siri/Shortcuts): AddInventoryItemIntent (add to inventory by name + category), MarkPackedIntent (mark any item as packed), CreateTripIntent (create a trip with title, destination, start date). Registered via PackWiseShortcuts provider — appears in Shortcuts app and Spotlight.",
+      "Home Screen Widgets: NextTripWidget (systemSmall/systemMedium — shows upcoming trip, days away, packing progress) and PackingProgressWidget (systemMedium/systemLarge — packing progress across up to 5 active trips).",
+      "App Group container (group.com.packwise) for shared SwiftData — widgets and intents read the same store as the app. Falls back gracefully to local-only on unsigned builds.",
+      "All pre-flight checks green: tsc 0, bash -n 3/3, js-yaml 3/3.",
+    ],
+  },
+  {
     tag: "1.0.16",
     date: "Outfit recommendation engine & destination geocoding fallback",
     icon: Wrench,
