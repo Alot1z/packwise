@@ -3,6 +3,19 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.15",
+    date: "FullPack-class scanner, background removal & weather-aware packing",
+    icon: Wrench,
+    items: [
+      "Root cause resolved by deletion: SwiftUI has no .searchActions modifier on any OS — the 1.0.13/1.0.14 availability shim wrapped a phantom symbol that Xcode 26.3 / iOS 26.2 rejected with value of type 'Self' has no member 'searchActions'. SearchClearActionsModifier.swift and its two callers are removed; iOS 17's .searchable() already ships a built-in clear button, so UX is unchanged.",
+      "Real camera scanner: CameraService (AVCaptureSession live preview, capture, flip, permission states) + CameraScannerView replaces the picker-only PhotoScannerView; PhotosPicker import remains as a fallback.",
+      "Background removal: SubjectExtractor uses VNGenerateForegroundInstanceMaskRequest (iOS 17+) for a transparent cutout + thumbnail, gracefully falling back to the original photo when no subject is found. On-device, offline.",
+      "Weather-aware packing: MKLocalSearchCompleter destination autocomplete (no manual lat/lon) in the New Trip sheet; WeatherKit live conditions in the trip header; deterministic weather rules merged into recommendations (rain, cold lows, heat). WeatherKit fails silently on unsigned builds — the offline text engine is never blocked.",
+      "5 new deterministic offline weather recommendation tests; Trip gains optional destination coordinates. Docs: FULLPACK-CAPABILITY-MATRIX, APPLE-API-CAPABILITY-BIBLE, ARCHITECTURE, BUILD, CI.",
+      "CI fixes: build.sh validate_app() no longer corrupts the app path with stdout diagnostics; test destination now discovers available simulators dynamically instead of assuming an iPhone 16.",
+    ],
+  },
+  {
     tag: "1.0.14",
     date: "Bulletproof .searchActions shim + streamlined release process",
     icon: Wrench,

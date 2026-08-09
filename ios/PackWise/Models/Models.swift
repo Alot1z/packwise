@@ -8,6 +8,10 @@ final class Trip {
     @Attribute(.unique) var id: UUID = UUID()
     var title: String
     var destination: String
+    /// Optional resolved destination coordinate (MapKit / geocoding).
+    /// Used by the weather-aware packing suggestions.
+    var destinationLatitude: Double?
+    var destinationLongitude: Double?
     var startDate: Date?
     var endDate: Date?
     var purpose: String?
@@ -23,9 +27,11 @@ final class Trip {
     @Relationship(deleteRule: .cascade, inverse: \Outfit.trip) var outfits: [Outfit] = []
     @Relationship(deleteRule: .cascade, inverse: \Reminder.trip) var reminders: [Reminder] = []
 
-    init(title: String, destination: String, startDate: Date? = nil, endDate: Date? = nil, purpose: String? = nil, activities: String? = nil, climateInfo: String? = nil, notes: String? = nil, tripCategory: String? = nil, status: TripStatus = .planning) {
+    init(title: String, destination: String, destinationLatitude: Double? = nil, destinationLongitude: Double? = nil, startDate: Date? = nil, endDate: Date? = nil, purpose: String? = nil, activities: String? = nil, climateInfo: String? = nil, notes: String? = nil, tripCategory: String? = nil, status: TripStatus = .planning) {
         self.title = title
         self.destination = destination
+        self.destinationLatitude = destinationLatitude
+        self.destinationLongitude = destinationLongitude
         self.startDate = startDate
         self.endDate = endDate
         self.purpose = purpose

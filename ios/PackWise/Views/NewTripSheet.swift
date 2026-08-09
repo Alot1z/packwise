@@ -4,8 +4,11 @@ import SwiftData
 struct NewTripSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @StateObject private var destinationSearch = DestinationSearchService()
     @State private var title = ""
     @State private var destination = ""
+    @State private var destinationLatitude: Double?
+    @State private var destinationLongitude: Double?
     @State private var startDate = Date()
     @State private var endDate = Date().addingTimeInterval(86400*3)
     @State private var includeDates = false
@@ -29,6 +32,34 @@ struct NewTripSheet: View {
                     TextField("Destination", text: $destination)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.words)
+                    if destinationSearch.isSearching {
+                        ForEach(destinationSearch.suggestions, id: \.title) { completion in
+                            Button {
+                                let place = completion.title.isEmpty ? completion.subtitle : completion.title
+                                destination = place
+                                Task {
+                                    if let coord = await destinationSearch.coordinate(for: completion) {
+                                        destinationLatitude = coord.latitude
+                                        destinationLongitude = coord.longitude
+                                    }
+                                }
+                                destinationSearch.reset()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
+                                    VStack(alignment: .leading) {
+                                        Text(completion.title).font(.subheadline)
+                                        if !completion.subtitle.isEmpty {
+                                            Text(completion.subtitle).font(.caption).foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            .accessibilityLabel("\(completion.title), \(completion.subtitle)")
+                            .accessibilityHint("Sets the destination")
+                        }
+                    }
                     Picker("Category", selection: $category) { ForEach(["General","Weekend","Work","Beach","Outdoor","International"], id: \.self) { Text($0).tag($0) } }
                     TextField("Purpose — business, leisure, family", text: $purpose)
                     TextField("Activities — hiking, meetings, dining", text: $activities)
@@ -53,6 +84,10 @@ struct NewTripSheet: View {
             }
             .navigationTitle("New Trip")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: destination) { _, v in
+                destinationSearch.updateQuery(v)
+            }
+            .onDisappear { destinationSearch.reset() }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -60,6 +95,8 @@ struct NewTripSheet: View {
                         let trip = Trip(
                             title: title.trimmingCharacters(in: .whitespaces),
                             destination: destination.trimmingCharacters(in: .whitespaces),
+                            destinationLatitude: destinationLatitude,
+                            destinationLongitude: destinationLongitude,
                             startDate: includeDates ? startDate : nil,
                             endDate: includeDates ? (endDate < startDate ? startDate : endDate) : nil,
                             purpose: purpose.isEmpty ? nil : purpose,

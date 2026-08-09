@@ -123,7 +123,7 @@ struct DashboardView: View {
             .navigationDestination(for: String.self) { key in
                 if key == "createTrip" { Text("Use Trips → New trip") }
                 else if key == "templates" { TemplateLibraryView() }
-                else if key == "scanner" { PhotoScannerView() }
+                else if key == "scanner" { CameraScannerView() }
                 else if key == "search" { GlobalSearchView() }
             }
         }

@@ -44,7 +44,21 @@
 | `ios/PackWise/Views/TripDetailView.swift` | 332 | ✅ | KEEP | confirmations/haptics/a11y present | read |
 | `ios/PackWise/Views/ItemDetailView.swift` | 91 | ✅ | KEEP | photo downscale, auto-save, a11y | read |
 | `ios/PackWise/Views/LibraryView.swift` | 178 | ✅ | KEEP | reuse flow present | read |
-| `ios/PackWise/Views/PhotoScannerView.swift` | 120 | ✅ | KEEP | confirm-before-add Vision flow | read |
+| `ios/PackWise/Views/PhotoScannerView.swift` | 120 | ✅ | **DELETED (session 10)** | superseded by live-camera `CameraScannerView` (picker-only → real AVCaptureSession workflow) | deleted + grep verified |
+| `ios/PackWise/Services/CameraService.swift` | 180 | ✅ | **NEW (session 10)** | AVCaptureSession live preview, capture, flip, permission/unauthorized states; private session queue + PhotoCaptureDelegate bridge | written + reviewed |
+| `ios/PackWise/Views/CameraPreview.swift` | 30 | ✅ | **NEW (session 10)** | UIViewRepresentable wrapper around AVCaptureVideoPreviewLayer | written + reviewed |
+| `ios/PackWise/Views/CameraScannerView.swift` | 280 | ✅ | **NEW (session 10)** | live camera → capture/import → on-device background removal + Vision suggestions → confirm → add to trip | written + reviewed (dup switch case fixed) |
+| `ios/PackWise/Services/SubjectExtractor.swift` | 130 | ✅ | **NEW (session 10)** | VNGenerateForegroundInstanceMaskRequest background removal + thumbnail; graceful fallback | written + reviewed |
+| `ios/PackWise/Services/WeatherProvider.swift` | 120 | ✅ | **NEW (session 10)** | WeatherKit snapshot (Codable/Sendable) + precipitation-chance/coldest-low helpers; fails nil on any error | written + reviewed |
+| `ios/PackWise/Services/DestinationSearchService.swift` | 80 | ✅ | **NEW (session 10)** | MKLocalSearchCompleter autocomplete + MKLocalSearch coordinate resolution | written + reviewed |
+| `ios/PackWise/Views/NewTripSheet.swift` | 81 → 140 | ✅ | **EXTENDED (session 10)** | destination autocomplete + coordinate capture into Trip | read + edit |
+| `ios/PackWise/Views/TripDetailView.swift` | 332 → 380 | ✅ | **EXTENDED (session 10)** | live WeatherKit header line + weather-aware suggestions; CoreLocation import | read + edit |
+| `ios/PackWise/Views/SearchClearActionsModifier.swift` | 65 | ✅ | **DELETED (session 10)** | the `.searchActions` API does not exist in SwiftUI on any OS — the wrapper and its two callers removed; iOS 17 `.searchable()` ships a built-in clear button | deleted + grep verified 0 refs |
+| `ios/PackWise/Models/Models.swift` | 275 → 295 | ✅ | **EXTENDED (session 10)** | `Trip` gains optional `destinationLatitude`/`destinationLongitude` | read + edit |
+| `ios/PackWiseTests/PackWiseTests.swift` | 71 → 210 | ✅ | **EXTENDED (session 10)** | +5 deterministic offline weather-recommendation tests | written + reviewed |
+| `docs/FULLPACK-CAPABILITY-MATRIX.md` | new | ✅ | **NEW (session 10)** | FullPack observable capability → Apple API → PackWise implementation → status | written |
+| `docs/APPLE-API-CAPABILITY-BIBLE.md` | new | ✅ | **NEW (session 10)** | verified Apple symbols with availability (VisionKit, Vision, WeatherKit, MapKit, FoundationModels, Glass, App Intents, WidgetKit) | written |
+| `docs/ARCHITECTURE.md` / `docs/BUILD.md` / `docs/CI.md` | new | ✅ | **NEW (session 10)** | architecture / build / CI reference docs | written |
 | `ios/PackWise/Views/OnboardingView.swift` | 79 | ✅ | KEEP | reduced-motion + ScaledMetric + a11y | read |
 | `ios/PackWise/Views/TemplateLibraryView.swift` | 96 | ✅ | KEEP | delete confirmation present | read |
 | `ios/PackWise/Views/GlobalSearchView.swift` | 79 | ✅ | **FIXED (session 8)** | **`.searchActions` (iOS 18-only) replaced with availability-safe `searchClearAction($q)`** — same compile blocker as TripListView | read + edit + grep |
