@@ -28,7 +28,14 @@ targets:
       - path: PackWise
         excludes:
           - "**/Widgets"
+    # CRITICAL: `path:` is REQUIRED by XcodeGen's Plist decoder. Without it,
+    # `entitlements: { properties: ... }` throws `Decoding failed at "path":
+    # Nothing found` and the whole spec fails to parse (this exact error has
+    # been blocking CI at "Generate Xcode project" for many runs). XcodeGen
+    # generates/writes the .entitlements file at `path` from `properties` and
+    # wires CODE_SIGN_ENTITLEMENTS automatically.
     entitlements:
+      path: PackWise/PackWise.entitlements
       properties:
         com.apple.security.application-groups:
           - group.com.packwise
@@ -66,7 +73,10 @@ targets:
         excludes:
           - "**/Info.plist"
       - path: PackWise/Models
+    # path: REQUIRED (see the note on the app target) — XcodeGen writes the
+    # .entitlements file and sets CODE_SIGN_ENTITLEMENTS for this extension.
     entitlements:
+      path: PackWise/Widgets/PackWiseWidget.entitlements
       properties:
         com.apple.security.application-groups:
           - group.com.packwise
