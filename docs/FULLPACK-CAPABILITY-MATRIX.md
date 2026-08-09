@@ -40,6 +40,7 @@ Apple APIs.
 | Photograph an item with the live camera | App Store listing ("photographing an item") | Permission → live preview → shutter → capture | `AVCaptureSession`, `AVCaptureDeviceInput`, `AVCapturePhotoOutput`, `AVCaptureDevice.requestAccess(for:)` | 17 (target) | `CameraService` (session lifecycle, auth, capture) + `CameraScannerView` (preview, shutter, retake) | `Services/CameraService.swift`, `Views/CameraScannerView.swift`, `Views/CameraPreview.swift` | IMPLEMENTED (CI gate pending) |
 | Import a photo instead of capturing | Screenshot/flow evidence | PhotosPicker → image | `PhotosUI.PhotosPicker` | 14 | Fallback path inside `CameraScannerView` | `Views/CameraScannerView.swift` | IMPLEMENTED |
 | Automatic background removal / subject extraction | App Store listing ("removes the background") | Vision instance mask → transparent cutout | `VNGenerateForegroundInstanceMaskRequest`, `VNInstanceMaskObservation`, `VNImageRequestHandler` | 17 | `SubjectExtractor` renders all-instance mask to an isolated PNG + thumbnail | `Services/SubjectExtractor.swift` | IMPLEMENTED (CI gate pending) |
+| Capture-result transition (background dissolves into particles) | 1.5.3 release notes: "watch the background dissolve into particles, and it lands straight in your inventory" | capture → subject isolation → animated dissolve → inventory card | SwiftUI `withAnimation` + particle/CANVAS layer (design target) | — | **NOT IMPLEMENTED** — current flow cuts out + inserts without the dissolve transition | `Views/CameraScannerView.swift`, `Services/SubjectExtractor.swift` | DESIGNED → TODO (post-CI-green scanner polish) |
 | Camera permission + graceful denial | Product norm | auth status → UI | `AVCaptureDevice.authorizationStatus`, `requestAccess` | 17 (async variant) | Unauthorized state offers Settings deep-link | `Views/CameraScannerView.swift` | IMPLEMENTED |
 | Capture review / retake | Flow evidence | confirm or retake | SwiftUI | — | Capture-review stage with Retake/Discard | `Views/CameraScannerView.swift` | IMPLEMENTED |
 
@@ -48,7 +49,8 @@ Apple APIs.
 | FullPack capability | Evidence | Atomic behavior | Apple API | Min iOS | PackWise implementation | Files | Status |
 |---|---|---|---|---|---|---|---|
 | On-device item recognition | "AI item naming/category assignment" | classify → suggestions | `VNClassifyImageRequest` (existing, verified in repo) | 13 | `VisionService` label→category map (conservative, confirm-before-add) | `Services/VisionService.swift` | TESTED/CI-VALIDATED (existing) |
-| Natural-language naming via Apple Intelligence | Listing wording ("AI ... naming") | local LLM names/categorizes | `FoundationModels.LanguageModelSession` / `@Generable` | **26** (Apple Intelligence) | **DESIGNED — deferred.** Deployment target is iOS 17; capability-check + fallback to `VisionService` specified in `docs/APPLE-API-CAPABILITY-BIBLE.md`. No speculative symbol use. | — | DESIGNED (BLOCKED until iOS 26 target decision) |
+| Natural-language naming via Apple Intelligence | Listing wording ("AI ... naming") | local LLM names/categorizes | `FoundationModels.LanguageModelSession` / `@Generable` | **26** (Apple Intelligence) | **DESIGNED — deferred.** Deployment target is iOS 18; capability-check + fallback to `VisionService` specified in `docs/APPLE-API-CAPABILITY-BIBLE.md`. No speculative symbol use. | — | DESIGNED (BLOCKED until iOS 26 target decision) |
+| AI naming/categorization — FullPack is **remote** | Listing: "AI instantly suggests its name and category"; Privacy page: "only the extracted image is sent for one-time processing — never stored" | cutout → one-time remote inference | — | — | **Documented divergence (privacy superset):** PackWise names/categorizes fully on device via `VisionService` — no image ever leaves the device, works offline | `Services/VisionService.swift` | IMPLEMENTED (on-device path; remote path deliberately NOT built) |
 | Manual naming/category correction | Product norm | editable fields | SwiftUI | — | Name field + category picker in add flow | `Views/CameraScannerView.swift`, `Views/TripDetailView.swift` | IMPLEMENTED |
 
 ### 2.3 Inventory
@@ -91,6 +93,8 @@ Apple APIs.
 |---|---|---|---|---|---|---|---|
 | Outfit planning | Listing ("outfit planning") | compose from items, day labels | SwiftData + SwiftUI | 17 | `Outfit` model + outfits tab in `TripDetailView` | `Models/Models.swift`, `Views/TripDetailView.swift` | TESTED (indirect) |
 | Outfit recommendation engine | Design objective | deterministic color/category/weather combos | pure Swift | — | `RecommendationService.outfitSuggestions(for:weather:)` with weather-aware, trip-context, and packed-item filtering | `Services/RecommendationService.swift` | IMPLEMENTED (CI gate pending) |
+| Visual outfit canvas with drag-and-drop | Listing: "Drag and drop items onto a visual canvas. Plan outfits by day or occasion" | drag item cutouts onto a day/occasion canvas | SwiftUI `.draggable` / `.dropDestination` | 16 | **PARTIAL** — outfits are composed via a checkbox form + saved list; no drag-drop canvas yet | `Views/TripDetailView.swift` (outfits tab), `Models/Models.swift` (`Outfit.itemIDs`) | PARTIAL → TODO (post-CI-green) |
+| Save favorite outfit combinations | Listing: "save your favorite combinations" | favorite flag + quick recall | SwiftData attribute | — | **NOT IMPLEMENTED** — `Outfit` has no favorite flag | `Models/Models.swift` | NOT IMPLEMENTED → TODO |
 
 ### 2.8 System integrations (modernization layer)
 
@@ -117,7 +121,7 @@ Apple APIs.
 
 | Item | Why excluded |
 |---|---|
-| Subscription / paywall | Directive §43: no artificial locks; core functionality free |
+| Subscription / paywall | Directive §43: no artificial locks; core functionality free. FullPack charges IAP (Monthly $2.99 · Yearly $6.99/$19.99 · Lifetime $29.99) — PackWise ships all features free |
 | Mandatory cloud AI | Local-first architecture; remote provider never the only path |
 | iOS 26-only features as hard requirements | Deployment target is iOS 17 (repo-wide evidence: README, wiki, project.yml, publish gate); iOS 26 APIs are documented, gated designs |
 | Private/undocumented APIs, `@_silgen_name`, unsafe casts | Directive §9 hard ban |
