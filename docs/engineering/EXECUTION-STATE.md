@@ -1,6 +1,20 @@
 # PackWise — Engineering Execution State
 
-> **Session 16 — Swift 6 WidgetKit callback isolation:** macOS run [31330390878](https://github.com/Alot1z/packwise/actions/runs/31330390878) passed XcodeGen generation and simulator tests, then reached the device build and failed only on `sending 'completion' risks causing data races` at both widget `getTimeline` callbacks. Removing `@MainActor` from the task (already present in the failing run) was insufficient. The two timeline callback parameters now explicitly use `@escaping @Sendable`; no strict-concurrency bypass was added. Linux validation is green; the next macOS run remains authoritative for compiler confirmation.
+> **Session 17 — App Intents escape sequence fix + comprehensive full-repo audit:**
+> Run [31331042521](https://github.com/Alot1z/packwise/actions/runs/31331042521)
+> (commit `8dffd75e`) confirmed XcodeGen PASSED and simulator tests PASSED.
+> The device build then failed with `Invalid escape sequence in literal` in
+> `PackWiseIntents.swift` (10 errors spanning lines 18–38). Root cause: the
+> `AppShortcut` phrase strings used `\\(` (escaped backslash + paren) instead
+> of the correct Swift string interpolation `\(` for App Intents parameter
+> references (`\(.$itemName)`, `\(.$destination)`, `\(.$tripTitle)`).
+> Swift 6/Xcode 26.3 treats `\(` as an invalid escape sequence (valid escapes
+> are `\0`, `\\`, `\t`, `\n`, `\r`, `\"`, `\'`, `\u{n}`). Fixed all 7
+> affected lines. Comprehensive audit confirms **no other Swift 6 concurrency
+> or escape-sequence issues remain** in any of the 30 Swift source files.
+> All local validation passes: tsc 0, vite build OK, js-yaml 4/4, actionlint 0,
+> shell 3/3, convex dev OK. **Pending: next macOS CI run is the authority —
+> device build must compile the fixed App Intents, then archive → IPA → verify.**
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-09**
