@@ -53,8 +53,8 @@ struct ProgressProvider: TimelineProvider {
         completion(placeholder(in: context))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<ProgressEntry>) -> Void) {
-        Task { @MainActor in
+    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<ProgressEntry>) -> Void) {
+        Task {
             let entry = await fetchProgress()
             let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900)))
             completion(timeline)
