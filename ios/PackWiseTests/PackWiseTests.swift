@@ -139,3 +139,94 @@ struct WeatherRecommendationTests {
         #expect(chance == 0.75)
     }
 }
+
+@Suite("PackWise — Outfit recommendations (deterministic, offline)")
+struct OutfitRecommendationTests {
+
+    private func snapshot(condition: String, temp: Double, precip: Double) -> WeatherSnapshot {
+        let start = Calendar.current.startOfDay(for: Date())
+        return WeatherSnapshot(
+            temperatureC: temp,
+            condition: condition,
+            symbolName: "cloud",
+            daily: [WeatherSnapshot.WeatherDay(date: start, highC: temp + 3, lowC: temp - 3, condition: condition, symbolName: "cloud", precipitationChance: precip)]
+        )
+    }
+
+    @Test("Business trip suggests business outfits")
+    func businessOutfit() {
+        let trip = Trip(title: "Conference", destination: "London", purpose: "Business meetings", tripCategory: "Work")
+        // Pack items the outfit engine will match.
+        trip.items = [
+            PackingItem(name: "Blazer", packed: true, trip: trip),
+            PackingItem(name: "White shirt", packed: true, trip: trip),
+            PackingItem(name: "Dark trousers", packed: true, trip: trip),
+            PackingItem(name: "Dress shoes", packed: true, trip: trip),
+            PackingItem(name: "Notebook", packed: true, trip: trip),
+            PackingItem(name: "Linen shirt", packed: true, trip: trip),
+            PackingItem(name: "Sneakers", packed: true, trip: trip),
+        ]
+        let outfits = RecommendationService.outfitSuggestions(for: trip, weather: nil)
+        #expect(outfits.contains(where: { $0.name == "Business meeting" }))
+        #expect(outfits.contains(where: { $0.name == "Business casual" }))
+    }
+
+    @Test("Beach destination suggests beach outfits")
+    func beachOutfit() {
+        let trip = Trip(title: "Holiday", destination: "Miami beach", tripCategory: "Beach")
+        trip.items = [
+            PackingItem(name: "Swim shorts", packed: true, trip: trip),
+            PackingItem(name: "Linen shirt", packed: true, trip: trip),
+            PackingItem(name: "Sandals", packed: true, trip: trip),
+            PackingItem(name: "Sunglasses", packed: true, trip: trip),
+            PackingItem(name: "Linen trousers", packed: true, trip: trip),
+            PackingItem(name: "Sneakers", packed: true, trip: trip),
+        ]
+        let outfits = RecommendationService.outfitSuggestions(for: trip, weather: nil)
+        #expect(outfits.contains(where: { $0.name == "Beach afternoon" }))
+    }
+
+    @Test("Outdoor trip with rain risk suggests rain-ready outfit")
+    func rainyOutdoorOutfit() {
+        let trip = Trip(title: "Hike", destination: "trail", startDate: Date(), endDate: Date().addingTimeInterval(86400), activities: "hiking")
+        trip.items = [
+            PackingItem(name: "Hiking boots", packed: true, trip: trip),
+            PackingItem(name: "Rain shell", packed: true, trip: trip),
+            PackingItem(name: "Water bottle", packed: true, trip: trip),
+            PackingItem(name: "Headlamp", packed: true, trip: trip),
+            PackingItem(name: "Waterproof bag", packed: true, trip: trip),
+        ]
+        let weather = snapshot(condition: "Rain", temp: 12, precip: 0.8)
+        let outfits = RecommendationService.outfitSuggestions(for: trip, weather: weather)
+        #expect(outfits.contains(where: { $0.name == "Trail day" }))
+        #expect(outfits.contains(where: { $0.name == "Wet trail" }))
+    }
+
+    @Test("International trip suggests travel day outfit")
+    func internationalOutfit() {
+        let trip = Trip(title: "Euro Trip", destination: "Paris", tripCategory: "International")
+        trip.items = [
+            PackingItem(name: "Sneakers", packed: true, trip: trip),
+            PackingItem(name: "Linen shirt", packed: true, trip: trip),
+            PackingItem(name: "Dark trousers", packed: true, trip: trip),
+            PackingItem(name: "Passport", packed: true, trip: trip),
+        ]
+        let outfits = RecommendationService.outfitSuggestions(for: trip, weather: nil)
+        #expect(outfits.contains(where: { $0.name == "Travel day" }))
+    }
+
+    @Test("Outfit suggestions filter out items that are not packed")
+    func filtersUnpackedItems() {
+        let trip = Trip(title: "Weekend", destination: "Berlin", tripCategory: "International")
+        // Only pack 2 out of 4 items needed for "Travel day".
+        trip.items = [
+            PackingItem(name: "Sneakers", packed: true, trip: trip),
+            PackingItem(name: "Linen shirt", packed: true, trip: trip),
+            PackingItem(name: "Dark trousers", packed: false, trip: trip), // not packed
+            PackingItem(name: "Passport", packed: false, trip: trip),       // not packed
+        ]
+        let outfits = RecommendationService.outfitSuggestions(for: trip, weather: nil)
+        // "Travel day" should be filtered out because 2 of its 4 items are unpacked.
+        #expect(!outfits.contains(where: { $0.name == "Travel day" }))
+    }
+}

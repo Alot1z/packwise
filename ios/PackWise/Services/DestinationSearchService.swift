@@ -1,5 +1,6 @@
 import Foundation
 import MapKit
+import CoreLocation
 import Combine
 
 /// Destination place autocomplete + coordinate resolution for trips.
@@ -48,6 +49,21 @@ final class DestinationSearchService: NSObject, ObservableObject {
         do {
             let response = try await search.start()
             return response.mapItems.first?.placemark.coordinate
+        } catch {
+            return nil
+        }
+    }
+
+    /// Geocoding fallback: resolves a free-text destination string (typed directly
+    /// by the user without picking a completer suggestion) to a coordinate using
+    /// `CLGeocoder`. Runs on a background task so it never blocks the UI.
+    static func geocode(destination text: String) async -> CLLocationCoordinate2D? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        do {
+            let placemarks = try await CLGeocoder().geocodeAddressString(trimmed)
+            guard let location = placemarks.first?.location else { return nil }
+            return location.coordinate
         } catch {
             return nil
         }

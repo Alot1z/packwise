@@ -3,6 +3,17 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.16",
+    date: "Outfit recommendation engine & destination geocoding fallback",
+    icon: Wrench,
+    items: [
+      "Outfit recommendation engine: RecommendationService.outfitSuggestions() generates deterministic, FullPack-class outfit ideas from trip context (business, beach, outdoor, cold, rain, international), weather conditions, and items already packed. Suggestions that reference absent items are filtered out.",
+      "Destination geocoding fallback: when you type a free-text destination without picking a MapKit suggestion, CLGeocoder resolves it to coordinates on trip creation. No more manual lat/lon entry.",
+      "5 new deterministic offline outfit recommendation tests (business, beach, rainy-outdoor, international, unpacked-item filtering) in PackWiseTests.",
+      "All pre-flight checks green: tsc 0, bash -n 3/3, js-yaml 3/3.",
+    ],
+  },
+  {
     tag: "1.0.15",
     date: "FullPack-class scanner, background removal & weather-aware packing",
     icon: Wrench,
