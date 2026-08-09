@@ -18,6 +18,11 @@ on:
         type: boolean
         required: false
         default: false
+      download_simulator:
+        description: 'Download the iOS Simulator runtime if missing (slow: ~5-10 min on runners without it)'
+        type: boolean
+        required: false
+        default: false
       release_channel:
         description: 'Which release channel to publish to (push events ignore this; dispatch defaults to dev)'
         type: choice
@@ -123,19 +128,37 @@ jobs:
           # around the pipeline, capture the real status, and always exit 0 so a
           # test flake can never block the IPA or produce a misleading failure.
           #
-          # Resolve a usable iPhone simulator at runtime (Xcode 26 doesn't ship
-          # "iPhone 16" — query available devices and pick the first iPhone).
+          # Resolve a usable iPhone simulator at runtime. Device NAMES can
+          # exist in simctl even when no simulator runtime is installed (the
+          # runner image may omit it), so check runtimes first — otherwise
+          # xcodebuild reports "Unable to find a device" and the step lies
+          # with TESTS_PASSED=0 instead of honestly skipping.
           mkdir -p build
-          SIM_DEST="platform=iOS Simulator,name=iPhone 17,OS=latest"
-          if ! xcrun simctl list devices available "${SIM_DEST##name=}" 2>/dev/null | grep -q iPhone; then
-            FIRST_IPHONE=$(xcrun simctl list devices available iPhone 2>/dev/null | grep -m1 -oE 'iPhone [0-9]+( Pro( Max)?)?' | head -1)
-            if [ -n "$FIRST_IPHONE" ]; then
-              SIM_DEST="platform=iOS Simulator,name=$FIRST_IPHONE,OS=latest"
-              echo "→ no iPhone 17 simulator — using: $SIM_DEST"
-            else
-              echo "→ no iPhone simulator found — tests will be skipped (exit 0)"
+          if ! xcrun simctl list runtimes available 2>/dev/null | grep -qiE '^iOS|iOS [0-9]'; then
+            if [ "${{ inputs.download_simulator }}" = "true" ]; then
+              echo "→ no iOS Simulator runtime — downloading (can take 5-10 min)..."
+              xcodebuild -downloadPlatform iOS-Simulator 2>&1 | tail -n 5 || true
+            fi
+            if ! xcrun simctl list runtimes available 2>/dev/null | grep -qiE '^iOS|iOS [0-9]'; then
+              echo "TESTS_SKIPPED=1" >> "$GITHUB_ENV"
+              echo "→ no iOS Simulator runtime on this runner — tests skipped (exit 0)."
+              echo "  Re-run with download_simulator=true to install it, or use a runner image that ships simulators."
               exit 0
             fi
+          fi
+          # Pick the first iPhone device type that has a runtime behind it.
+          SIM_DEST=""
+          for NAME in "iPhone 17 Pro" "iPhone 17" "iPhone 16 Pro" "iPhone 16" "iPhone 15"; do
+            if xcrun simctl list devices available "$NAME" 2>/dev/null | grep -q "$NAME"; then
+              SIM_DEST="platform=iOS Simulator,name=$NAME,OS=latest"
+              echo "→ using simulator: $SIM_DEST"
+              break
+            fi
+          done
+          if [ -z "$SIM_DEST" ]; then
+            echo "TESTS_SKIPPED=1" >> "$GITHUB_ENV"
+            echo "→ no iPhone simulator device found — tests skipped (exit 0)."
+            exit 0
           fi
           echo "→ Running tests on $SIM_DEST (never blocks the IPA build)"
           set +e
@@ -291,6 +314,8 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ "${TESTS_PASSED:-0}" = "1" ]; then
             echo "**Tests:** ✅ passed" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${TESTS_SKIPPED:-0}" = "1" ]; then
+            echo "**Tests:** ⏭️ skipped — no iOS Simulator runtime on this runner (re-run with download_simulator=true to install it)" >> "$GITHUB_STEP_SUMMARY"
           elif [ "${TESTS_PASSED:-0}" = "0" ]; then
             echo "**Tests:** ⚠️ failed (non-blocking) — see tests.log in the diagnostics artifact" >> "$GITHUB_STEP_SUMMARY"
           else
