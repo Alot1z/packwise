@@ -40,7 +40,7 @@ Apple APIs.
 | Photograph an item with the live camera | App Store listing ("photographing an item") | Permission → live preview → shutter → capture | `AVCaptureSession`, `AVCaptureDeviceInput`, `AVCapturePhotoOutput`, `AVCaptureDevice.requestAccess(for:)` | 17 (target) | `CameraService` (session lifecycle, auth, capture) + `CameraScannerView` (preview, shutter, retake) | `Services/CameraService.swift`, `Views/CameraScannerView.swift`, `Views/CameraPreview.swift` | IMPLEMENTED (CI gate pending) |
 | Import a photo instead of capturing | Screenshot/flow evidence | PhotosPicker → image | `PhotosUI.PhotosPicker` | 14 | Fallback path inside `CameraScannerView` | `Views/CameraScannerView.swift` | IMPLEMENTED |
 | Automatic background removal / subject extraction | App Store listing ("removes the background") | Vision instance mask → transparent cutout | `VNGenerateForegroundInstanceMaskRequest`, `VNInstanceMaskObservation`, `VNImageRequestHandler` | 17 | `SubjectExtractor` renders all-instance mask to an isolated PNG + thumbnail | `Services/SubjectExtractor.swift` | IMPLEMENTED (CI gate pending) |
-| Capture-result transition (background dissolves into particles) | 1.5.3 release notes: "watch the background dissolve into particles, and it lands straight in your inventory" | capture → subject isolation → animated dissolve → inventory card | SwiftUI `withAnimation` + particle/CANVAS layer (design target) | — | **NOT IMPLEMENTED** — current flow cuts out + inserts without the dissolve transition | `Views/CameraScannerView.swift`, `Services/SubjectExtractor.swift` | DESIGNED → TODO (post-CI-green scanner polish) |
+| Capture-result transition (background dissolves into particles) | 1.5.3 release notes: "watch the background dissolve into particles, and it lands straight in your inventory" | capture → subject isolation → animated dissolve → inventory card | SwiftUI `withAnimation` + seeded 64-particle burst (`RandomNumberGenerator` SplitMix64), Reduce-Motion crossfade | 18 | `ParticleDissolveView` — after capture the photo dims under an outward-fading particle burst while `SubjectExtractor` runs; the transparent cutout scales in on top, then hands off to the review form. Pure SwiftUI (no Metal/CAEmitterLayer), Swift 6-safe value particles | `Views/ParticleDissolveView.swift`, `Views/CameraScannerView.swift` | IMPLEMENTED — build/archive/IPA gate GREEN (commit `f21d015`) |
 | Camera permission + graceful denial | Product norm | auth status → UI | `AVCaptureDevice.authorizationStatus`, `requestAccess` | 17 (async variant) | Unauthorized state offers Settings deep-link | `Views/CameraScannerView.swift` | IMPLEMENTED |
 | Capture review / retake | Flow evidence | confirm or retake | SwiftUI | — | Capture-review stage with Retake/Discard | `Views/CameraScannerView.swift` | IMPLEMENTED |
 
@@ -139,7 +139,7 @@ Apple APIs.
 | Trips + destination search | IMPLEMENTED — needs macOS CI |
 | Weather-aware packing | IMPLEMENTED — needs device/entitlement validation |
 | Packing lists / templates / outfits | TESTED |
-| Design system / iOS 18 migration / scanner polish | IMPLEMENTED (design system + iOS 18 + scanner UX) |
+| Design system / iOS 18 migration / scanner polish | IMPLEMENTED (design system + iOS 18 + scanner UX + particle-dissolve transition) |
 | App Intents / Widgets / Liquid Glass | IMPLEMENTED (Widgets + App Intents) / DESIGNED (Liquid Glass — iOS 26) |
 | Privacy / offline-first | IMPLEMENTED |
 
