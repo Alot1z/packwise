@@ -2,6 +2,13 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-09**
+> (session 11 — **Outfit recommendation engine & geocoding fallback**:
+> `RecommendationService.outfitSuggestions()` generates deterministic outfit ideas
+> from trip context + weather + packed items; `DestinationSearchService.geocode()`
+> falls back to `CLGeocoder` for free-text destinations; 5 new outfit tests;
+> changelog 1.0.16 synced web↔wiki; tsc 0 / bash -n 3:3 / js-yaml 3:3 /
+> Convex codegen OK).
+>
 > (session 10 — **FullPack-class scanner, background removal & weather-aware
 > packing**: the `.searchActions` API does NOT exist in SwiftUI on any OS, so the
 > session-8/9 availability shim and its callers are **deleted** (the root cause of
@@ -66,6 +73,7 @@ Rules enforced (from the product specification):
 | 14 · R2 infra CLOSED + real compile bug fixed (session 8) | **DONE** — live CI run 31256274224 confirmed the session-6 platform fix works (device platform installed, compiler ran, XcodeGen OK, tests OK). Real blocker surfaced via public annotations: `.searchActions` (iOS 18-only) in TripListView + GlobalSearchView breaks the iOS 17 target build. Fixed with availability-safe `searchClearAction` modifier (new file SearchClearActionsModifier.swift). Changelog 1.0.13 synced web↔wiki (14/14). Next gate: macOS CI run to produce first valid IPA. |
 | 15 · Bulletproof shim + release process (session 9) | **DONE** — hardened the iOS-18 `.searchActions` shim with the canonical SwiftUI iOS-version workaround: `body` returns `AnyView`, the iOS-18 branch is a separate `@available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>`. Swift unifies both branches as opaque `AnyView` instead of `_ConditionalContent<…>` whose internal witnesses would force `.searchActions` resolution at the iOS-17 target. Full iOS audit: zero fixed-size fonts (every font is semantic or `@ScaledMetric`), zero stray `#available` blocks, zero other iOS-18-only APIs (`scrollPosition(defaultDistance:)`, `defaultScrollAnchor(.top)`, `MeshGradient`, etc.). README gains a dedicated **Release process** section documenting the maintainer's end-to-end flow (triggers table, single `verify-ipa.sh` gate, two deterministic manifest URLs, three-host build matrix, 3-check pre-flight loop). Changelog 1.0.14 synced web↔wiki (15/15). External gate unchanged (next macOS CI run produces the first valid IPA). |
 | 16 · FullPack-class scanner + background removal + weather (session 10) | **DONE** — research proved `.searchActions` does not exist in SwiftUI on any OS; the session-8/9 shim was wrapping a phantom symbol (the exact cause of the Xcode 26.3 `value of type 'Self' has no member 'searchActions'` rejection). **Deleted** `SearchClearActionsModifier.swift` + its two callers (iOS 17 `.searchable()` ships a built-in clear button — UX unchanged). Implemented the FullPack gaps: `CameraService` (`AVCaptureSession` live preview/capture/flip/permission states) + `CameraScannerView` (replaces `PhotoScannerView`, deleted; PhotosPicker import remains as fallback); `SubjectExtractor` (`VNGenerateForegroundInstanceMaskRequest` transparent cutout + thumbnail, graceful fallback); `WeatherProvider` (WeatherKit → Codable/Sendable `WeatherSnapshot`, fail-nil by design for unsigned builds); `DestinationSearchService` (MKLocalSearchCompleter autocomplete + MKLocalSearch coordinate) wired into `NewTripSheet`; `Trip` gains optional `destinationLatitude`/`destinationLongitude`; `TripDetailView` shows live weather + weather-aware suggestions; `RecommendationService.suggestions(for:weather:)` deterministic rules merged with the text engine. 5 new offline `WeatherRecommendationTests`. Required docs added: FULLPACK-CAPABILITY-MATRIX, APPLE-API-CAPABILITY-BIBLE, ARCHITECTURE, BUILD, CI. Changelog 1.0.15 synced web↔wiki. Validation: tsc 0, Vite build 0, bash-n 3:3, js-yaml 3:3, Convex OK, stale refs 0, isolate absent. **Pending: next macOS CI run compiles the new Swift files (Xcode gate for archive + IPA).** |
+| 17 · Outfit recommendations + geocoding fallback (session 11) | **DONE** — `RecommendationService.outfitSuggestions(for:weather:)` generates deterministic outfit ideas from trip context, weather, and packed items (filters out suggestions that reference absent items). `DestinationSearchService.geocode(destination:)` falls back to `CLGeocoder` when the user types a free-text destination without picking a MKLocalSearchCompleter suggestion. 5 new `OutfitRecommendationTests`. FULLPACK-CAPABILITY-MATRIX outfit row updated (DESIGNED → IMPLEMENTED). Changelog 1.0.16 synced web↔wiki. Validation: tsc 0, bash-n 3:3, js-yaml 3:3, Convex OK. **Pending: next macOS CI run validates the new Swift.** |
 
 ## 3. Release-blocking items
 
@@ -180,14 +188,14 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-09, session 10)
+## 10. Machine-readable snapshot (2026-08-09, session 11)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-09-s10",
-  "phase": 16,
-  "verify_sweep": "all green (tsc 0 / vite build 0 / bash -n 3:3 / js-yaml 3:3 / convex OK / changelog 16:16)",
+  "session": "2026-08-09-s11",
+  "phase": 17,
+  "verify_sweep": "all green (tsc 0 / bash -n 3:3 / js-yaml 3:3 / convex OK / changelog 17:17)",
   "ios_audit": {
     "searchActions_resolution": "DELETED -- API does not exist in SwiftUI on any OS; SearchClearActionsModifier.swift + both callers removed; iOS 17 .searchable() built-in clear button suffices",
     "new_files": ["CameraService.swift", "CameraPreview.swift", "CameraScannerView.swift", "SubjectExtractor.swift", "WeatherProvider.swift", "DestinationSearchService.swift"],
