@@ -114,6 +114,27 @@ jobs:
           fi
           ls -lh PackWise.xcodeproj
 
+      # ── Compile gate for ALL test code (blocking, fails fast, no simulator) ──
+      # The scheme deliberately excludes test targets from the archive build and
+      # the hosted runner has no iOS Simulator runtime — so test code was never
+      # even compiled in CI. build-for-testing against the generic iOS DEVICE
+      # destination compiles every test target (unit + UI) against the
+      # device-slice app, so a broken test (wrong API, bad signature, bad
+      # fixture) reds the build instead of shipping silently. This runs before
+      # the IPA so the fastest signal wins.
+      - name: Compile tests (build-for-testing — blocking gate)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          xcodebuild build-for-testing \
+            -project PackWise.xcodeproj -scheme PackWise \
+            -destination 'generic/platform=iOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            2>&1 | tee build/tests-compile.log | tail -n 40
+          echo "→ test targets compiled OK (PackWiseTests + PackWiseUITests)"
+
       # ── Tests: informative, non-blocking. A flaky test must never block the IPA. ──
       - name: Run tests (simulator, no signing — non-blocking)
         id: tests
@@ -310,6 +331,7 @@ jobs:
           path: |
             ios/build/build.log
             ios/build/tests.log
+            ios/build/tests-compile.log
             ios/build/ci.log
             ios/build/diagnostics.txt
           if-no-files-found: ignore
