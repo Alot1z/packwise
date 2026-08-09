@@ -1,16 +1,20 @@
 # PackWise — Engineering Execution State
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
-> [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-08**
-> (session 9 — **bulletproof .searchActions shim + README streamlined release
-> process**: hardened the iOS-18 availability shim with `SearchActionsWrapper`
-> + `AnyView` erasure so Swift unifies the two branches as opaque `AnyView`
-> instead of `_ConditionalContent<…>` whose internal conformance would re-check
-> `.searchActions` on the iOS-17 deployment target; full iOS audit confirms
-> zero fixed-size fonts, zero stray `#available` blocks, zero other iOS-18-only
-> APIs; README gains a dedicated **Release process** section documenting the
-> maintainer's end-to-end flow; changelog 1.0.14 synced web↔wiki; tsc/bash/js-yaml
-> all green at 15/15).
+> [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-09**
+> (session 10 — **FullPack-class scanner, background removal & weather-aware
+> packing**: the `.searchActions` API does NOT exist in SwiftUI on any OS, so the
+> session-8/9 availability shim and its callers are **deleted** (the root cause of
+> the Xcode 26.3 `value of type 'Self' has no member 'searchActions'` rejection);
+> real `AVCaptureSession` camera scanner (`CameraService` + `CameraScannerView` +
+> `CameraPreview`) replaces the picker-only `PhotoScannerView`; `SubjectExtractor`
+> (`VNGenerateForegroundInstanceMaskRequest`) removes backgrounds on device;
+> `WeatherProvider` (WeatherKit, fail-nil) + `DestinationSearchService`
+> (MKLocalSearchCompleter) deliver weather-aware packing; `Trip` gains optional
+> destination coordinates; 5 new deterministic weather tests; required docs
+> (FULLPACK-CAPABILITY-MATRIX, APPLE-API-CAPABILITY-BIBLE, ARCHITECTURE, BUILD,
+> CI) added; changelog 1.0.15 synced web↔wiki; tsc 0 / bash-n 3:3 / js-yaml 3:3
+> / Convex OK).
 
 ## 1. Project map
 
@@ -61,6 +65,7 @@ Rules enforced (from the product specification):
 | 13 · Full verification sweep + docs sync (session 7) | **DONE** — tsc 0, bash -n 4/4, js-yaml 3/3, convex dev OK. Changelog parity count corrected (11/11 → 12/12 for 1.0.11 entry). All 7 web pages + 10 wiki pages re-audited. Changelog 1.0.12 synced web↔wiki (13/13). EXECUTION-STATE.md updated. |
 | 14 · R2 infra CLOSED + real compile bug fixed (session 8) | **DONE** — live CI run 31256274224 confirmed the session-6 platform fix works (device platform installed, compiler ran, XcodeGen OK, tests OK). Real blocker surfaced via public annotations: `.searchActions` (iOS 18-only) in TripListView + GlobalSearchView breaks the iOS 17 target build. Fixed with availability-safe `searchClearAction` modifier (new file SearchClearActionsModifier.swift). Changelog 1.0.13 synced web↔wiki (14/14). Next gate: macOS CI run to produce first valid IPA. |
 | 15 · Bulletproof shim + release process (session 9) | **DONE** — hardened the iOS-18 `.searchActions` shim with the canonical SwiftUI iOS-version workaround: `body` returns `AnyView`, the iOS-18 branch is a separate `@available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>`. Swift unifies both branches as opaque `AnyView` instead of `_ConditionalContent<…>` whose internal witnesses would force `.searchActions` resolution at the iOS-17 target. Full iOS audit: zero fixed-size fonts (every font is semantic or `@ScaledMetric`), zero stray `#available` blocks, zero other iOS-18-only APIs (`scrollPosition(defaultDistance:)`, `defaultScrollAnchor(.top)`, `MeshGradient`, etc.). README gains a dedicated **Release process** section documenting the maintainer's end-to-end flow (triggers table, single `verify-ipa.sh` gate, two deterministic manifest URLs, three-host build matrix, 3-check pre-flight loop). Changelog 1.0.14 synced web↔wiki (15/15). External gate unchanged (next macOS CI run produces the first valid IPA). |
+| 16 · FullPack-class scanner + background removal + weather (session 10) | **DONE** — research proved `.searchActions` does not exist in SwiftUI on any OS; the session-8/9 shim was wrapping a phantom symbol (the exact cause of the Xcode 26.3 `value of type 'Self' has no member 'searchActions'` rejection). **Deleted** `SearchClearActionsModifier.swift` + its two callers (iOS 17 `.searchable()` ships a built-in clear button — UX unchanged). Implemented the FullPack gaps: `CameraService` (`AVCaptureSession` live preview/capture/flip/permission states) + `CameraScannerView` (replaces `PhotoScannerView`, deleted; PhotosPicker import remains as fallback); `SubjectExtractor` (`VNGenerateForegroundInstanceMaskRequest` transparent cutout + thumbnail, graceful fallback); `WeatherProvider` (WeatherKit → Codable/Sendable `WeatherSnapshot`, fail-nil by design for unsigned builds); `DestinationSearchService` (MKLocalSearchCompleter autocomplete + MKLocalSearch coordinate) wired into `NewTripSheet`; `Trip` gains optional `destinationLatitude`/`destinationLongitude`; `TripDetailView` shows live weather + weather-aware suggestions; `RecommendationService.suggestions(for:weather:)` deterministic rules merged with the text engine. 5 new offline `WeatherRecommendationTests`. Required docs added: FULLPACK-CAPABILITY-MATRIX, APPLE-API-CAPABILITY-BIBLE, ARCHITECTURE, BUILD, CI. Changelog 1.0.15 synced web↔wiki. Validation: tsc 0, Vite build 0, bash-n 3:3, js-yaml 3:3, Convex OK, stale refs 0, isolate absent. **Pending: next macOS CI run compiles the new Swift files (Xcode gate for archive + IPA).** |
 
 ## 3. Release-blocking items
 
@@ -175,36 +180,39 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-08, session 9)
+## 10. Machine-readable snapshot (2026-08-09, session 10)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-08-s9",
-  "phase": 15,
-  "verify_sweep": "all green (tsc 0 / bash -n 4:4 / js-yaml 3:3 / changelog 15:15)",
+  "session": "2026-08-09-s10",
+  "phase": 16,
+  "verify_sweep": "all green (tsc 0 / vite build 0 / bash -n 3:3 / js-yaml 3:3 / convex OK / changelog 16:16)",
   "ios_audit": {
-    "fixed_size_fonts_count": 0,
-    "available_blocks_count": 1,
-    "other_ios18_only_apis_count": 0,
-    "searchActions_call_sites": ["SearchClearActionsModifier.swift:52 (inside @available(iOS 18.0, *) wrapper)"],
-    "deployed_pattern": "body returns AnyView + separate @available wrapper struct SearchActionsWrapper<Content: View>"
+    "searchActions_resolution": "DELETED -- API does not exist in SwiftUI on any OS; SearchClearActionsModifier.swift + both callers removed; iOS 17 .searchable() built-in clear button suffices",
+    "new_files": ["CameraService.swift", "CameraPreview.swift", "CameraScannerView.swift", "SubjectExtractor.swift", "WeatherProvider.swift", "DestinationSearchService.swift"],
+    "deleted_files": ["SearchClearActionsModifier.swift", "PhotoScannerView.swift"],
+    "new_models": "Trip.destinationLatitude / destinationLongitude (optional)",
+    "new_tests": "5 deterministic offline WeatherRecommendationTests"
   },
-  "readme": {
-    "new_section": "Release process -- the maintainer's streamlined flow",
-    "covers": ["trigger table (push/tag/manual/wiki)", "single verify-ipa.sh gate", "two deterministic manifest URLs", "three-host build matrix", "3-check pre-flight loop"]
+  "fullpack_work": {
+    "scanner": "AVCaptureSession live camera + PhotosPicker fallback",
+    "background_removal": "VNGenerateForegroundInstanceMaskRequest + thumbnail",
+    "weather": "WeatherKit snapshot, fail-nil by design on unsigned builds",
+    "destination_search": "MKLocalSearchCompleter autocomplete + coordinate",
+    "docs": ["FULLPACK-CAPABILITY-MATRIX.md", "APPLE-API-CAPABILITY-BIBLE.md", "ARCHITECTURE.md", "BUILD.md", "CI.md"]
   },
   "r2_infrastructure_blocker": "CLOSED -- run 31256274224: platform download step succeeded, compiler ran",
-  "r2_compile_blocker": "CLOSED -- bulletproof shim deployed (session 9); structurally impossible to repeat on iOS 17",
+  "r2_compile_blocker": "CLOSED -- the .searchActions symbol never existed; deleted the phantom API entirely (session 10)",
   "fix": {
-    "files": ["ios/PackWise/Views/TripListView.swift", "ios/PackWise/Views/GlobalSearchView.swift", "ios/PackWise/Views/SearchClearActionsModifier.swift (new in s8, hardened in s9)"],
-    "approach": "AnyView erasure on body + separate @available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>; both branches returned as opaque AnyView so Swift unifies without re-checking searchActions on the iOS-17 target"
+    "files": ["ios/PackWise/Views/TripListView.swift", "ios/PackWise/Views/GlobalSearchView.swift", "ios/PackWise/Views/SearchClearActionsModifier.swift DELETED"],
+    "approach": "removed the nonexistent .searchActions usage; native .searchable() clear button covers iOS 17"
   },
-  "changelog": "1.0.14 synced web→wiki (15/15)",
+  "changelog": "1.0.15 synced web→wiki",
   "live_ci_evidence": {
-    "latest_ios_run": "31256274224 (compile error exposed after platform fix; structurally safe now)",
+    "latest_ios_run": "31299563878 (macOS 15.7.7 / Xcode 26.3 / Swift 6.2.4 / iOS 26.2 SDK; failure was validate_app stdout pollution -- fixed; build.sh + tests step repaired)",
     "wiki_sync": "green (R3 closed)",
-    "r2_status": "binary gate = next macOS CI run (structurally safe shim deployed)"
+    "r2_status": "binary gate = next macOS CI run (new Swift files must compile, archive, and pass verify-ipa)"
   },
   "blockers": [
     { "id": "R1", "item": "ios.yml YAML syntax error", "status": "fixed" },

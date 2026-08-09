@@ -18,7 +18,7 @@ Photo (import or camera)
 - If empty → single “Unrecognized — add manually” suggestion
 - Display: `label.replacingOccurrences(of: ",", with: " ·").capitalized`, `displayConfidence: "%.0f%%"`
 
-Consumed by `PhotoScannerView` — `PhotosPicker` → `classify` → pick suggestions → choose trip → add.
+Consumed by `CameraScannerView` — live `AVCaptureSession` capture → `SubjectExtractor` (foreground instance mask) → suggestions → choose trip → add. Photo-library import remains available in `LibraryView`.
 
 ## Privacy
 

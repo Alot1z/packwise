@@ -14,9 +14,20 @@ Per trip. Categories: Clothing, Electronics, Toiletries, Documents, Medical, Acc
 
 `PersonalItem` — name, category, notes, photo, `isFavorite`, reused across trips (linked via `personalItemID`).
 
-## Vision Scanner
+## Scanner (live camera + background removal)
 
-`VisionService` — `VNClassifyImageRequest` on device. Flow: import/scan photo → classify → category-mapped suggestions → **you confirm** → add to list. Never silently modifies data. No cloud image processing.
+`CameraScannerView` — a real camera workflow, not a picker-only screen: `AVCaptureSession` live preview, capture button, flip camera, permission + unauthorized states, and a photo-library import fallback (`PhotosPicker`). Each capture runs two on-device passes in parallel:
+
+- `SubjectExtractor` — `VNGenerateForegroundInstanceMaskRequest` removes the background and produces a transparent cutout (persisted as PNG). Graceful degradation: when Vision finds no subject it keeps the original photo with a clear message.
+- `VisionService` — `VNClassifyImageRequest` maps labels to PackWise categories and shows confidence.
+
+Flow: capture/import → background removal + suggestions → **you confirm** name/trip → add to list. Never silently modifies data. No cloud image processing.
+
+## Weather-aware packing
+
+- `DestinationSearchService` — `MKLocalSearchCompleter` autocomplete in the New Trip sheet resolves a chosen place to a coordinate (no manual lat/lon).
+- `WeatherProvider` — `WeatherKit` fetches live conditions + daily forecast for the trip window and shows them in the trip header.
+- `RecommendationService.suggestions(for:weather:)` — deterministic rules (precipitation ≥ 50% → umbrella + rain shell; lows < 5°C → warm layers + gloves; heat → sun protection) merged with the text engine. **Weather is an enhancement, never a blocker**: unsigned sideload builds lack the WeatherKit entitlement, so every fetch can fail — callers silently fall back to the offline text engine. No account or network required for the core app.
 
 ## Outfit Planner
 

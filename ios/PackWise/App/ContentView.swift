@@ -30,7 +30,7 @@ struct ContentView: View {
                         .badge(tripsNeedingAttention > 0 ? tripsNeedingAttention : 0)
                         .tag(Tab.trips)
 
-                    PhotoScannerView()
+                    CameraScannerView()
                         .tabItem { Label("Scanner", systemImage: "viewfinder") }
                         .tag(Tab.scanner)
 
