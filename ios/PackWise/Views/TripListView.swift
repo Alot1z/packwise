@@ -71,7 +71,6 @@ struct TripListView: View {
             }
             .navigationTitle("Trips")
             .searchable(text: $search, prompt: "Search trips — destinations, dates, notes")
-            .searchClearAction($search)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showNew = true } label: { Label("New trip", systemImage: "plus") }
