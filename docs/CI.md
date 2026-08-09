@@ -13,19 +13,14 @@
 
 ## 2. iOS pipeline (ios.yml)
 
-Two jobs run in **parallel**:
-
 ```
-web-static-validation (ubuntu)   build-and-test (macos)
-  ├─ setup bun                    ├─ environment recording
-  ├─ bun install (cached)         ├─ select newest Xcode (deterministic)
-  ├─ tsc -b --noEmit              ├─ restore iOS device platform (cached)
-  ├─ bun run build                ├─ downloadPlatform iOS (fallback)
-  └─ bash -n + js-yaml            ├─ XcodeGen (cached, pinned 2.46.0)
-                                  ├─ xcodegen generate (::error:: on failure)
-                                  ├─ tests (simulator, non-blocking)
-                                  ├─ build.sh cascade → verify-ipa.sh → manifest
-                                  └─ publish dev / v* Release ONLY if gate passed
+checkout → environment recording (sw_vers, xcodebuild -version, -showsdks, swift --version)
+→ select newest Xcode (deterministic) → xcodegen generate (::error:: on failure — public annotations)
+→ (missing device platform?) xcodebuild -downloadPlatform iOS (sudo fallback)
+→ tests (simulator, no signing, non-blocking — dynamic iPhone discovery)
+→ build.sh cascade → verify-ipa.sh strict gate → release-manifest.sh
+→ upload ios-build-diagnostics artifact (always) + PackWise-unsigned.ipa artifact
+→ publish dev prerelease / v* Release ONLY if the gate passed
 ```
 
 Design rules (hard requirements):
@@ -38,23 +33,28 @@ Design rules (hard requirements):
   picks the **newest installed Xcode** on it and records the real environment.
 - A failed run publishes **nothing** — previous artifacts are never presented as the
   result of a failed run. The summary states explicitly "no IPA published".
+- Failures at the XcodeGen gate carry `::error::` annotations so the root cause is
+  readable via the public `check-runs/{id}/annotations` endpoint without sign-in.
+- The `xcodegen generate` step is a hard gate: the workflow never claims Swift
+  compiled when XcodeGen never ran.
 
-## 2b. Caching strategy (warm CI)
+## 2b. Cache architecture (design — verification pending)
 
-| Resource | Strategy | Cache key | Invalidation |
-|---|---|---|---|
-| Xcode | Runner-provided — never downloaded | — | — |
-| iOS device platform | Cached, restored with sudo, **validated** (`xcodebuild -showsdks`), download fallback | `ios-platform-{os}-{arch}-{Xcode version}` | Xcode version changes |
-| XcodeGen | Cached binary, pinned 2.46.0, version verified every run | `xcodegen-{os}-2.46.0` | version bump |
-| Bun deps | Cached install cache | `bun-{os}-{lockfile hash}` | `bun.lock` / `package.json` change |
-| DerivedData / SPM | **Intentionally not cached** — archive always compiles fresh so stale objects can never hide a source regression | — | — |
-| IPA / release artifacts | **Always freshly produced** by the current commit's build | — | — |
-| Signing credentials | Secrets — never cached | — | — |
+Caching is planned as an **optimization layer**, never a correctness requirement.
+A previous caching redesign was rejected by GitHub's workflow parser; it will be
+re-introduced incrementally with schema validation (e.g., `actionlint`) per change.
 
-Cache correctness contract: clean cache → build succeeds; warm cache → build succeeds;
-changed dependency → correct invalidation; corrupt cache → validation catches it and
-falls back to the fresh path. Caching is an optimization layer, never a correctness
-requirement.
+Intended classification:
+
+| Resource | Intended strategy |
+|---|---|
+| Xcode | Runner-provided — never downloaded |
+| iOS device platform | Cached by Xcode version, restored with sudo, validated via `xcodebuild -showsdks`, download fallback |
+| XcodeGen | Cached binary, pinned 2.46.0, version verified every run |
+| Bun deps | Cached install cache, lockfile-keyed |
+| DerivedData / SPM | **Intentionally not cached** — archive always compiles fresh so stale objects can never hide a source regression |
+| IPA / release artifacts | Always freshly produced by the current commit's build |
+| Signing credentials | Secrets — never cached |
 
 ## 3. Failure semantics
 
@@ -67,16 +67,21 @@ requirement.
 
 ## 4. Current CI state (evidence)
 
-- **2026-08-09 (session 14):** run [31317701450](https://github.com/Alot1z/packwise/actions/runs/31317701450)
+- **2026-08-09 (session 14 & dual-CI recovery):** run [31317701450](https://github.com/Alot1z/packwise/actions/runs/31317701450)
   failed at **Generate Xcode project** in 0 seconds. Root cause: invalid
   `options.entitlements` key in `ios/project.yml` (XcodeGen spec rejects unknown
-  option keys) — **fixed** by moving entitlements to targets only. Also removed
-  nonstandard `sdk:` framework deps from the Widget target (auto-linked).
-  Workflow redesigned for warm CI: parallel web-validation job, XcodeGen + Bun +
-  device-platform caches, public `::error::` annotations on the xcodegen step.
+  option keys) — fixed by moving entitlements to targets only. Also removed
+  nonstandard `sdk:` framework deps from the Widget target (auto-linked). A
+  subsequent commit (734d974) introduced a workflow file rejected by GitHub's
+  parser (0 jobs = workflow-level validation failure, distinct from a job
+  failure); it was detected because the failing push's iOS run had `total_count
+  0` jobs while Wiki at the same SHA passed. The fix was to keep reliability
+  changes surgical (public `::error::` on the xcodegen gate + dynamic simulator
+  discovery in Gitea) and land the parallel-job/caching redesign from a green
+  baseline with schema validation. Workflow restored to known-good shape; the
+  project.yml spec fix is the authoritative gate.
 - **Pending:** the next macOS CI run must pass XcodeGen generation (project.yml
-  fix), then compile the iOS-18-targeted Swift (camera / subject-extraction /
-  weather / destination-search / widgets / app-intents). That run is the acceptance
+  spec fix), then compile the iOS-18-targeted Swift. That run is the acceptance
   criterion — see `docs/FULLPACK-CAPABILITY-MATRIX.md` status column.
 
 ## 5. Versioning & release
