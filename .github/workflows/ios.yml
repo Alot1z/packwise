@@ -7,8 +7,8 @@ on:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
-      xcode_version:
-        description: 'macOS / Xcode runner image'
+      runner_image:
+        description: 'macOS runner image (not Xcode version — the workflow selects the newest installed Xcode on the image)'
         type: choice
         required: false
         default: 'macos-15'
@@ -30,20 +30,32 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: ${{ inputs.xcode_version || 'macos-15' }}
+    runs-on: ${{ inputs.runner_image || 'macos-15' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 
-      - name: Select Xcode
+      - name: Record environment
         run: |
-          # Pick the NEWEST installed Xcode (alphabetical glob would grab an old
-          # one, e.g. Xcode_15.x, whose iOS platform may not match project.yml).
+          echo "=== macOS ==="; sw_vers
+          echo "=== Xcode selection ==="; xcode-select -p
+          echo "=== Xcode version ==="; xcodebuild -version
+          echo "=== Swift version ==="; swift --version
+          echo "=== SDKs ==="; xcodebuild -showsdks 2>&1 | grep -E 'iphoneos|iOS|iPhoneOS'
+          echo "=== SDK versions ==="; xcrun --sdk iphoneos --show-sdk-version 2>&1; xcrun --sdk iphonesimulator --show-sdk-version 2>&1
+          echo "=== Device platform ==="; xcodebuild -showsdks 2>&1 | grep iphoneos || echo "  device SDK NOT VISIBLE — will attempt download"
+
+      - name: Select newest Xcode
+        run: |
           XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -n 1)
           if [ -z "$XCODE" ] && [ -d /Applications/Xcode.app ]; then XCODE=/Applications/Xcode.app; fi
-          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE/Contents/Developer"; fi
+          if [ -n "$XCODE" ]; then
+            echo "selected: $XCODE"
+            sudo xcode-select -s "$XCODE/Contents/Developer"
+          else
+            echo "using default Xcode path"
+          fi
           xcodebuild -version
-          swift --version
 
       # ── Runner-images #12758/#12862/#13570: macOS-15 images trim the iOS
       # DEVICE platform to save disk. `xcodebuild -destination
@@ -121,6 +133,7 @@ jobs:
         working-directory: ios
         run: |
           set -euo pipefail
+          mkdir -p build
           ./build.sh 2>&1 | tee build/ci.log
           echo "BUILT_UNSIGNED_IPA=1" >> "$GITHUB_ENV"
 

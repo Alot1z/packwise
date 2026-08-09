@@ -4,26 +4,31 @@
 #
 # Produces:  ios/build/PackWise-unsigned.ipa  (+ .sha256)
 #
-# Why three strategies? Xcode 16 with CODE_SIGNING_ALLOWED=NO can exit 0 while
-# emitting an app shell WITHOUT the main executable (or with test bundles
+# Why multiple strategies? Xcode 16+ with CODE_SIGNING_ALLOWED=NO can exit 0
+# while emitting an app shell WITHOUT the main executable (or with test bundles
 # injected) — exactly the sideload failure:
 #     Failed to map …/PackWise: Bad file descriptor   (the file is not there)
-# Instead of trusting one xcodebuild invocation we try, in order:
-#   A. xcodebuild build  -sdk iphoneos  (device arm64, isolated DerivedData)
-#   B. xcodebuild archive               (classic product path)
-#   C. xcodebuild build  without -destination (legacy product layout)
-#   D. xcodebuild build  minimal flags  (mirrors the CI tests step that works)
-# Every candidate is validated: the executable must exist, be non-empty,
-# be arm64 Mach-O, and carry the iOS device platform (LC_BUILD_VERSION 2,
-# never 7 = simulator). Test bundles are stripped, then the FINAL .ipa must
-# pass a strict publish gate or the script fails loudly — nothing broken
-# is ever released. Full diagnostics go to build/diagnostics.txt (uploaded
-# by CI even on failure, so any future failure is publicly readable).
+# The strategies (device build → archive → legacy → minimal) handle Xcode
+# version-specific quirks like missing device platforms, empty shells, and
+# test-bundle injection. Every candidate is validated: the executable must
+# exist, be non-empty, be arm64 Mach-O, and carry the iOS device platform
+# (LC_BUILD_VERSION 2, never 7 = simulator). Test bundles are stripped, then
+# the FINAL .ipa must pass a strict publish gate or the script fails loudly —
+# nothing broken is ever released.
 #
-# CI notes (2026-08-08): the GitHub Actions *logs* and *artifacts* require
-# sign-in (403/401), but check-run ANNOTATIONS are public. So on failure this
-# script also emits `::error::` workflow-command lines with the real error
-# text — they surface in the public annotations API without any credentials.
+# Source note: the app uses ONLY `.searchable(text:)` for search — iOS provides
+# a built-in clear (X) button automatically. An earlier version attempted to
+# add a custom clear button via a nonexistent `.searchActions` API (which does
+# not exist in SwiftUI). That file (SearchClearActionsModifier.swift) has been
+# removed — the native `.searchable()` clear button is sufficient.
+#
+# Full diagnostics go to build/diagnostics.txt (uploaded by CI even on failure,
+# so any future failure is publicly readable).
+#
+# CI notes: GitHub Actions *logs* and *artifacts* require sign-in (403/401),
+# but check-run ANNOTATIONS are public. So on failure this script also emits
+# `::error::` workflow-command lines with the real error text — they surface
+# in the public annotations API without any credentials.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")"
