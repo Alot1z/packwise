@@ -58,6 +58,7 @@ targets:
     deploymentTarget: "18.0"
     sources:
       - path: PackWise/Widgets
+        excludes: [Info.plist]
       - path: PackWise/Models
     entitlements:
       properties:
