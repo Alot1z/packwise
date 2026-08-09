@@ -92,24 +92,35 @@ struct NewTripSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
-                        let trip = Trip(
-                            title: title.trimmingCharacters(in: .whitespaces),
-                            destination: destination.trimmingCharacters(in: .whitespaces),
-                            destinationLatitude: destinationLatitude,
-                            destinationLongitude: destinationLongitude,
-                            startDate: includeDates ? startDate : nil,
-                            endDate: includeDates ? (endDate < startDate ? startDate : endDate) : nil,
-                            purpose: purpose.isEmpty ? nil : purpose,
-                            activities: activities.isEmpty ? nil : activities,
-                            climateInfo: climateInfo.isEmpty ? nil : climateInfo,
-                            notes: notes.isEmpty ? nil : notes,
-                            tripCategory: category
-                        )
-                        context.insert(trip); try? context.save()
-                        #if canImport(UIKit)
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        #endif
-                        dismiss()
+                        Task {
+                            // Geocode the destination if no suggestion was picked.
+                            var lat = destinationLatitude
+                            var lon = destinationLongitude
+                            if lat == nil, lon == nil {
+                                if let coord = await DestinationSearchService.geocode(destination: destination) {
+                                    lat = coord.latitude
+                                    lon = coord.longitude
+                                }
+                            }
+                            let trip = Trip(
+                                title: title.trimmingCharacters(in: .whitespaces),
+                                destination: destination.trimmingCharacters(in: .whitespaces),
+                                destinationLatitude: lat,
+                                destinationLongitude: lon,
+                                startDate: includeDates ? startDate : nil,
+                                endDate: includeDates ? (endDate < startDate ? startDate : endDate) : nil,
+                                purpose: purpose.isEmpty ? nil : purpose,
+                                activities: activities.isEmpty ? nil : activities,
+                                climateInfo: climateInfo.isEmpty ? nil : climateInfo,
+                                notes: notes.isEmpty ? nil : notes,
+                                tripCategory: category
+                            )
+                            context.insert(trip); try? context.save()
+                            #if canImport(UIKit)
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            #endif
+                            dismiss()
+                        }
                     }.disabled(!isValid)
                 }
             }
