@@ -21,6 +21,10 @@ struct CameraScannerView: View {
     @State private var isolatedImage: UIImage?
     @State private var extractError: String?
     @State private var isExtracting = false
+    @State private var showDissolve = false
+    /// The raw capture, kept for the dissolve backdrop even while the isolated
+    /// cutout replaces it in the review form.
+    @State private var originalCaptured: UIImage?
     @State private var pickerItem: PhotosPickerItem?
     @State private var selectedTripID: UUID?
     @State private var selected: Set<UUID> = []
@@ -33,7 +37,18 @@ struct CameraScannerView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if let review = reviewImage {
+                if showDissolve, let original = originalCaptured {
+                    ParticleDissolveView(
+                        sourceImage: original,
+                        isolatedImage: isolatedImage,
+                        onComplete: {
+                            withAnimation(reduceMotion ? nil : PackWiseDesign.Animation.standard) {
+                                showDissolve = false
+                            }
+                        }
+                    )
+                    .transition(.opacity)
+                } else if let review = reviewImage {
                     reviewFlow(review)
                         .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 } else {
@@ -41,7 +56,7 @@ struct CameraScannerView: View {
                         .transition(.opacity)
                 }
             }
-            .animation(reduceMotion ? nil : PackWiseDesign.Animation.standard, value: reviewImage != nil)
+            .animation(reduceMotion ? nil : PackWiseDesign.Animation.standard, value: reviewImage != nil || showDissolve)
             .navigationTitle("Scanner")
             .toolbar {
                 if reviewImage != nil {
@@ -299,8 +314,13 @@ struct CameraScannerView: View {
     // MARK: - Actions
 
     private func beginReview(with image: UIImage) {
+        originalCaptured = image
         reviewImage = image
         resetReviewState(keepImage: true)
+        // Play the FullPack-style dissolve while extraction runs underneath.
+        withAnimation(reduceMotion ? nil : PackWiseDesign.Animation.standard) {
+            showDissolve = true
+        }
         // Classify + extract in parallel.
         Task { await vision.classify(image: image) }
         Task {
@@ -353,6 +373,7 @@ struct CameraScannerView: View {
 
     private func resetReview() {
         resetReviewState(keepImage: false)
+        showDissolve = false
         selectedTripID = nil
     }
 }
