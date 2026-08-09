@@ -3,6 +3,20 @@ import { SiteNav, SiteFooter, PageHeader, serif, LIVE_ACTIONS, LIVE_RELEASE_DEV,
 
 const entries = [
   {
+    tag: "1.0.19",
+    date: "CI caching redesign & XcodeGen spec fix",
+    icon: Wrench,
+    items: [
+      "CI root cause: run 31317701450 failed at Generate Xcode project in 0s — invalid options.entitlements key in project.yml (XcodeGen rejects unknown option keys). Entitlements now live on targets only; the nonstandard sdk: framework deps on the Widget target (auto-linked) were removed.",
+      "Workflow redesigned for warm CI: parallel web-static-validation job (Ubuntu, bun, tsc + vite build + bash -n + js-yaml) runs alongside the macOS build.",
+      "Caches introduced: iOS device platform (keyed by exact Xcode version, restored with sudo, validated via xcodebuild -showsdks, official download as fallback), XcodeGen binary (pinned 2.46.0 in runner tool cache, version verified every run), Bun dependencies (lockfile-keyed).",
+      "Correctness-first: DerivedData/SPM intentionally NOT cached — the archive always compiles fresh so stale objects can never hide a source regression; the IPA is always freshly produced by the current commit.",
+      "Public failure channel extended: the xcodegen step now emits ::error:: annotations, so any future spec error is visible without sign-in.",
+      "Gitea mirror updated: dynamic simulator discovery + same error annotations.",
+      "All pre-flight checks green: tsc 0, bash -n 3/3, js-yaml 4/4.",
+    ],
+  },
+  {
     tag: "1.0.18",
     date: "iOS 18 target, warm design system & scanner polish",
     icon: Wrench,

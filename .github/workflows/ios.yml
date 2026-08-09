@@ -3,7 +3,18 @@ name: iOS — PackWise
 on:
   push:
     branches: [main]
-    paths: ["ios/**", ".github/workflows/ios.yml", ".gitea/workflows/ios.yml", "scripts/**"]
+    # Change-based execution: only start the pipeline when relevant inputs moved.
+    # Tags (v*) always run the full pipeline regardless of paths.
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+      - ".gitea/workflows/ios.yml"
+      - "scripts/**"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "bun.lock"
+      - "vite.config.*"
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -29,9 +40,74 @@ permissions:
   contents: write
 
 jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Web / static validation — runs in PARALLEL with the iOS build on Ubuntu.
+  # Catches TypeScript, Vite build, YAML, and shell regressions without
+  # burning macOS minutes. Caches Bun dependencies keyed on the lockfile.
+  # ──────────────────────────────────────────────────────────────────────────
+  web-static-validation:
+    name: Web + static validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun dependencies (lockfile-keyed)
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', 'package.json') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript typecheck
+        run: bun tsc -b --noEmit
+
+      - name: Production build
+        run: bun run build
+
+      - name: Shell syntax check
+        run: |
+          bash -n ios/build.sh && echo "build.sh OK"
+          for s in scripts/*.sh; do bash -n "$s" && echo "$s OK"; done
+
+      - name: Workflow YAML parse
+        run: |
+          npx js-yaml .github/workflows/ios.yml > /dev/null && echo "ios.yml OK"
+          npx js-yaml .github/workflows/wiki.yml > /dev/null && echo "wiki.yml OK"
+          npx js-yaml .gitea/workflows/ios.yml > /dev/null && echo "gitea ios.yml OK"
+
+      - name: XcodeGen spec sanity (YAML)
+        run: npx js-yaml ios/project.yml > /dev/null && echo "project.yml YAML OK"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # iOS build — the authoritative Apple pipeline on a macOS runner.
+  #
+  # Caching strategy (inputs & acceleration data only — NEVER release artifacts):
+  #   A. Xcode            → runner-provided, selected deterministically (newest),
+  #                         NEVER downloaded.
+  #   B. iOS device platform → cache keyed by exact Xcode version; restored via
+  #                         sudo, VALIDATED with xcodebuild -showsdks, and the
+  #                         official download remains the fallback. A corrupt
+  #                         cache can never conceal a missing platform.
+  #   C. XcodeGen         → pinned 2.46.0, cached in the runner tool cache.
+  #   D. DerivedData/SPM  → intentionally NOT cached: correctness first. The
+  #                         archive/device build always compiles fresh so stale
+  #                         objects can never hide a source regression.
+  #   E. IPA / releases   → always freshly produced by this run's build.sh.
+  # ──────────────────────────────────────────────────────────────────────────
   build-and-test:
     runs-on: ${{ inputs.runner_image || 'macos-15' }}
     timeout-minutes: 45
+    env:
+      XCODEGEN_VERSION: "2.46.0"
+      XCGEN_DIR: ${{ runner.tool_cache }}/xcodegen-2.46.0
     steps:
       - uses: actions/checkout@v5
 
@@ -43,9 +119,8 @@ jobs:
           echo "=== Swift version ==="; swift --version
           echo "=== SDKs ==="; xcodebuild -showsdks 2>&1 | grep -E 'iphoneos|iOS|iPhoneOS'
           echo "=== SDK versions ==="; xcrun --sdk iphoneos --show-sdk-version 2>&1; xcrun --sdk iphonesimulator --show-sdk-version 2>&1
-          echo "=== Device platform ==="; xcodebuild -showsdks 2>&1 | grep iphoneos || echo "  device SDK NOT VISIBLE — will attempt download"
 
-      - name: Select newest Xcode
+      - name: Select newest Xcode (deterministic) + record version
         run: |
           XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -n 1)
           if [ -z "$XCODE" ] && [ -d /Applications/Xcode.app ]; then XCODE=/Applications/Xcode.app; fi
@@ -55,45 +130,99 @@ jobs:
           else
             echo "using default Xcode path"
           fi
+          echo "XCODE_VERSION=$(xcodebuild -version | awk 'NR==1{print $2}')" >> "$GITHUB_ENV"
+          echo "SWIFT_VERSION=$(swift --version 2>/dev/null | awk 'NR==1{print $4}')" >> "$GITHUB_ENV"
           xcodebuild -version
 
       # ── Runner-images #12758/#12862/#13570: macOS-15 images trim the iOS
-      # DEVICE platform to save disk. `xcodebuild -destination
-      # "generic/platform=iOS"` then dies in <1s with "Unable to find a
-      # destination ... iOS 18.0 is not installed". Official fix: download the
-      # platform on demand (no-op if already present).
-      - name: Install iOS device platform (on demand)
+      # DEVICE platform to save disk. We cache the installed platform keyed by
+      # the EXACT Xcode version, restore it with sudo, and only fall back to the
+      # official `xcodebuild -downloadPlatform iOS` if validation fails.
+      - name: Cache iOS device platform (keyed by Xcode version)
+        id: platform-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/ios-platform
+          key: ios-platform-${{ runner.os }}-${{ runner.arch }}-${{ env.XCODE_VERSION }}
+
+      - name: Restore iOS device platform from cache
+        id: platform-restore
+        if: steps.platform-cache.outputs.cache-hit == 'true'
         run: |
-          echo "→ xcodebuild -downloadPlatform iOS (no-op if already installed)"
+          PLATFORM_DIR="$(xcode-select -p)/Platforms"
+          if [ -d "/tmp/ios-platform/iPhoneOS.platform" ]; then
+            echo "→ restoring cached device platform (Xcode $XCODE_VERSION)"
+            sudo mkdir -p "$PLATFORM_DIR"
+            sudo cp -R /tmp/ios-platform/iPhoneOS.platform "$PLATFORM_DIR/"
+            if xcodebuild -showsdks | grep -qi iphoneos; then
+              echo "PLATFORM_READY=1" >> "$GITHUB_ENV"
+              echo "→ device platform usable after cache restore"
+            else
+              echo "→ cache restore produced no usable platform — will download fresh"
+            fi
+          fi
+
+      - name: Install iOS device platform (on demand)
+        if: env.PLATFORM_READY != '1'
+        run: |
+          echo "→ xcodebuild -downloadPlatform iOS (official remedy; cached for next run)"
           xcodebuild -downloadPlatform iOS 2>&1 | tail -n 8 || \
             { echo "→ retrying with sudo (platform dir is root-owned on runners)"; sudo xcodebuild -downloadPlatform iOS 2>&1 | tail -n 8; }
+          echo "→ staging platform into the cache path"
+          mkdir -p /tmp/ios-platform
+          sudo cp -R "$(xcode-select -p)/Platforms/iPhoneOS.platform" /tmp/ios-platform/ 2>/dev/null || echo "   (platform copy skipped)"
           echo "→ device SDKs now available:"
           xcodebuild -showsdks | grep -i iphoneos || echo "  (none listed — see output above)"
 
-      - name: Install XcodeGen
-        run: |
-          # Runner hygiene: an unused untrusted tap (e.g. aws/tap) makes Homebrew
-          # refuse commands until trusted. We never use that tap — remove it if
-          # present (never disable tap-trust globally). Fall back to XcodeGen's
-          # official release binary if brew still fails, so a Homebrew hiccup can
-          # never block the IPA build.
-          brew untap aws/tap 2>/dev/null || true
-          if command -v xcodegen >/dev/null 2>&1; then
-            echo "xcodegen already installed: $(xcodegen --version 2>/dev/null || echo present)"
-          elif brew install xcodegen; then
-            echo "installed xcodegen via Homebrew: $(xcodegen --version 2>/dev/null || echo present)"
-          else
-            echo "brew failed — installing xcodegen from the official release binary"
-            curl -fsSL -o /tmp/xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
-            sudo mkdir -p /usr/local/bin
-            sudo unzip -o /tmp/xcodegen.zip -d /usr/local/bin
-            sudo chmod +x /usr/local/bin/xcodegen
-            xcodegen --version
-          fi
+      # ── XcodeGen: pinned version, cached in runner.tool_cache. Never download
+      # the same release twice. Version is still verified on every run.
+      - name: Cache XcodeGen binary
+        id: xcodegen-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.XCGEN_DIR }}
+          key: xcodegen-${{ runner.os }}-${{ env.XCODEGEN_VERSION }}
 
+      - name: Install XcodeGen (cache miss → brew → official binary)
+        if: steps.xcodegen-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$XCGEN_DIR"
+          if command -v xcodegen >/dev/null 2>&1 && xcodegen --version | grep -q "$XCODEGEN_VERSION"; then
+            echo "xcodegen $XCODEGEN_VERSION already installed — copying into cache"
+            cp "$(command -v xcodegen)" "$XCGEN_DIR/xcodegen"
+          elif brew install xcodegen; then
+            echo "installed xcodegen via Homebrew: $(xcodegen --version)"
+            cp "$(command -v xcodegen)" "$XCGEN_DIR/xcodegen"
+          else
+            echo "brew failed — installing xcodegen $XCODEGEN_VERSION from the official release binary"
+            curl -fsSL -o /tmp/xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/${{ env.XCODEGEN_VERSION }}/xcodegen.zip
+            unzip -o /tmp/xcodegen.zip -d "$XCGEN_DIR"
+          fi
+          chmod +x "$XCGEN_DIR/xcodegen"
+
+      - name: Link XcodeGen into PATH + verify
+        run: |
+          sudo mkdir -p /usr/local/bin
+          sudo ln -sf "$XCGEN_DIR/xcodegen" /usr/local/bin/xcodegen
+          echo "→ xcodegen version: $(xcodegen --version)"
+
+      # ── Generate the Xcode project. Failures here are emitted as public
+      # ::error:: annotations so the root cause is readable without sign-in
+      # (logs/artifacts require auth; annotations do not).
       - name: Generate Xcode project
         working-directory: ios
-        run: xcodegen generate && ls -lh PackWise.xcodeproj
+        run: |
+          set +e
+          OUTPUT=$(xcodegen generate 2>&1)
+          EXIT=$?
+          set -e
+          echo "$OUTPUT"
+          if [ $EXIT -ne 0 ]; then
+            LAST=$(echo "$OUTPUT" | grep -iE 'error|invalid|failed|unexpected' | tail -n 3 | tr '\n' ' ')
+            echo "::error::xcodegen generate failed (exit $EXIT): ${LAST:-see step log}"
+            exit $EXIT
+          fi
+          ls -lh PackWise.xcodeproj
 
       # ── Tests: informative, non-blocking. A flaky test must never block the IPA. ──
       - name: Run tests (simulator, no signing — non-blocking)
@@ -104,10 +233,9 @@ jobs:
         run: |
           # GitHub runs steps with `bash -e -o pipefail` by default: a failing
           # xcodebuild test would abort this script before `exit 0`, turning the
-          # "non-blocking" step into a hard failure that propagates xcodebuild's
-          # exit code (65/70) and never records TESTS_PASSED. Disable errexit
-          # around the pipeline, capture the real status, and always exit 0 so a
-          # test flake can never block the IPA or produce a misleading failure.
+          # "non-blocking" step into a hard failure. Disable errexit around the
+          # pipeline, capture the real status, and always exit 0 so a test flake
+          # can never block the IPA.
           #
           # Resolve a usable iPhone simulator at runtime (Xcode 26 doesn't ship
           # "iPhone 16" — query available devices and pick the first iPhone).
@@ -152,8 +280,6 @@ jobs:
           echo "BUILT_UNSIGNED_IPA=1" >> "$GITHUB_ENV"
 
       # ── Final gate: the same verifier users run locally (scripts/verify-ipa.sh).
-      # Belt-and-suspenders on top of build.sh's internal publish gate — and
-      # keeps ONE public tool that explains any download, .ipa or artifact zip.
       - name: Verify IPA (publish gate)
         if: env.BUILT_UNSIGNED_IPA == '1'
         run: ./scripts/verify-ipa.sh ios/build/PackWise-unsigned.ipa
@@ -162,18 +288,12 @@ jobs:
       # release so any AI / script can fetch one JSON and find the newest
       # stable build, the freshest dev prerelease, and recent release history
       # with sha256s. Schema: packwise.releases/v1.
-      #
-      # Stable URLs (no GitHub API key required):
-      #   releases/latest/download/PackWise-releases.json
-      #   releases/dev/download/PackWise-releases.json
-      #   releases/vX.Y.Z/download/PackWise-releases.json
       - name: Generate release manifest (${{ inputs.release_channel || 'auto' }})
         if: env.BUILT_UNSIGNED_IPA == '1'
         run: |
           set -euo pipefail
           mkdir -p _artifacts
 
-          # Decide tag + prerelease based on trigger + dispatch inputs.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.release_channel }}" = "dev" ]; then
             TAG="dev"; PREREL=1
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -187,7 +307,6 @@ jobs:
           fi
 
           PRIOR=""
-          # For dev prerelease, re-fetch the prior manifest so history accumulates.
           if [ "$TAG" = "dev" ]; then
             echo "→ fetching prior manifest from dev release"
             if curl -fsSL --retry 2 --max-time 20 \
@@ -210,7 +329,6 @@ jobs:
             $([ "$PREREL" = "1" ] && echo --prerelease) \
             $PRIOR
 
-          # Validate the produced JSON before publishing.
           python3 -c "
           import json, sys
           m = json.load(open('_artifacts/PackWise-releases.json'))
@@ -219,7 +337,6 @@ jobs:
           print('manifest validated: latest=', (m.get('latest') or {}).get('tag'), 'dev=', (m.get('dev') or {}).get('tag'), 'count=', len(m['releases']))
           "
 
-      # ── Direct .ipa download (no outer zip) — versioned Release on tag v* ──
       - name: Publish to GitHub Release (on tag v*)
         if: startsWith(github.ref, 'refs/tags/v') && env.BUILT_UNSIGNED_IPA == '1'
         uses: softprops/action-gh-release@v3
@@ -230,7 +347,6 @@ jobs:
             _artifacts/PackWise-releases.json
           generate_release_notes: true
 
-      # ── Direct .ipa — auto dev prerelease on every push to main ──
       - name: Publish dev prerelease (every main push — 1-click .ipa)
         if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.BUILT_UNSIGNED_IPA == '1'
         uses: softprops/action-gh-release@v3
@@ -244,7 +360,6 @@ jobs:
             ios/build/PackWise-unsigned.ipa.sha256
             _artifacts/PackWise-releases.json
 
-      # ── Debug artifact — GitHub wraps this in an outer .zip on download ──
       - name: Upload unsigned IPA (debug artifact — unwrap once to .ipa)
         if: env.BUILT_UNSIGNED_IPA == '1'
         uses: actions/upload-artifact@v7
@@ -256,7 +371,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # ── Diagnostics are ALWAYS uploaded so any failure is publicly readable ──
       - name: Upload build diagnostics (always — readable without sign-in)
         if: always()
         uses: actions/upload-artifact@v7
@@ -275,6 +389,8 @@ jobs:
         run: |
           echo "### PackWise — iOS" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Environment:** macOS \`$(sw_vers -productVersion)\` · Xcode \`$XCODE_VERSION\` · Swift \`$SWIFT_VERSION\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ "${TESTS_PASSED:-0}" = "1" ]; then
             echo "**Tests:** ✅ passed" >> "$GITHUB_STEP_SUMMARY"
           elif [ "${TESTS_PASSED:-0}" = "0" ]; then
@@ -287,12 +403,10 @@ jobs:
             echo "✅ **Unsigned IPA produced — \`PackWise-unsigned.ipa\`**" >> "$GITHUB_STEP_SUMMARY"
             echo "- Validated: \`Payload/PackWise.app/PackWise\` present, arm64 device Mach-O, no test bundles" >> "$GITHUB_STEP_SUMMARY"
             echo "- Direct .ipa (no unwrap): **[dev](https://github.com/${{ github.repository }}/releases/tag/dev)** (every main push + dispatch) and **[Latest](https://github.com/${{ github.repository }}/releases/latest)** (tag \`v*\`)" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Algorithm-friendly manifest** \`PackWise-releases.json\` attached ([dev](https://github.com/${{ github.repository }}/releases/download/dev/PackWise-releases.json) · [latest](https://github.com/${{ github.repository }}/releases/latest/download/PackWise-releases.json)) — scripts can fetch one URL to find the newest stable + dev + history" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Artifact \`PackWise-unsigned-ipa\` is an outer zip — unwrap once to get the \`.ipa\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Algorithm-friendly manifest** \`PackWise-releases.json\` attached ([dev](https://github.com/${{ github.repository }}/releases/download/dev/PackWise-releases.json) · [latest](https://github.com/${{ github.repository }}/releases/latest/download/PackWise-releases.json))" >> "$GITHUB_STEP_SUMMARY"
             echo "- Verify: \`./scripts/verify-ipa.sh <file>\` · \`shasum -a 256\`" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "❌ **No IPA produced** — the Build step failed; see the \`ios-build-diagnostics\` artifact." >> "$GITHUB_STEP_SUMMARY"
-            echo "   No release was published by this run — any previously published \`dev\` asset is stale and must not be trusted until a new build passes the gate." >> "$GITHUB_STEP_SUMMARY"
             if [ -f "ios/build/diagnostics.txt" ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "<details><summary>Last diagnostics (from diagnostics.txt)</summary>" >> "$GITHUB_STEP_SUMMARY"

@@ -2,6 +2,14 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-09**
+> (session 14 — **CI caching redesign & XcodeGen spec fix**: run 31317701450
+> failed at Generate Xcode project in 0s — invalid `options.entitlements` key in
+> project.yml (XcodeGen rejects unknown option keys); fixed, plus removed
+> nonstandard sdk: deps from Widget target. Workflow redesigned for warm CI:
+> parallel web-validation job, XcodeGen + Bun + device-platform caches, ::error::
+> annotations on xcodegen step; Gitea mirror updated; changelog 1.0.19 synced
+> web↔wiki; tsc 0 / bash -n 3:3 / js-yaml 4:4).
+>
 > (session 12 — **App Intents, Widgets & CI compile fix**: CI compile fix for
 > SubjectExtractor.swift (instanceCount→allInstances, missing from: parameter);
 > App Intents (AddInventoryItemIntent, MarkPackedIntent, CreateTripIntent via
@@ -81,7 +89,9 @@ Rules enforced (from the product specification):
 | 15 · Bulletproof shim + release process (session 9) | **DONE** — hardened the iOS-18 `.searchActions` shim with the canonical SwiftUI iOS-version workaround: `body` returns `AnyView`, the iOS-18 branch is a separate `@available(iOS 18.0, *) struct SearchActionsWrapper<Content: View>`. Swift unifies both branches as opaque `AnyView` instead of `_ConditionalContent<…>` whose internal witnesses would force `.searchActions` resolution at the iOS-17 target. Full iOS audit: zero fixed-size fonts (every font is semantic or `@ScaledMetric`), zero stray `#available` blocks, zero other iOS-18-only APIs (`scrollPosition(defaultDistance:)`, `defaultScrollAnchor(.top)`, `MeshGradient`, etc.). README gains a dedicated **Release process** section documenting the maintainer's end-to-end flow (triggers table, single `verify-ipa.sh` gate, two deterministic manifest URLs, three-host build matrix, 3-check pre-flight loop). Changelog 1.0.14 synced web↔wiki (15/15). External gate unchanged (next macOS CI run produces the first valid IPA). |
 | 16 · FullPack-class scanner + background removal + weather (session 10) | **DONE** — research proved `.searchActions` does not exist in SwiftUI on any OS; the session-8/9 shim was wrapping a phantom symbol (the exact cause of the Xcode 26.3 `value of type 'Self' has no member 'searchActions'` rejection). **Deleted** `SearchClearActionsModifier.swift` + its two callers (iOS 17 `.searchable()` ships a built-in clear button — UX unchanged). Implemented the FullPack gaps: `CameraService` (`AVCaptureSession` live preview/capture/flip/permission states) + `CameraScannerView` (replaces `PhotoScannerView`, deleted; PhotosPicker import remains as fallback); `SubjectExtractor` (`VNGenerateForegroundInstanceMaskRequest` transparent cutout + thumbnail, graceful fallback); `WeatherProvider` (WeatherKit → Codable/Sendable `WeatherSnapshot`, fail-nil by design for unsigned builds); `DestinationSearchService` (MKLocalSearchCompleter autocomplete + MKLocalSearch coordinate) wired into `NewTripSheet`; `Trip` gains optional `destinationLatitude`/`destinationLongitude`; `TripDetailView` shows live weather + weather-aware suggestions; `RecommendationService.suggestions(for:weather:)` deterministic rules merged with the text engine. 5 new offline `WeatherRecommendationTests`. Required docs added: FULLPACK-CAPABILITY-MATRIX, APPLE-API-CAPABILITY-BIBLE, ARCHITECTURE, BUILD, CI. Changelog 1.0.15 synced web↔wiki. Validation: tsc 0, Vite build 0, bash-n 3:3, js-yaml 3:3, Convex OK, stale refs 0, isolate absent. **Pending: next macOS CI run compiles the new Swift files (Xcode gate for archive + IPA).** |
 | 17 · Outfit recommendations + geocoding fallback (session 11) | **DONE** — `RecommendationService.outfitSuggestions(for:weather:)` generates deterministic outfit ideas from trip context, weather, and packed items (filters out suggestions that reference absent items). `DestinationSearchService.geocode(destination:)` falls back to `CLGeocoder` when the user types a free-text destination without picking a MKLocalSearchCompleter suggestion. 5 new `OutfitRecommendationTests`. FULLPACK-CAPABILITY-MATRIX outfit row updated (DESIGNED → IMPLEMENTED). Changelog 1.0.16 synced web↔wiki. Validation: tsc 0, bash-n 3:3, js-yaml 3:3, Convex OK. **Pending: next macOS CI run validates the new Swift.** |
-| 18 · App Intents + Widgets + CI compile fix (session 12) | **DONE** — CI compile fix: `SubjectExtractor.swift` corrected to use iOS 17 API (`allInstances` IndexSet, `from: handler` parameter). App Intents: `AddInventoryItemIntent`, `MarkPackedIntent`, `CreateTripIntent` + `PackWiseShortcuts` provider. Widgets: `NextTripWidget` (systemSmall/Medium) + `PackingProgressWidget` (systemMedium/Large) via `PackWiseWidget` extension target. App Group container (`group.com.packwise`) for shared SwiftData across app, widgets, and intents — with automatic fallback for unsigned builds. project.yml updated: Widget extension target, App Group entitlements, embedded extension dependency, scheme build/archive. Changelog 1.0.17 synced web↔wiki (18/18). Validation: tsc 0, bash-n 3:3, js-yaml 3:3. **Pending: next macOS CI run validates the compile fix, App Intents, and Widget extension compilation.** | — `RecommendationService.outfitSuggestions(for:weather:)` generates deterministic outfit ideas from trip context, weather, and packed items (filters out suggestions that reference absent items). `DestinationSearchService.geocode(destination:)` falls back to `CLGeocoder` when the user types a free-text destination without picking a MKLocalSearchCompleter suggestion. 5 new `OutfitRecommendationTests`. FULLPACK-CAPABILITY-MATRIX outfit row updated (DESIGNED → IMPLEMENTED). Changelog 1.0.16 synced web↔wiki. Validation: tsc 0, bash-n 3:3, js-yaml 3:3, Convex OK. **Pending: next macOS CI run validates the new Swift.** |
+| 18 · App Intents + Widgets + CI compile fix (session 12) | **DONE** — CI compile fix: `SubjectExtractor.swift` corrected to use iOS 17 API (`allInstances` IndexSet, `from: handler` parameter). App Intents: `AddInventoryItemIntent`, `MarkPackedIntent`, `CreateTripIntent` + `PackWiseShortcuts` provider. Widgets: `NextTripWidget` (systemSmall/Medium) + `PackingProgressWidget` (systemMedium/Large) via `PackWiseWidget` extension target. App Group container (`group.com.packwise`) for shared SwiftData across app, widgets, and intents — with automatic fallback for unsigned builds. project.yml updated: Widget extension target, App Group entitlements, embedded extension dependency, scheme build/archive. Changelog 1.0.17 synced web↔wiki (18/18). Validation: tsc 0, bash-n 3:3, js-yaml 3:3. **Pending: next macOS CI run validates the compile fix, App Intents, and Widget extension compilation.** |
+| 19 · iOS 18 migration + warm design system (session 13) | **DONE** — deployment target 17→18 (Swift 6.0, Xcode 16.0); `DesignTokens.swift` (terracotta/teal/amber palette, serif type, spacing, spring animation tokens, packWiseCard/Chip/SectionHeader modifiers); scanner flash+shutter+transition polish; Dashboard + TripListView redesigned; APPLE-API-CAPABILITY-BIBLE.md + UI-UX-DESIGN-SYSTEM.md added; changelog 1.0.18 synced. Validation: tsc 0, bash-n 3:3, js-yaml 3:3. **Pending: macOS CI on the iOS-18 target.** |
+| 20 · CI caching redesign + XcodeGen spec fix (session 14) | **DONE** — run 31317701450's 0-second XcodeGen failure root-caused: invalid `options.entitlements` key (XcodeGen rejects unknown option keys) + nonstandard sdk: deps on the Widget target; both fixed in project.yml. Workflow redesigned for warm CI: parallel `web-static-validation` job; caches for iOS device platform (Xcode-version keyed, validated, download fallback), XcodeGen (pinned 2.46.0), Bun (lockfile-keyed); DerivedData/SPM intentionally not cached (fresh archive = correctness); `::error::` annotations on the xcodegen step; Gitea mirror updated (dynamic simulator + annotations). Changelog 1.0.19 synced web↔wiki. Validation: tsc 0, bash-n 3:3, js-yaml 4:4. **Pending: next macOS CI run is the authority — xcodegen generate must pass, then iOS-18 Swift compiles, archives, and passes verify-ipa.** | — `RecommendationService.outfitSuggestions(for:weather:)` generates deterministic outfit ideas from trip context, weather, and packed items (filters out suggestions that reference absent items). `DestinationSearchService.geocode(destination:)` falls back to `CLGeocoder` when the user types a free-text destination without picking a MKLocalSearchCompleter suggestion. 5 new `OutfitRecommendationTests`. FULLPACK-CAPABILITY-MATRIX outfit row updated (DESIGNED → IMPLEMENTED). Changelog 1.0.16 synced web↔wiki. Validation: tsc 0, bash-n 3:3, js-yaml 3:3, Convex OK. **Pending: next macOS CI run validates the new Swift.** |
 
 ## 3. Release-blocking items
 
@@ -196,14 +206,14 @@ Rules enforced (from the product specification):
    or build-system improvements identified during final review.
 5. Update this file and FILE-AUDIT.md after every milestone.
 
-## 10. Machine-readable snapshot (2026-08-09, session 12)
+## 10. Machine-readable snapshot (2026-08-09, session 14)
 
 ```json
 {
   "project": "packwise",
-  "session": "2026-08-09-s12",
-  "phase": 18,
-  "verify_sweep": "all green (tsc 0 / bash -n 3:3 / js-yaml 3:3 / changelog 18:18)",
+  "session": "2026-08-09-s14",
+  "phase": 20,
+  "verify_sweep": "all green (tsc 0 / bash -n 3:3 / js-yaml 4:4 / changelog 19:19)",
   "ios_audit": {
     "searchActions_resolution": "DELETED -- API does not exist in SwiftUI on any OS; SearchClearActionsModifier.swift + both callers removed; iOS 17 .searchable() built-in clear button suffices",
     "new_files": ["CameraService.swift", "CameraPreview.swift", "CameraScannerView.swift", "SubjectExtractor.swift", "WeatherProvider.swift", "DestinationSearchService.swift"],
@@ -239,6 +249,19 @@ Rules enforced (from the product specification):
   "web_typecheck": "pass (tsc 0)",
   "workflow_parse": "pass (3/3)",
   "all_docs_surfaces": "synced (web changelog → wiki changelog → EXECUTION-STATE → FILE-AUDIT → README)",
+  "session_14_work": {
+    "ci_root_cause": "run 31317701450 failed at Generate Xcode project in 0s: invalid options.entitlements key in project.yml (XcodeGen rejects unknown option keys) + nonstandard sdk: deps on Widget target — both fixed",
+    "workflow_redesign": {
+      "parallel_jobs": ["web-static-validation (ubuntu: bun+tsc+vite+bash-n+js-yaml)", "build-and-test (macos)"],
+      "caches": {
+        "ios_device_platform": "ios-platform-{os}-{arch}-{Xcode version}; restored via sudo; validated via xcodebuild -showsdks; download fallback",
+        "xcodegen": "xcodegen-{os}-2.46.0 (pinned, tool-cache, version verified every run)",
+        "bun": "bun-{os}-{hash(bun.lock, package.json)}",
+        "deriveddata_spm": "NOT cached (fresh archive = correctness)"
+      },
+      "public_errors": "xcodegen step emits ::error:: annotations; Gitea mirror updated (dynamic simulator + annotations)"
+    }
+  },
   "session_12_work": {
     "ci_compile_fix": "SubjectExtractor.swift: instanceCount→allInstances (IndexSet), generateMaskedImage now passes from: handler",
     "app_intents": ["AddInventoryItemIntent", "MarkPackedIntent", "CreateTripIntent"],
