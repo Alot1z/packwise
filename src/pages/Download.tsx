@@ -83,10 +83,10 @@ export default function Download() {
             <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 flex gap-2.5">
               <AlertTriangle className="size-4 text-amber-700 shrink-0 mt-0.5" aria-hidden />
               <div className="text-xs leading-5 text-amber-900">
-                <span className="font-semibold">Status unavailable — no verified build is currently published.</span> The release
-                manifest could not be fetched (or contains no verified entry), and recent CI runs are failing. The last published{" "}
-                <span className="font-mono">dev</span> build was inspected and rejected: it is missing its main executable and contains
-                injected test bundles — do not sideload it. Until a new build passes the validation gate, use{" "}
+                <span className="font-semibold">Status unavailable — no verified build is currently published.</span> No
+                release with a downloadable IPA was found (or the release metadata could not be fetched), and recent CI runs
+                are failing. The last verified <span className="font-mono">dev</span> build is stale — a fresh one appears
+                once a new build passes the validation gate. Until then, use{" "}
                 <a href="/build" className="font-medium underline underline-offset-4">
                   a local build
                 </a>{" "}

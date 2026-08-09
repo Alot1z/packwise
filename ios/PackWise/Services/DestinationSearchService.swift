@@ -1,5 +1,10 @@
 import Foundation
-import MapKit
+// @preconcurrency: MKLocalSearchCompletion / MKLocalSearchCompleter are not
+// yet Sendable-annotated in the SDK; the preconcurrency import lets these
+// (main-thread-delivered) results cross into the @MainActor Task without
+// Swift 6 "sending" errors. The delegate is called on the main thread, so
+// the transfer is runtime-safe.
+@preconcurrency import MapKit
 import CoreLocation
 import Combine
 

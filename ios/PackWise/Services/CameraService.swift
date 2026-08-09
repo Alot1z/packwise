@@ -53,11 +53,11 @@ final class CameraService: NSObject, ObservableObject {
         super.init()
     }
 
-    deinit {
-        sessionQueue.async { [session] in
-            if session.isRunning { session.stopRunning() }
-        }
-    }
+    // NOTE: no deinit touching `session`/`sessionQueue` — they are
+    // MainActor-isolated stored properties, and Swift 6 forbids accessing
+    // non-Sendable state from a nonisolated deinit. AVCaptureSession stops
+    // capturing automatically when it is deallocated; explicit shutdown is
+    // available via stop().
 
     /// Requests camera permission (if needed) and starts the session.
     func start() async {
@@ -129,8 +129,12 @@ final class CameraService: NSObject, ObservableObject {
             pendingPhoto = continuation
             photoOutput.capturePhoto(with: settings, delegate: delegate)
             delegate.onFinish = { [weak self] result in
-                self?.pendingPhoto = nil
-                self?.activeDelegate = nil
+                // onFinish may fire from a nonisolated context; hop to the
+                // main actor before touching MainActor-isolated state.
+                Task { @MainActor in
+                    self?.pendingPhoto = nil
+                    self?.activeDelegate = nil
+                }
                 continuation.resume(with: result)
             }
         }
