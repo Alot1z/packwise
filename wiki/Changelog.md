@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.0.18 — iOS 18 target, warm design system & scanner polish (2026-08-09)
+
+**iOS 18 minimum, a new visual identity, and a polished scanner.**
+
+- **iOS 18+ deployment target:** bumped from iOS 17 to iOS 18 across all targets (app, widget, tests, UI tests). Swift 5.9 → 6.0, Xcode 15.0 → 16.0. Unlocks modern SwiftUI, SwiftData, and Vision APIs without availability guards.
+- **Warm PackWise design system** (`DesignSystem/DesignTokens.swift`, 240+ lines):
+  - **Color palette:** terracotta primary (`#EB7352`), deep teal secondary (`#266B6B`), golden amber accent (`#E6A633`), warm off-white backgrounds (`#F7F5F0`), warm dark mode surfaces. No generic blue/purple.
+  - **Typography:** serif headings (`.serif` design), default body, monospaced data. All semantic text styles, no fixed sizes.
+  - **Spacing:** xs/sm/md/lg/xl/xxl (4–32pt). Controlled, intentional.
+  - **Animation:** spring-based — fast (0.3s), standard (0.4s), slow (0.5s), bouncy (0.4s low damping).
+  - **Reusable modifiers:** `packWiseCard()` (warm surface + shadow), `packWiseChip()` (colored capsule), `packWiseSectionHeader()` (serif title).
+- **Scanner UX polished:**
+  - Capture: white flash overlay (150ms fade) on shutter press, bouncy spring animation on the shutter button ring.
+  - Transitions: review flow uses opacity + scale animation; Reduce Motion gates on every animation.
+  - Live camera framing guide, "Center the item, then capture" hint, flicker-free camera toggle.
+- **Redesigned Dashboard:**
+  - Warm stat pills (terracotta tint, rounded rect with border stroke).
+  - Card-based upcoming trips with progress rings.
+  - Recommendations section with amber lightbulb icons, packing progress with accent-tinted bars.
+  - Quick action grid (Scanner, Templates, Search, New Trip).
+  - Scroll-based layout replacing the old insetGrouped list.
+- **TripListView themed:** per-status chip colors (planning=info blue, packing=amber, ready=green, archived=grey), PackWise typography, warm warning colors for essentials.
+- **Docs created/updated:**
+  - `docs/APPLE-API-CAPABILITY-BIBLE.md` — 60+ verified API symbols across 12 frameworks, every symbol cross-referenced with Xcode 26.3 verification.
+  - `docs/UI-UX-DESIGN-SYSTEM.md` — full design principles, color palette, typography scale, spacing, component library, motion system, scanner UX flow, accessibility checklist.
+
+**Validation:** web `tsc` 0 · `bash -n` 3/3 scripts · `js-yaml` 3/3 workflows. **Pending:** the next macOS CI run must compile with the new iOS 18 target, Swift 6.0, and the design system import.
+
 ## 1.0.17 — App Intents, Widgets & CI compile fix (2026-08-09)
 
 **Siri shortcuts and home screen widgets arrive — plus the CI compile fix.**

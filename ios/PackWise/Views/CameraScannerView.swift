@@ -10,6 +10,7 @@ import UIKit
 /// to a trip without the user confirming.
 struct CameraScannerView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Trip.updatedAt, order: .reverse) private var trips: [Trip]
 
     @StateObject private var camera = CameraService()
@@ -24,6 +25,8 @@ struct CameraScannerView: View {
     @State private var selectedTripID: UUID?
     @State private var selected: Set<UUID> = []
     @State private var manualName = ""
+    @State private var showFlash = false
+    @State private var animateShutter = false
 
     private let extractor = SubjectExtractor()
 
@@ -32,10 +35,13 @@ struct CameraScannerView: View {
             Group {
                 if let review = reviewImage {
                     reviewFlow(review)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 } else {
                     liveCamera
+                        .transition(.opacity)
                 }
             }
+            .animation(reduceMotion ? nil : PackWiseDesign.Animation.standard, value: reviewImage != nil)
             .navigationTitle("Scanner")
             .toolbar {
                 if reviewImage != nil {
@@ -91,6 +97,15 @@ struct CameraScannerView: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
+
+            // Capture flash overlay
+            if showFlash {
+                Color.white
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
         }
         .overlay(alignment: .top) {
             Text("Center the item, then capture")
@@ -105,7 +120,9 @@ struct CameraScannerView: View {
     private var cameraControls: some View {
         HStack(spacing: 36) {
             Button {
-                camera.flipCamera()
+                withAnimation(PackWiseDesign.Animation.fast) {
+                    camera.flipCamera()
+                }
             } label: {
                 Image(systemName: "arrow.triangle.2.circlepath.camera")
                     .font(.title2)
@@ -114,18 +131,39 @@ struct CameraScannerView: View {
             .tint(.white)
 
             Button {
+                withAnimation(PackWiseDesign.Animation.bouncy) {
+                    animateShutter = true
+                }
                 Task {
                     if let image = try? await camera.capturePhoto() {
+                        withAnimation(PackWiseDesign.Animation.bouncy) {
+                            showFlash = true
+                        }
+                        try? await Task.sleep(nanoseconds: 150_000_000)
+                        withAnimation(PackWiseDesign.Animation.fast) {
+                            showFlash = false
+                            animateShutter = false
+                        }
                         beginReview(with: image)
+                    } else {
+                        withAnimation(PackWiseDesign.Animation.fast) {
+                            animateShutter = false
+                        }
                     }
                 }
             } label: {
                 ZStack {
-                    Circle().strokeBorder(.white, lineWidth: 4).frame(width: 72, height: 72)
+                    Circle()
+                        .strokeBorder(.white, lineWidth: 4)
+                        .frame(width: 72, height: 72)
+                        .scaleEffect(animateShutter ? 0.92 : 1.0)
                     if camera.isCapturing {
                         ProgressView().tint(.white)
                     } else {
-                        Circle().fill(.white).frame(width: 58, height: 58)
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 58, height: 58)
+                            .scaleEffect(animateShutter ? 0.85 : 1.0)
                     }
                 }
             }
