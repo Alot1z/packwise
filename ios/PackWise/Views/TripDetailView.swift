@@ -15,7 +15,7 @@ struct TripDetailView: View {
     @State private var newQty = 1
     @State private var newEssential = false
     @State private var newNotes = ""
-    @State private var selectedIDs: Set<UUID> = []
+    @State private var canvasIDs: [UUID] = []
     @State private var outfitName = ""
     @State private var outfitDay = ""
     @State private var showDeleteConfirm = false
@@ -209,47 +209,86 @@ struct TripDetailView: View {
 
     private var outfitsTab: some View {
         List {
-            Section("Create outfit") {
+            Section {
                 TextField("Outfit name — e.g. Arrival", text: $outfitName)
                     .autocorrectionDisabled()
                 TextField("Day — Monday or Day 2", text: $outfitDay)
                 if trip.items.isEmpty {
                     Text("Add items first, then compose outfits.").font(.caption).foregroundStyle(.secondary)
                 } else {
-                    ForEach(trip.items.sorted(by: { $0.name < $1.name })) { item in
-                        Button {
-                            if selectedIDs.contains(item.id) { selectedIDs.remove(item.id) } else { selectedIDs.insert(item.id) }
-                            #if canImport(UIKit)
-                            UISelectionFeedbackGenerator().selectionChanged()
-                            #endif
-                        } label: {
-                            HStack { Text(item.name).foregroundStyle(.primary); Spacer(); if selectedIDs.contains(item.id) { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).accessibilityHidden(true) } }
+                    // Palette: tap to add, or drag a chip onto the canvas below.
+                    Text("Tap an item to add it, or drag it onto the canvas.").font(.caption).foregroundStyle(.secondary)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(trip.items.sorted(by: { $0.name < $1.name })) { item in
+                                OutfitItemChip(item: item, isSelected: canvasIDs.contains(item.id))
+                                    .draggable(item.id.uuidString)
+                                    .onTapGesture {
+                                        toggleCanvas(item.id)
+                                    }
+                                    .accessibilityAddTraits(canvasIDs.contains(item.id) ? .isSelected : [])
+                                    .accessibilityLabel("\(item.name) — \(canvasIDs.contains(item.id) ? "on canvas" : "not on canvas")")
+                                    .accessibilityHint("Double-tap to add or remove from the outfit")
+                            }
+                        }.padding(.vertical, 4)
+                    }
+                    // Canvas: drag to reorder, drop to insert, x to remove.
+                    if canvasIDs.isEmpty {
+                        Text("No items on the canvas yet.").font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 12)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(canvasIDs, id: \.self) { id in
+                                    if let item = trip.items.first(where: { $0.id == id }) {
+                                        OutfitCanvasChip(item: item) {
+                                            removeFromCanvas(id)
+                                        }
+                                        .draggable(id.uuidString)
+                                        .dropDestination(for: String.self) { dropped, _ in
+                                            guard let first = dropped.first, let uuid = UUID(uuidString: first) else { return }
+                                            canvasIDs = OutfitComposer.moving(uuid, before: id, in: canvasIDs)
+                                        }
+                                    }
+                                }
+                            }.padding(.vertical, 4)
                         }
-                        .accessibilityAddTraits(selectedIDs.contains(item.id) ? .isSelected : [])
-                        .accessibilityLabel("\(item.name) — \(selectedIDs.contains(item.id) ? "selected" : "not selected")")
                     }
                 }
                 Button("Save outfit") {
-                    let o = Outfit(name: outfitName.trimmingCharacters(in: .whitespaces), dayLabel: outfitDay.isEmpty ? nil : outfitDay, itemIDs: Array(selectedIDs), trip: trip)
+                    let o = Outfit(name: outfitName.trimmingCharacters(in: .whitespaces), dayLabel: outfitDay.isEmpty ? nil : outfitDay, itemIDs: canvasIDs, trip: trip)
                     context.insert(o); trip.updatedAt = Date(); try? context.save()
                     #if canImport(UIKit)
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     #endif
-                    outfitName = ""; outfitDay = ""; selectedIDs = []
-                }.disabled(outfitName.trimmingCharacters(in: .whitespaces).isEmpty || selectedIDs.isEmpty)
+                    outfitName = ""; outfitDay = ""; canvasIDs = []
+                }.disabled(outfitName.trimmingCharacters(in: .whitespaces).isEmpty || canvasIDs.isEmpty)
+            } header: {
+                Text("Compose outfit")
             }
             if trip.outfits.isEmpty {
                 Section { Text("No outfits yet. Compose one from your packing list.").font(.caption).foregroundStyle(.secondary) }
             } else {
-                ForEach(trip.outfits) { outfit in
+                ForEach(trip.outfits.sorted { ($0.isFavorite ? 0 : 1, $0.createdAt) < ($1.isFavorite ? 0 : 1, $1.createdAt) }) { outfit in
                     NavigationLink(value: outfit) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(outfit.name).font(.subheadline.weight(.medium))
+                            HStack(spacing: 6) {
+                                if outfit.isFavorite { Image(systemName: "star.fill").foregroundStyle(.yellow).font(.caption2).accessibilityLabel("Favorite") }
+                                Text(outfit.name).font(.subheadline.weight(.medium))
+                            }
                             if let d = outfit.dayLabel { Text(d).font(.caption).foregroundStyle(.secondary) }
                             Text(outfit.itemIDs.compactMap { id in trip.items.first(where: { $0.id == id })?.name }.joined(separator: " · ")).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                         }
                     }
-                    .swipeActions {
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            outfit.isFavorite.toggle(); trip.updatedAt = Date(); try? context.save()
+                            #if canImport(UIKit)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            #endif
+                        } label: { Label(outfit.isFavorite ? "Unfavorite" : "Favorite", systemImage: outfit.isFavorite ? "star.slash" : "star.fill") }
+                        .tint(.yellow)
+                    }
+                    .swipeActions(edge: .trailing) {
                         Button(role: .destructive) { context.delete(outfit); try? context.save() } label: { Label("Delete", systemImage: "trash") }
                     }
                 }
@@ -257,6 +296,24 @@ struct TripDetailView: View {
         }
         .listStyle(.insetGrouped)
         .navigationDestination(for: Outfit.self) { OutfitDetailView(outfit: $0, trip: trip) }
+    }
+
+    private func toggleCanvas(_ id: UUID) {
+        if canvasIDs.contains(id) {
+            canvasIDs = OutfitComposer.removing(id, from: canvasIDs)
+        } else {
+            canvasIDs = OutfitComposer.adding(id, to: canvasIDs)
+        }
+        #if canImport(UIKit)
+        UISelectionFeedbackGenerator().selectionChanged()
+        #endif
+    }
+
+    private func removeFromCanvas(_ id: UUID) {
+        canvasIDs = OutfitComposer.removing(id, from: canvasIDs)
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
     }
 
     private var exportTab: some View {
@@ -336,6 +393,63 @@ private struct ItemRowInline: View {
     }
 }
 
+/// A tappable item chip for the palette (also serves as a drag source).
+private struct OutfitItemChip: View {
+    let item: PackingItem
+    let isSelected: Bool
+    var body: some View {
+        VStack(spacing: 4) {
+            thumbnail
+            Text(item.name).font(.caption2).lineLimit(1).foregroundStyle(.primary)
+        }
+        .frame(width: 64)
+        .padding(6)
+        .background(isSelected ? Color.accentColor.opacity(0.25) : Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+    }
+    @ViewBuilder private var thumbnail: some View {
+        if let data = item.photoData, let ui = UIImage(data: data) {
+            Image(uiImage: ui).resizable().scaledToFill().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            Image(systemName: "tshirt").font(.title2).foregroundStyle(.secondary).frame(width: 44, height: 44).background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+/// A chip on the outfit canvas: drag to reorder, drop to insert before, x to remove.
+private struct OutfitCanvasChip: View {
+    let item: PackingItem
+    let onRemove: () -> Void
+    var body: some View {
+        VStack(spacing: 4) {
+            thumbnail
+            Text(item.name).font(.caption2).lineLimit(1).foregroundStyle(.primary)
+        }
+        .frame(width: 64)
+        .padding(6)
+        .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(alignment: .topTrailing) {
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill").font(.caption).foregroundStyle(.secondary).background(Circle().fill(Color(.systemBackground)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(item.name)")
+            .offset(x: 8, y: -8)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .accessibilityLabel("\(item.name) on canvas")
+        .accessibilityHint("Drag to reorder, double-tap the x to remove")
+    }
+    @ViewBuilder private var thumbnail: some View {
+        if let data = item.photoData, let ui = UIImage(data: data) {
+            Image(uiImage: ui).resizable().scaledToFill().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            Image(systemName: "tshirt").font(.title2).foregroundStyle(.secondary).frame(width: 44, height: 44).background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
 private struct OutfitDetailView: View {
     @Environment(\.modelContext) private var context
     @Bindable var outfit: Outfit
@@ -349,12 +463,33 @@ private struct OutfitDetailView: View {
                     Text("No items in this outfit.").font(.caption).foregroundStyle(.secondary)
                 } else {
                     ForEach(outfit.itemIDs, id: \.self) { id in
-                        if let it = trip.items.first(where: { $0.id == id }) { Label(it.name, systemImage: it.packed ? "checkmark.circle.fill" : "circle") }
-                        else { Text("Missing item").foregroundStyle(.secondary) }
+                        if let it = trip.items.first(where: { $0.id == id }) {
+                            HStack(spacing: 10) {
+                                if let data = it.photoData, let ui = UIImage(data: data) {
+                                    Image(uiImage: ui).resizable().scaledToFill().frame(width: 32, height: 32).clipShape(RoundedRectangle(cornerRadius: 6))
+                                }
+                                Label(it.name, systemImage: it.packed ? "checkmark.circle.fill" : "circle")
+                            }
+                        } else { Text("Missing item").foregroundStyle(.secondary) }
                     }
                 }
             }
             Section("Note") { TextEditor(text: Binding(get: { outfit.note ?? "" }, set: { outfit.note = $0.isEmpty ? nil : $0 })).frame(minHeight: 60).accessibilityLabel("Note") }
-        }.navigationTitle("Outfit").navigationBarTitleDisplayMode(.inline)
+        }
+        .navigationTitle("Outfit").navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    outfit.isFavorite.toggle(); try? context.save()
+                    #if canImport(UIKit)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    #endif
+                } label: {
+                    Image(systemName: outfit.isFavorite ? "star.fill" : "star")
+                }
+                .accessibilityLabel(outfit.isFavorite ? "Remove from favorites" : "Add to favorites")
+                .accessibilityValue(outfit.isFavorite ? "Favorite" : "Not favorite")
+            }
+        }
     }
 }
