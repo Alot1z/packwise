@@ -244,9 +244,12 @@ struct TripDetailView: View {
                                             removeFromCanvas(id)
                                         }
                                         .draggable(id.uuidString)
+                                        // iOS 16-era dropDestination (deprecated in 18, still available):
+                                        // the newer dropDestination(for:isEnabled:action:) is iOS 26+.
                                         .dropDestination(for: String.self) { dropped, _ in
-                                            guard let first = dropped.first, let uuid = UUID(uuidString: first) else { return }
+                                            guard let first = dropped.first, let uuid = UUID(uuidString: first) else { return false }
                                             canvasIDs = OutfitComposer.moving(uuid, before: id, in: canvasIDs)
+                                            return true
                                         }
                                     }
                                 }
