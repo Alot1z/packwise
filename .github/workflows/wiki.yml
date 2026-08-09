@@ -6,6 +6,13 @@ on:
     paths: ["wiki/**", ".github/workflows/wiki.yml", "README.md", "assets/**"]
   workflow_dispatch:
 
+# Without this, GITHUB_TOKEN is read-only: the "Enable wiki" PATCH and the
+# .wiki push both fail silently (and the push step used to swallow the failure
+# with continue-on-error, so the run showed green while the wiki never
+# updated — the exact bug that made the wiki look "stuck").
+permissions:
+  contents: write
+
 jobs:
   sync-wiki:
     runs-on: ubuntu-latest
@@ -33,7 +40,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push wiki/ to Alot1z/packwise.wiki
-        continue-on-error: true
+        # Deliberately NOT continue-on-error: a silent-green wiki is how this
+        # broke before (token was read-only, pushes failed, runs stayed green).
+        # A failed wiki sync now red-flags so it gets fixed instead of ignored.
         run: |
           set -e
           if [ ! -d wiki ]; then echo "No wiki/ dir — nothing to sync"; exit 0; fi

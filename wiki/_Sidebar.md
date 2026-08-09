@@ -5,6 +5,7 @@
 - [Features](Features)
 - [Architecture](Architecture)
 - [Data Models](Data-Models)
+- [Convex Reference](Convex-Reference)
 - [Vision & Privacy](Vision-and-Privacy)
 - [Build & Release](Build-and-Release)
 - [Troubleshooting](Troubleshooting)
