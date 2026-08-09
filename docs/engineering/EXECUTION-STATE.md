@@ -2,13 +2,27 @@
 
 > **Living document.** Update at the end of every session. Per-file audit lives in
 > [`docs/engineering/FILE-AUDIT.md`](FILE-AUDIT.md). Last updated: **2026-08-09**
-> (session 14 — **CI caching redesign & XcodeGen spec fix**: run 31317701450
-> failed at Generate Xcode project in 0s — invalid `options.entitlements` key in
-> project.yml (XcodeGen rejects unknown option keys); fixed, plus removed
-> nonstandard sdk: deps from Widget target. Workflow redesigned for warm CI:
-> parallel web-validation job, XcodeGen + Bun + device-platform caches, ::error::
-> annotations on xcodegen step; Gitea mirror updated; changelog 1.0.19 synced
-> web↔wiki; tsc 0 / bash -n 3:3 / js-yaml 4:4).
+> (session 15 — **Comprehensive CI scan + XcodeGen `excludes` regression fix**:
+> scanned all 17 recent GitHub Actions runs. Latest iOS run **31320480575**
+> (commit `5086af8`) failed at `Generate Xcode project` step 7 — root cause:
+> a one-line regression reintroduced `excludes: [Info.plist]` (a bare filename
+> instead of a glob) in `ios/project.yml` under `PackWiseWidget.sources`.
+> XcodeGen rejects it with `Decoding failed at "path": Nothing found` and
+> dies in 0 seconds. Replaced with the correct glob `["**/Info.plist"]` and
+> added a self-documenting comment so the same regression cannot be
+> reintroduced. **Schema-decoder evidence over js-yaml alone**: actionlint
+> (real GH Actions schema linter, v1.7.7) installed locally and validated all
+> 3 workflow files — all exit 0. Wiki sync consistently SUCCESS across the
+> entire window (6/6 runs); the prior `sync-wiki | exit 128` was a
+> transient `git clone` rate-limit (step has `continue-on-error: true`,
+> correctly non-blocking). Local sweep: tsc 0, bun build 0 (3.87s, all
+> assets hashed), bash -n 3:3, js-yaml 4:4, convex dev --once OK
+> (2.52s), actionlint 3:3, no bare Info.plist in excludes, no functional
+> sdk: deps (only a comment string match). Linux `xcodegen generate` is not
+> reproducible (XcodeGen is a macOS Mach-O binary; `Exec format error`); the
+> macOS CI runner is the authoritative iOS gate. **Pending: next macOS
+> CI run is the authority** — `xcodegen generate` must pass, then the
+> iOS-18 Swift sources compile + test + archive + verify-ipa).
 >
 > (session 12 — **App Intents, Widgets & CI compile fix**: CI compile fix for
 > SubjectExtractor.swift (instanceCount→allInstances, missing from: parameter);
@@ -92,6 +106,7 @@ Rules enforced (from the product specification):
 | 18 · App Intents + Widgets + CI compile fix (session 12) | **DONE** — CI compile fix: `SubjectExtractor.swift` corrected to use iOS 17 API (`allInstances` IndexSet, `from: handler` parameter). App Intents: `AddInventoryItemIntent`, `MarkPackedIntent`, `CreateTripIntent` + `PackWiseShortcuts` provider. Widgets: `NextTripWidget` (systemSmall/Medium) + `PackingProgressWidget` (systemMedium/Large) via `PackWiseWidget` extension target. App Group container (`group.com.packwise`) for shared SwiftData across app, widgets, and intents — with automatic fallback for unsigned builds. project.yml updated: Widget extension target, App Group entitlements, embedded extension dependency, scheme build/archive. Changelog 1.0.17 synced web↔wiki (18/18). Validation: tsc 0, bash-n 3:3, js-yaml 3:3. **Pending: next macOS CI run validates the compile fix, App Intents, and Widget extension compilation.** |
 | 19 · iOS 18 migration + warm design system (session 13) | **DONE** — deployment target 17→18 (Swift 6.0, Xcode 16.0); `DesignTokens.swift` (terracotta/teal/amber palette, serif type, spacing, spring animation tokens, packWiseCard/Chip/SectionHeader modifiers); scanner flash+shutter+transition polish; Dashboard + TripListView redesigned; APPLE-API-CAPABILITY-BIBLE.md + UI-UX-DESIGN-SYSTEM.md added; changelog 1.0.18 synced. Validation: tsc 0, bash-n 3:3, js-yaml 3:3. **Pending: macOS CI on the iOS-18 target.** |
 | 20 · CI caching redesign + XcodeGen spec fix (session 14) | **DONE** — run 31317701450's 0-second XcodeGen failure root-caused: invalid `options.entitlements` key (XcodeGen rejects unknown option keys) + nonstandard sdk: deps on the Widget target; both fixed in project.yml. Workflow redesigned for warm CI: parallel `web-static-validation` job; caches for iOS device platform (Xcode-version keyed, validated, download fallback), XcodeGen (pinned 2.46.0), Bun (lockfile-keyed); DerivedData/SPM intentionally not cached (fresh archive = correctness); `::error::` annotations on the xcodegen step; Gitea mirror updated (dynamic simulator + annotations). Changelog 1.0.19 synced web↔wiki. Validation: tsc 0, bash-n 3:3, js-yaml 4:4. **Pending: next macOS CI run is the authority — xcodegen generate must pass, then iOS-18 Swift compiles, archives, and passes verify-ipa.** | — `RecommendationService.outfitSuggestions(for:weather:)` generates deterministic outfit ideas from trip context, weather, and packed items (filters out suggestions that reference absent items). `DestinationSearchService.geocode(destination:)` falls back to `CLGeocoder` when the user types a free-text destination without picking a MKLocalSearchCompleter suggestion. 5 new `OutfitRecommendationTests`. FULLPACK-CAPABILITY-MATRIX outfit row updated (DESIGNED → IMPLEMENTED). Changelog 1.0.16 synced web↔wiki. Validation: tsc 0, bash-n 3:3, js-yaml 3:3, Convex OK. **Pending: next macOS CI run validates the new Swift.** |
+| 21 · XcodeGen `excludes` regression fix + actionlint baseline (session 15) | **DONE** — comprehensive scan of all 17 recent GitHub Actions runs. Latest iOS run **31320480575** (commit `5086af8`) failed at `Generate Xcode project` step 7 in 0 seconds with `xcodegen generate failed (exit 1): Decoding failed at "path": Nothing found`. Root cause: one-line regression reintroduced `excludes: [Info.plist]` (bare filename instead of a glob) under `PackWiseWidget.sources` in `ios/project.yml` — XcodeGen rejects it. Fixed: replaced with the correct glob `["**/Info.plist"]` and added a permanent `IMPORTANT:` comment explaining why bare filenames fail the spec decoder (so future edits cannot reintroduce). **Schema validator upgrade**: installed real GitHub Actions schema linter [actionlint v1.7.7](https://github.com/rhysd/actionlint); all 3 workflow files now validate against GitHub's actual workflow schema (catch js-yaml cannot); all exit 0. Wiki sync consistently SUCCESS for the entire window (6/6 recent runs); the prior `sync-wiki | exit 128` was a transient `git clone` rate-limit, correctly non-blocking. Local sweep all green: tsc 0, bun build 3.87s, bash-n 3:3, js-yaml 4:4, `bun convex dev --once` 2.52s, no bare Info.plist in excludes, only-comment `sdk:` match (no actual dependency). Linux `xcodegen generate` is unreproducible here (XcodeGen's macOS Mach-O binary: `Exec format error`); the macOS CI runner is the authoritative iOS gate. **Pending: next macOS CI run validates the fix** — `xcodegen generate` must pass, then the iOS-18 Swift sources compile + test + archive + `verify-ipa.sh`. |
 
 ## 3. Release-blocking items
 
