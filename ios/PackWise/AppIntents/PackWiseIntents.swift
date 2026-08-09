@@ -62,11 +62,19 @@ struct AddInventoryItemIntent: AppIntent {
         }
     }
 
+    /// Test seam: inject an in-memory container. Nil in production — `perform`
+    /// falls back to the App Group container.
+    var containerOverride: ModelContainer?
+
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let schema = Schema([PersonalItem.self])
-        let groupConfig = ModelConfiguration(groupContainer: .identifier("group.com.packwise"))
-        guard let container = try? ModelContainer(for: schema, configurations: [groupConfig]) else {
+        let container: ModelContainer
+        if let override = containerOverride {
+            container = override
+        } else if let group = try? ModelContainer(for: schema, configurations: [ModelConfiguration(groupContainer: .identifier("group.com.packwise"))]) {
+            container = group
+        } else {
             return .result(dialog: "Could not access your inventory.")
         }
         let context = container.mainContext
@@ -91,11 +99,19 @@ struct MarkPackedIntent: AppIntent {
         Summary("Mark \(\.$itemName) as packed")
     }
 
+    /// Test seam: inject an in-memory container. Nil in production — `perform`
+    /// falls back to the App Group container.
+    var containerOverride: ModelContainer?
+
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let schema = Schema([PackingItem.self, Trip.self])
-        let groupConfig = ModelConfiguration(groupContainer: .identifier("group.com.packwise"))
-        guard let container = try? ModelContainer(for: schema, configurations: [groupConfig]) else {
+        let container: ModelContainer
+        if let override = containerOverride {
+            container = override
+        } else if let group = try? ModelContainer(for: schema, configurations: [ModelConfiguration(groupContainer: .identifier("group.com.packwise"))]) {
+            container = group
+        } else {
             return .result(dialog: "Could not access your packing list.")
         }
         let context = container.mainContext
@@ -135,11 +151,19 @@ struct CreateTripIntent: AppIntent {
         }
     }
 
+    /// Test seam: inject an in-memory container. Nil in production — `perform`
+    /// falls back to the App Group container.
+    var containerOverride: ModelContainer?
+
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let schema = Schema([Trip.self])
-        let groupConfig = ModelConfiguration(groupContainer: .identifier("group.com.packwise"))
-        guard let container = try? ModelContainer(for: schema, configurations: [groupConfig]) else {
+        let container: ModelContainer
+        if let override = containerOverride {
+            container = override
+        } else if let group = try? ModelContainer(for: schema, configurations: [ModelConfiguration(groupContainer: .identifier("group.com.packwise"))]) {
+            container = group
+        } else {
             return .result(dialog: "Could not create your trip.")
         }
         let context = container.mainContext

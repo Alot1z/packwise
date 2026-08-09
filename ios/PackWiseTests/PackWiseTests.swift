@@ -1,6 +1,8 @@
 import Testing
 import SwiftData
 import Foundation
+import UIKit
+import ImageIO
 @testable import PackWise
 
 @Suite("PackWise — Models & Persistence")
@@ -331,5 +333,100 @@ struct TripActivitySupportTests {
         #expect(TripActivitySupport.countdownLabel(departure: now.addingTimeInterval(45 * 60), now: now) == "45m")
         #expect(TripActivitySupport.countdownLabel(departure: now.addingTimeInterval(30), now: now) == "Now")
         #expect(TripActivitySupport.countdownLabel(departure: now.addingTimeInterval(-60), now: now) == "Departed")
+    }
+}
+
+@Suite("SubjectExtractor — camera pipeline helpers")
+struct SubjectExtractorHelperTests {
+    @Test("orientation maps every UIImage orientation")
+    func orientationMapping() {
+        #expect(SubjectExtractor.cgOrientation(for: .up) == .up)
+        #expect(SubjectExtractor.cgOrientation(for: .down) == .down)
+        #expect(SubjectExtractor.cgOrientation(for: .left) == .left)
+        #expect(SubjectExtractor.cgOrientation(for: .right) == .right)
+        #expect(SubjectExtractor.cgOrientation(for: .upMirrored) == .upMirrored)
+        #expect(SubjectExtractor.cgOrientation(for: .downMirrored) == .downMirrored)
+        #expect(SubjectExtractor.cgOrientation(for: .leftMirrored) == .leftMirrored)
+        #expect(SubjectExtractor.cgOrientation(for: .rightMirrored) == .rightMirrored)
+    }
+
+    @Test("thumbnail downscales large photos to the 240pt cap")
+    func thumbnailScalesDown() {
+        let large = makeImage(width: 1200, height: 800)
+        let thumb = SubjectExtractor.makeThumbnail(of: large)
+        #expect(thumb.size.width <= 240)
+        #expect(thumb.size.height <= 240)
+        // Aspect ratio preserved: 1200:800 = 1.5
+        #expect(abs(thumb.size.width / thumb.size.height - 1.5) < 0.01)
+    }
+
+    @Test("thumbnail leaves small images untouched")
+    func thumbnailKeepsSmall() {
+        let small = makeImage(width: 64, height: 48)
+        let thumb = SubjectExtractor.makeThumbnail(of: small)
+        #expect(thumb.size.width == 64)
+        #expect(thumb.size.height == 48)
+    }
+
+    private func makeImage(width: Int, height: Int) -> CGImage {
+        let ctx = CGContext(
+            data: nil, width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        ctx.setFillColor(CGColor(red: 0.9, green: 0.5, blue: 0.3, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        return ctx.makeImage()!
+    }
+}
+
+@Suite("App Intents layer — behavior with an in-memory store")
+@MainActor
+struct AppIntentsLayerTests {
+    @Test("AddInventoryItemIntent persists name and category")
+    func addItemPersists() async throws {
+        let container = try ModelContainer(for: PersonalItem.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        var intent = AddInventoryItemIntent()
+        intent.itemName = "Linen shirt"
+        intent.categoryName = "Clothing"
+        intent.containerOverride = container
+        _ = try await intent.perform()
+        let fetched = try container.mainContext.fetch(FetchDescriptor<PersonalItem>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.name == "Linen shirt")
+        #expect(fetched.first?.category == "Clothing")
+    }
+
+    @Test("CreateTripIntent persists title, destination, and start date")
+    func createTripPersists() async throws {
+        let container = try ModelContainer(for: Trip.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        var intent = CreateTripIntent()
+        intent.tripTitle = "Kyoto Spring"
+        intent.destination = "Kyoto"
+        intent.startDate = Date(timeIntervalSince1970: 1_800_000_000)
+        intent.containerOverride = container
+        _ = try await intent.perform()
+        let fetched = try container.mainContext.fetch(FetchDescriptor<Trip>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.title == "Kyoto Spring")
+        #expect(fetched.first?.destination == "Kyoto")
+        #expect(fetched.first?.startDate == Date(timeIntervalSince1970: 1_800_000_000))
+    }
+
+    @Test("MarkPackedIntent marks only an unpacked matching item")
+    func markPacked() async throws {
+        let container = try ModelContainer(for: PackingItem.self, Trip.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = container.mainContext
+        ctx.insert(PackingItem(name: "Passport", packed: false))
+        ctx.insert(PackingItem(name: "Passport", packed: true))
+        try ctx.save()
+        var intent = MarkPackedIntent()
+        intent.itemName = "passport"
+        intent.containerOverride = container
+        _ = try await intent.perform()
+        let all = try ctx.fetch(FetchDescriptor<PackingItem>())
+        #expect(all.count == 2)
+        #expect(all.filter(\.packed).count == 2)
     }
 }
