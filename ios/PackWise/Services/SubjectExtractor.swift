@@ -38,24 +38,25 @@ final class SubjectExtractor {
         }
     }
 
-    private let context = CIContext(options: [.useSoftwareRenderer: false])
-
     /// Extracts the foreground subject. Runs the Vision request off the main actor
-    /// (the mask rendering can take a moment on large photos).
+    /// (the mask rendering can take a moment on large photos). Only Sendable
+    /// values (`CGImage`, orientation, scale) cross into the detached task — the
+    /// `CIContext` is created inside it — so the `sending` closure stays legal on
+    /// iOS 18 SDKs.
     func extract(from image: UIImage) async throws -> Extraction {
-        let context = self.context
+        guard let cgImage = image.cgImage else { throw ExtractionError.noImage }
+        let orientation = Self.cgOrientation(for: image.imageOrientation)
+        let scale = image.scale
         return try await Task.detached(priority: .userInitiated) {
-            try Self.extractSync(from: image, context: context)
+            try Self.extractSync(cgImage: cgImage, orientation: orientation, scale: scale)
         }.value
     }
 
-    private nonisolated static func extractSync(from image: UIImage, context: CIContext) throws -> Extraction {
-        guard let cg = image.cgImage else { throw ExtractionError.noImage }
-
+    private nonisolated static func extractSync(cgImage: CGImage, orientation: CGImagePropertyOrientation, scale: CGFloat) throws -> Extraction {
         // Vision expects the photo's stored orientation — a raw `.up` would flip
         // portrait captures. Same mapping as VisionService.
         let request = VNGenerateForegroundInstanceMaskRequest()
-        let handler = VNImageRequestHandler(cgImage: cg, orientation: Self.cgOrientation(for: image.imageOrientation), options: [:])
+        let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
         try handler.perform([request])
 
         guard let observation = request.results?.first else { throw ExtractionError.noSubject }
@@ -71,13 +72,14 @@ final class SubjectExtractor {
             croppedToInstancesExtent: false
         )
 
+        let context = CIContext(options: [.useSoftwareRenderer: false])
         let maskImage = CIImage(cvPixelBuffer: maskBuffer)
         let extent = maskImage.extent
         guard let rendered = context.createCGImage(maskImage, from: extent) else {
             throw ExtractionError.renderingFailed
         }
 
-        let isolated = UIImage(cgImage: rendered, scale: image.scale, orientation: .up)
+        let isolated = UIImage(cgImage: rendered, scale: scale, orientation: .up)
         let thumbnail = Self.makeThumbnail(of: rendered)
 
         return Extraction(isolatedImage: isolated, thumbnail: thumbnail, confidence: observation.confidence)
