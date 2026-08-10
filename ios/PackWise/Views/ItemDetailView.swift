@@ -10,7 +10,12 @@ struct ItemDetailView: View {
     @State private var showDeleteConfirm = false
 
     var body: some View {
-        Form {
+        // Hoisted out of the PhotosPicker label closure: that closure is
+        // @Sendable on iOS 18 SDKs, so referencing the MainActor `item`
+        // inside it is a Swift 6 violation there (newer SDKs inherit the
+        // actor context, which is why this shipped silently).
+        let photoLabel = item.photoData == nil ? "Add photo" : "Change photo"
+        return Form {
             Section {
                 if let data = item.photoData, let ui = UIImage(data: data) {
                     Image(uiImage: ui).resizable().scaledToFit().frame(maxHeight: 220).clipShape(RoundedRectangle(cornerRadius: 12))
@@ -23,7 +28,7 @@ struct ItemDetailView: View {
                     }
                 }
                 PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Label(item.photoData == nil ? "Add photo" : "Change photo", systemImage: "photo")
+                    Label(photoLabel, systemImage: "photo")
                 }
             }
 

@@ -81,10 +81,15 @@ final class CameraService: NSObject, ObservableObject {
         status = .starting
         sessionQueue.async { [weak self] in
             guard let self else { return }
-            self.configureSession(position: self.cameraPosition)
-            self.session.startRunning()
-            let running = self.session.isRunning
+            // Hop onto the main actor: `DispatchQueue.async` closures are
+            // @Sendable (nonisolated) on iOS 18 SDKs but inherit the actor
+            // context on newer SDKs — reaching into MainActor state directly
+            // is a Swift 6 violation on the older SDK, so ALL session work
+            // goes through an explicit @MainActor task.
             Task { @MainActor in
+                self.configureSession(position: self.cameraPosition)
+                self.session.startRunning()
+                let running = self.session.isRunning
                 self.status = running ? .running : .failed("Could not start the camera session.")
             }
         }
@@ -93,7 +98,9 @@ final class CameraService: NSObject, ObservableObject {
     func stop() {
         sessionQueue.async { [weak self] in
             guard let self else { return }
-            if self.session.isRunning { self.session.stopRunning() }
+            Task { @MainActor in
+                if self.session.isRunning { self.session.stopRunning() }
+            }
         }
     }
 
@@ -103,8 +110,10 @@ final class CameraService: NSObject, ObservableObject {
         cameraPosition = next
         sessionQueue.async { [weak self] in
             guard let self else { return }
-            self.configureSession(position: next)
-            if !self.session.isRunning { self.session.startRunning() }
+            Task { @MainActor in
+                self.configureSession(position: next)
+                if !self.session.isRunning { self.session.startRunning() }
+            }
         }
     }
 
