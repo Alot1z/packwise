@@ -1,5 +1,10 @@
 import XCTest
 
+// XCUIApplication/XCUIElement are MainActor-isolated in the iOS 18 SDK
+// (XCTest annotates them @MainActor), so the whole class must be @MainActor
+// to compile against it — newer SDKs default differently, which is why this
+// shipped silently. XCTest runs UI test methods on the main actor.
+@MainActor
 final class PackWiseUITests: XCTestCase {
 
     /// Launches the app and, on a fresh install, completes the onboarding
