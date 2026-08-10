@@ -1,9 +1,9 @@
 import Foundation
 // @preconcurrency: MKLocalSearchCompletion / MKLocalSearchCompleter are not
-// yet Sendable-annotated in the SDK; the preconcurrency import lets these
-// (main-thread-delivered) results cross into the @MainActor Task without
-// Swift 6 "sending" errors. The delegate is called on the main thread, so
-// the transfer is runtime-safe.
+// yet Sendable-annotated in the iOS 18 SDK. The import relaxes direct-use
+// diagnostics, but an Array of completions still cannot cross into a
+// @MainActor Task — see the CompletionBatch box below. The delegate is
+// called on the main thread, so the transfer is runtime-safe.
 @preconcurrency import MapKit
 import CoreLocation
 import Combine
@@ -84,16 +84,23 @@ final class DestinationSearchService: NSObject, ObservableObject {
 
 // MARK: - MKLocalSearchCompleterDelegate
 
+/// `MKLocalSearchCompletion` is not Sendable on the iOS 18 SDK (and the
+/// `@preconcurrency` import does not extend through `Array` composition), so
+/// results can't cross into the @MainActor Task directly. The box carries
+/// them; the delegate runs on the main thread, making the transfer safe.
+private struct CompletionBatch: @unchecked Sendable {
+    let items: [MKLocalSearchCompletion]
+}
+
 extension DestinationSearchService: MKLocalSearchCompleterDelegate {
-    // The delegate is called on the main thread, so the transfer is runtime-
-    // safe; `self` must be captured WEAKLY — sending the MainActor-isolated
-    // instance strongly from a nonisolated context into the @MainActor Task
-    // is a Swift 6 violation on iOS 18 SDKs (newer SDKs allow it).
+    // `self` is captured WEAKLY — sending the MainActor-isolated instance
+    // strongly from a nonisolated context into the @MainActor Task is a
+    // Swift 6 violation on iOS 18 SDKs (newer SDKs allow it).
     nonisolated func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
-        let results = Array(completer.results.prefix(6))
+        let batch = CompletionBatch(items: Array(completer.results.prefix(6)))
         Task { @MainActor [weak self] in
-            self?.suggestions = results
-            self?.isSearching = !results.isEmpty
+            self?.suggestions = batch.items
+            self?.isSearching = !batch.items.isEmpty
         }
     }
 
