@@ -168,19 +168,21 @@ jobs:
               exit 0
             fi
           fi
-          # Resolve an actual simulator DEVICE UDID. A device NAME can exist
-          # in simctl even with no usable runtime-backed device (xcodebuild
-          # then fails with "Unable to find a destination"), so list devices
-          # and take the first available iPhone UDID; if the runtime exists
-          # but no device is materialized yet, create one.
+          # Resolve an actual simulator DEVICE UDID by CREATING a fresh device
+          # on the newest available runtime. Pre-existing device rows on the
+          # runner images are often unbacked phantoms (they list in simctl but
+          # xcodebuild reports "Unable to find a destination" for them), so
+          # reuse an existing UDID only as a fallback when creation fails.
           SIM_DEST=""
-          DEV_UDID=$(xcrun simctl list devices available 2>/dev/null | grep -m1 'iPhone' | grep -oE '[0-9A-F-]{36}' | head -1)
+          DEV_UDID=""
+          DEV_TYPE=$(xcrun simctl list devicetypes 2>/dev/null | grep -m1 'iPhone' | grep -oE 'com\.apple\.CoreSimulator\.SimDeviceType\.iPhone-[0-9A-Za-z-]+' | head -1)
+          RUNTIME_ID=$(xcrun simctl list runtimes available 2>/dev/null | grep -m1 'iOS' | grep -oE 'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+' | head -1)
+          if [ -n "$DEV_TYPE" ] && [ -n "$RUNTIME_ID" ]; then
+            DEV_UDID=$(xcrun simctl create "PackWise Test iPhone" "$DEV_TYPE" "$RUNTIME_ID" 2>/dev/null || true)
+            echo "→ created fresh simulator device: ${DEV_UDID:-failed}"
+          fi
           if [ -z "$DEV_UDID" ]; then
-            DEV_TYPE=$(xcrun simctl list devicetypes 2>/dev/null | grep -m1 'iPhone' | grep -oE 'com\.apple\.CoreSimulator\.SimDeviceType\.iPhone-[0-9A-Za-z-]+' | head -1)
-            RUNTIME_ID=$(xcrun simctl list runtimes available 2>/dev/null | grep -m1 'iOS' | grep -oE 'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+' | head -1)
-            if [ -n "$DEV_TYPE" ] && [ -n "$RUNTIME_ID" ]; then
-              DEV_UDID=$(xcrun simctl create "PackWise Test iPhone" "$DEV_TYPE" "$RUNTIME_ID" 2>/dev/null || true)
-            fi
+            DEV_UDID=$(xcrun simctl list devices available 2>/dev/null | grep -m1 'iPhone' | grep -oE '[0-9A-F-]{36}' | head -1)
           fi
           if [ -z "$DEV_UDID" ]; then
             echo "TESTS_SKIPPED=1" >> "$GITHUB_ENV"
