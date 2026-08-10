@@ -1,5 +1,10 @@
 import Foundation
-import UserNotifications
+// `UNNotificationRequest` is not Sendable in the iOS 18 SDK (it is in newer
+// SDKs), so awaiting `pendingNotificationRequests()` from a @MainActor context
+// is a Swift 6 strict violation when building against the iOS 18 SDK. The
+// @preconcurrency import relaxes concurrency diagnostics for this module's
+// still-non-Sendable API — the same code stays valid on newer SDKs.
+@preconcurrency import UserNotifications
 
 @MainActor
 final class NotificationService: ObservableObject {
