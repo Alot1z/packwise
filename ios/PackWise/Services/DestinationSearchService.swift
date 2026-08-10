@@ -91,14 +91,14 @@ extension DestinationSearchService: MKLocalSearchCompleterDelegate {
     // is a Swift 6 violation on iOS 18 SDKs (newer SDKs allow it).
     nonisolated func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
         let results = Array(completer.results.prefix(6))
-        Task { [weak self] @MainActor in
+        Task { @MainActor [weak self] in
             self?.suggestions = results
             self?.isSearching = !results.isEmpty
         }
     }
 
     nonisolated func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-        Task { [weak self] @MainActor in
+        Task { @MainActor [weak self] in
             self?.suggestions = []
             self?.isSearching = false
         }
