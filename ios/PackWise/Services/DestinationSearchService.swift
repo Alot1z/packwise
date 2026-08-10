@@ -85,18 +85,22 @@ final class DestinationSearchService: NSObject, ObservableObject {
 // MARK: - MKLocalSearchCompleterDelegate
 
 extension DestinationSearchService: MKLocalSearchCompleterDelegate {
+    // The delegate is called on the main thread, so the transfer is runtime-
+    // safe; `self` must be captured WEAKLY — sending the MainActor-isolated
+    // instance strongly from a nonisolated context into the @MainActor Task
+    // is a Swift 6 violation on iOS 18 SDKs (newer SDKs allow it).
     nonisolated func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
         let results = Array(completer.results.prefix(6))
-        Task { @MainActor in
-            self.suggestions = results
-            self.isSearching = !results.isEmpty
+        Task { [weak self] @MainActor in
+            self?.suggestions = results
+            self?.isSearching = !results.isEmpty
         }
     }
 
     nonisolated func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-        Task { @MainActor in
-            self.suggestions = []
-            self.isSearching = false
+        Task { [weak self] @MainActor in
+            self?.suggestions = []
+            self?.isSearching = false
         }
     }
 }
